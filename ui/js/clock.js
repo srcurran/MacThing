@@ -7,7 +7,7 @@
   var screen = CT.screen('clock');
   var root = screen.el;
   var el = {
-    day: $('cDay'), time: $('cTime'), ampm: $('cAmpm'), date: $('cDate'), next: $('cNext'),
+    day: $('cDay'), date: $('cDate'), month: $('cMonth'), year: $('cYear'), next: $('cNext'),
     hour: $('cHour'), minute: $('cMinute'), second: $('cSecond'),
     digital: $('cDigital'), digitalSec: $('cDigitalSec')
   };
@@ -60,10 +60,11 @@
     rotate(el.minute, minutes * 6);
     rotate(el.second, p.seconds * 6);
 
+    // The face shows the time; the panel shows the date, calendar-style.
     setText(el.day, CT.DAYS[p.day]);
-    setText(el.time, c.time);
-    setText(el.ampm, c.ampm);
-    setText(el.date, CT.MONTHS[p.month] + ' ' + p.date + ', ' + p.year);
+    setText(el.date, String(p.date));
+    setText(el.month, CT.MONTHS[p.month]);
+    setText(el.year, String(p.year));
     setText(el.digital, c.time);
     setText(el.digitalSec, (p.seconds < 10 ? '0' : '') + p.seconds);
 

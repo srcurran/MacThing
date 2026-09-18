@@ -6,7 +6,7 @@
   var setText = CT.setText;
   var screen = CT.screen('calendar');
   var el = {
-    weekday: $('kWeekday'), day: $('kDay'), month: $('kMonth'), summary: $('kSummary'),
+    weekday: $('kWeekday'), clock: $('kClock'), time: $('kTime'), ampm: $('kAmpm'), date: $('kDate'), summary: $('kSummary'),
     list: $('kList'), message: $('kMessage')
   };
   var data = { status: 'loading' };
@@ -38,13 +38,26 @@
     return CT.DAYS[p.day] + ', ' + CT.MONTHS[p.month].slice(0, 3) + ' ' + p.date;
   }
 
+  // Big clock at the weather-temperature size; steps down only if "12:59 PM" wouldn't fit.
+  function renderClock(p) {
+    var c = CT.clockText(p);
+    if (el.time.textContent === c.time && el.ampm.textContent === c.ampm) return;
+    setText(el.time, c.time);
+    setText(el.ampm, c.ampm);
+    el.clock.style.fontSize = '';
+    for (var size = 112; el.clock.scrollWidth > el.clock.clientWidth && size > 72; ) {
+      size -= 8;
+      el.clock.style.fontSize = size + 'px';
+    }
+  }
+
   function render() {
     var now = CT.now();
     var p = CT.parts(now);
     var today = CT.dayNumber(now);
     setText(el.weekday, CT.DAYS[p.day]);
-    setText(el.day, String(p.date));
-    setText(el.month, CT.MONTHS[p.month]);
+    setText(el.date, CT.MONTHS[p.month] + ' ' + p.date);
+    renderClock(p);
 
     if (data.status !== 'ok') {
       el.list.innerHTML = '';

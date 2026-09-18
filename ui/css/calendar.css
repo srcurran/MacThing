@@ -1,9 +1,13 @@
 /* Calendar */
 
 .k-weekday { font-size: 20px; line-height: 24px; font-weight: 700; }
-.k-day { margin: 6px 0 0 -6px; font-size: 136px; line-height: 1.05; font-weight: 600; letter-spacing: -0.06em; color: var(--red); }
-.k-month { margin-top: 2px; font-size: 32px; line-height: 39px; font-weight: 600; }
+.k-clock { overflow: hidden; }
+.k-ampm { margin-left: 10px; font-size: 32px; letter-spacing: 0; color: var(--muted); }
+.k-date { margin-top: 2px; font-size: 32px; line-height: 39px; font-weight: 600; }
 .k-summary { font-weight: 300; color: var(--muted); }
+
+/* One continuous background; whitespace separates the panel from the agenda. */
+#screen-calendar .stage { background: var(--panel); }
 
 .k-list { position: absolute; left: 32px; right: 32px; top: 26px; bottom: 26px; overflow: hidden; }
 .k-group {

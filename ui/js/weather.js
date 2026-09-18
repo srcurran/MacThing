@@ -8,7 +8,7 @@
   var root = screen.el;
   var el = {
     place: $('wPlace'), temp: $('wTemp'), cond: $('wCond'), condIcon: $('wCondIcon'), sub: $('wSub'),
-    updated: $('wUpdated'), stage: $('wStage'), hourly: $('wHourly'), daily: $('wDaily'), message: $('wMessage')
+    updated: $('wUpdated'), hourly: $('wHourly'), daily: $('wDaily'), message: $('wMessage')
   };
   var data = { status: 'loading' };
 
@@ -23,17 +23,11 @@
     80: ['rain', 'Showers'], 81: ['rain', 'Showers'], 82: ['rain', 'Heavy showers'], 85: ['snow', 'Snow showers'], 86: ['snow', 'Snow showers'],
     95: ['thunder', 'Thunderstorms'], 96: ['thunder', 'Thunderstorms'], 99: ['thunder', 'Thunderstorms']
   };
-  var SKY = { drizzle: 'rain', thunder: 'storm' };
-
   function describe(code, isDay) {
     var c = CODES[code] || ['cloudy', 'Cloudy'];
     var kind = c[0];
     var dayNight = kind === 'clear' || kind === 'partly' ? kind + '-' + (isDay ? 'day' : 'night') : null;
-    return {
-      icon: '#w-' + (dayNight || kind),
-      sky: dayNight || SKY[kind] || kind,
-      label: (isDay && c[2]) || c[1]
-    };
+    return { icon: '#w-' + (dayNight || kind), label: (isDay && c[2]) || c[1] };
   }
 
   function icon(code, isDay) {
@@ -58,7 +52,6 @@
       el.condIcon.setAttribute('href', '');
       setText(el.sub, '');
       setText(el.updated, '');
-      el.stage.removeAttribute('data-sky');
       if (data.status === 'noLocation') {
         showMessage(
           data.reason === 'denied' || data.reason === 'restricted' ? 'Location access is off' : 'Can’t find your location',
@@ -81,7 +74,6 @@
     setText(el.cond, now.label);
     setText(el.sub, 'Feels like ' + data.current.feels + '°\nH ' + data.today.hi + '°  L ' + data.today.lo + '°');
     setText(el.updated, 'Updated ' + CT.timeText(data.updatedAt));
-    el.stage.setAttribute('data-sky', now.sky);
 
     el.hourly.innerHTML = data.hourly.map(function (h, i) {
       if (i === 0) h = { temp: data.current.temp, code: data.current.code, isDay: data.current.isDay, pop: h.pop }; // "Now" matches the big number

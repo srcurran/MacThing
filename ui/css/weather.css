@@ -4,44 +4,34 @@
   font-size: 20px; line-height: 24px; font-weight: 700;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.w-temp { margin: 8px 0 0 -5px; font-size: 112px; line-height: 1.05; font-weight: 600; letter-spacing: -0.055em; }
 .w-cond { margin-top: 12px; display: flex; align-items: center; font-size: 32px; line-height: 39px; font-weight: 600; }
 .w-cond-icon { width: 42px; height: 42px; flex: none; margin: 0 10px 0 -3px; }
 .w-sub { margin-top: 16px; font-size: 20px; line-height: 28px; font-weight: 300; color: var(--muted); white-space: pre-line; }
 .w-updated { font-weight: 300; color: var(--muted); }
 
-.w-stage { transition: background 0.6s ease; }
-.w-stage[data-sky] { color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.18); }
-.w-stage[data-sky="clear-day"] { background: linear-gradient(#2c6fb8, #5ea4e0); }
-.w-stage[data-sky="clear-night"] { background: linear-gradient(#0b1630, #243860); }
-.w-stage[data-sky="partly-day"] { background: linear-gradient(#3b6f9e, #7aa3c8); }
-.w-stage[data-sky="partly-night"] { background: linear-gradient(#141d33, #34425e); }
-.w-stage[data-sky="cloudy"] { background: linear-gradient(#4b5563, #7b8594); }
-.w-stage[data-sky="fog"] { background: linear-gradient(#5d6570, #8e969f); }
-.w-stage[data-sky="rain"] { background: linear-gradient(#2e3d4f, #53667a); }
-.w-stage[data-sky="snow"] { background: linear-gradient(#56687f, #8ea1b6); }
-.w-stage[data-sky="storm"] { background: linear-gradient(#242636, #4a4d66); }
+/* One continuous background; whitespace separates the panel from the forecast. */
+.w-stage { background: var(--panel); }
 
 .w-hourly { position: absolute; left: 24px; right: 24px; top: 26px; display: flex; justify-content: space-between; }
 .w-hour { width: 68px; text-align: center; }
-.w-hour-t { font-size: 18px; line-height: 22px; font-weight: 600; color: rgba(255, 255, 255, 0.85); }
+.w-hour-t { font-size: 18px; line-height: 22px; font-weight: 600; color: var(--text-2); }
 .w-hour svg { display: block; width: 44px; height: 44px; margin: 8px auto 4px; }
 .w-hour-temp { font-size: 24px; line-height: 29px; font-weight: 600; }
-.w-pop { font-size: 15px; line-height: 18px; font-weight: 600; color: #a8dcff; }
+.w-pop { font-size: 15px; line-height: 18px; font-weight: 600; color: var(--rain); }
 .w-pop:empty::before { content: '\00a0'; }
 
 .w-daily {
   position: absolute; left: 32px; right: 32px; top: 196px;
-  border-top: 1px solid rgba(255, 255, 255, 0.22); padding-top: 6px;
+  border-top: 1px solid var(--line); padding-top: 6px;
 }
 .w-day { height: 52px; display: flex; align-items: center; }
 .w-day-name { width: 84px; flex: none; font-size: 20px; font-weight: 600; }
 .w-day svg { width: 32px; height: 32px; flex: none; }
 .w-day .w-pop { width: 48px; flex: none; margin-left: 6px; }
 .w-lo, .w-hi { width: 44px; flex: none; text-align: right; font-size: 20px; font-variant-numeric: tabular-nums; }
-.w-lo { font-weight: 400; color: rgba(255, 255, 255, 0.65); }
+.w-lo { font-weight: 400; color: var(--muted); }
 .w-hi { font-weight: 600; }
-.w-range { position: relative; flex: 1; height: 5px; margin: 0 12px; border-radius: 3px; background: rgba(255, 255, 255, 0.22); }
+.w-range { position: relative; flex: 1; height: 5px; margin: 0 12px; border-radius: 3px; background: var(--line); }
 .w-range i { position: absolute; top: 0; bottom: 0; border-radius: 3px; background: linear-gradient(90deg, #8fd0ff, #ffd35c); }
 
 .w-empty .w-hourly, .w-empty .w-daily { display: none; }

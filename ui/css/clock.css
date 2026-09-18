@@ -1,11 +1,14 @@
 /* Clock. Face style is a class on #screen-clock: analog | numbers | digital. */
 
 .c-day { font-size: 20px; line-height: 24px; font-weight: 700; }
-.c-time { margin-top: 14px; font-size: 64px; line-height: 1.05; font-weight: 600; letter-spacing: -0.045em; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.c-ampm { margin-left: 8px; font-size: 26px; font-weight: 600; letter-spacing: -0.01em; color: var(--muted); }
-.c-date { margin-top: 16px; font-size: 20px; line-height: 24px; font-weight: 300; }
+.c-daynum { color: var(--red); }
+.c-month { margin-top: 2px; font-size: 32px; line-height: 39px; font-weight: 600; }
+.c-year { margin-top: 16px; font-size: 20px; line-height: 24px; font-weight: 300; }
 .c-next { font-weight: 300; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
 .c-next b { color: var(--text); font-weight: 600; }
+
+/* One continuous background; whitespace separates the panel from the dial. */
+#screen-clock .stage { background: var(--panel); }
 
 .c-face { position: absolute; left: 20px; top: 20px; width: 440px; height: 440px; }
 .c-dial, .c-pin { fill: var(--dial); }
@@ -25,5 +28,3 @@
 .c-digital-sec { margin-left: 10px; font-size: 44px; font-weight: 600; letter-spacing: -0.02em; color: var(--red); }
 .digital .c-face { display: none; }
 .digital .c-digital { display: flex; }
-.digital .c-time { display: none; }
-.digital .c-date { margin-top: 8px; }
