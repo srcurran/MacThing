@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Car Thing bridge: macOS Now Playing + volume ⇄ the Car Thing's screen, knob and buttons.
+// Car Thing bridge: macOS Now Playing, volume, weather and calendar ⇄ the Car Thing's screen,
+// knob and buttons. Also serves the Mac-side settings page.
 //   npm start          run the bridge
 //   npm run dev        …and redeploy the device UI whenever ui/ changes
 
@@ -13,11 +14,21 @@ import { log } from './log.js';
 import { AppInfo, kindOf } from './nowplaying/apps.js';
 import { ArtworkCache } from './nowplaying/artwork.js';
 import { MediaRemoteSource } from './nowplaying/mediaremote.js';
+import { MacAppearance } from './mac/appearance.js';
+import { MacHelper } from './mac/helper.js';
+import { settings } from './settings.js';
+import { startSettingsPage } from './settings-page/server.js';
+import { Calendar } from './widgets/calendar.js';
+import { Weather } from './widgets/weather.js';
 
 const source = new MediaRemoteSource(paths.bin);
 const volume = new Volume(paths.bin);
 const apps = new AppInfo(paths.bin);
 const artwork = new ArtworkCache();
+const helper = new MacHelper(paths.bin);
+const weather = new Weather(helper, settings);
+const calendar = new Calendar(helper);
+const appearance = new MacAppearance();
 
 /** @type {DeviceLink|null} */
 let link = null;
@@ -96,14 +107,33 @@ function pushAll(target) {
     type: 'config',
     config: {
       buttons: config.buttons,
+      knobClicks: config.knobClicks,
+      multiClickMs: config.multiClickMs,
       volumeStep: config.volumeStep,
       knobDirection: config.knobDirection,
       debug: Boolean(process.env.DEBUG), // page reports raw key/wheel events to the log
     },
   });
   target.send(tickMessage());
+  target.send({ type: 'settings', settings: settings.get() });
+  target.send({ type: 'appearance', dark: appearance.dark });
   if (volume.state) target.send({ type: 'volume', volume: volume.state });
   pushNowPlaying(target);
+  target.send({ type: 'weather', weather: weather.state });
+  target.send({ type: 'calendar', calendar: calendar.state });
+}
+
+async function macStatus() {
+  const s = await helper.status().catch(() => ({}));
+  return {
+    location: { status: s.location || 'unknown', name: weather.auto?.name || null },
+    calendar: { status: s.calendar || 'unknown' },
+  };
+}
+
+function openSettingsPage(section) {
+  const hash = /^[a-z]+$/.test(section || '') ? `#${section}` : '';
+  execFile('/usr/bin/open', [`http://127.0.0.1:${config.settingsPort}/${hash}`]);
 }
 
 // ---- Input from the device ------------------------------------------------
@@ -154,6 +184,10 @@ function onDeviceMessage(msg) {
       return runCommand(msg.action);
     case 'volume':
       return changeVolume(Number(msg.delta));
+    case 'setting':
+      return settings.update({ [msg.key]: msg.value });
+    case 'openSettingsPage':
+      return openSettingsPage(msg.section);
     case 'log':
       return log.info('[device]', msg.message);
   }
@@ -214,8 +248,17 @@ volume.on('change', (v) => {
   checkKeyAccess(v);
   link?.send({ type: 'volume', volume: v });
 });
+settings.on('change', (values) => link?.send({ type: 'settings', settings: values }));
+weather.on('change', (state) => link?.send({ type: 'weather', weather: state }));
+calendar.on('change', (state) => link?.send({ type: 'calendar', calendar: state }));
+appearance.on('change', (dark) => link?.send({ type: 'appearance', dark }));
 source.start();
 volume.start();
+helper.start();
+weather.start();
+calendar.start();
+appearance.start();
+startSettingsPage({ port: config.settingsPort, settings, status: macStatus });
 
 trackDevices(debounce(refreshDevices, 400));
 refreshDevices();
@@ -234,6 +277,7 @@ function shutdown() {
   link?.send({ type: 'bye' });
   source.stop();
   volume.stop();
+  helper.stop();
   setTimeout(() => process.exit(0), 300);
 }
 process.on('SIGINT', shutdown);

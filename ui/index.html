@@ -3,49 +3,141 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=800,height=480,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Now Playing</title>
-<link rel="stylesheet" href="style.css">
+<title>Car Thing</title>
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/nowplaying.css">
+<link rel="stylesheet" href="css/weather.css">
+<link rel="stylesheet" href="css/clock.css">
+<link rel="stylesheet" href="css/calendar.css">
+<link rel="stylesheet" href="css/settings.css">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute">
+  <!-- UI glyphs (24×24, currentColor) -->
   <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z"/></symbol>
   <symbol id="i-pause" viewBox="0 0 24 24"><rect x="5" y="4" width="5" height="16" rx="1.2"/><rect x="14" y="4" width="5" height="16" rx="1.2"/></symbol>
   <symbol id="i-next" viewBox="0 0 24 24"><path d="M3 6.2v11.6a.8.8 0 0 0 1.25.66L12 13.2v4.6a.8.8 0 0 0 1.25.66l8.4-5.8a.8.8 0 0 0 0-1.32l-8.4-5.8A.8.8 0 0 0 12 6.2v4.6L4.25 5.54A.8.8 0 0 0 3 6.2z"/></symbol>
   <symbol id="i-previous" viewBox="0 0 24 24"><path d="M21 6.2v11.6a.8.8 0 0 1-1.25.66L12 13.2v4.6a.8.8 0 0 1-1.25.66l-8.4-5.8a.8.8 0 0 1 0-1.32l8.4-5.8A.8.8 0 0 1 12 6.2v4.6l7.75-5.26A.8.8 0 0 1 21 6.2z"/></symbol>
   <symbol id="i-speaker" viewBox="0 0 24 24"><path d="M4 9h3.5L12 5v14l-4.5-4H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
   <symbol id="i-muted" viewBox="0 0 24 24"><path d="M4 9h3.5L12 5v14l-4.5-4H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1z"/><path d="M16 9.5l5 5M21 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+
+  <!-- Weather icons (64×64, full colour) -->
+  <symbol id="w-cloud-shape" viewBox="0 0 64 64"><circle cx="24" cy="40" r="10"/><circle cx="36" cy="33" r="13"/><circle cx="47" cy="41" r="9"/><rect x="24" y="40" width="23" height="10"/></symbol>
+  <symbol id="w-sun-shape" viewBox="0 0 64 64"><circle cx="32" cy="32" r="12" fill="#ffd35c"/><g stroke="#ffd35c" stroke-width="4" stroke-linecap="round"><path d="M32 6v6M32 52v6M6 32h6M52 32h6M13.6 13.6l4.2 4.2M46.2 46.2l4.2 4.2M13.6 50.4l4.2-4.2M46.2 17.8l4.2-4.2"/></g></symbol>
+  <symbol id="w-moon-shape" viewBox="0 0 64 64"><path d="M40 10a22 22 0 1 0 14 34A18 18 0 0 1 40 10z" fill="#f2efd8"/></symbol>
+  <symbol id="w-clear-day" viewBox="0 0 64 64"><use href="#w-sun-shape"/></symbol>
+  <symbol id="w-clear-night" viewBox="0 0 64 64"><use href="#w-moon-shape"/></symbol>
+  <symbol id="w-partly-day" viewBox="0 0 64 64"><use href="#w-sun-shape" x="-9" y="-9" width="58" height="58"/><use href="#w-cloud-shape" y="4" fill="#fff"/></symbol>
+  <symbol id="w-partly-night" viewBox="0 0 64 64"><use href="#w-moon-shape" x="-8" y="-8" width="52" height="52"/><use href="#w-cloud-shape" y="4" fill="#fff"/></symbol>
+  <symbol id="w-cloudy" viewBox="0 0 64 64"><use href="#w-cloud-shape" x="-8" y="-9" fill="#b9c2cc"/><use href="#w-cloud-shape" x="4" y="2" fill="#fff"/></symbol>
+  <symbol id="w-fog" viewBox="0 0 64 64"><use href="#w-cloud-shape" y="-10" fill="#dfe4ea"/><g stroke="#fff" stroke-width="4" stroke-linecap="round"><path d="M14 48h36M20 56h26"/></g></symbol>
+  <symbol id="w-drizzle" viewBox="0 0 64 64"><use href="#w-cloud-shape" y="-10" fill="#fff"/><g stroke="#8fd0ff" stroke-width="4" stroke-linecap="round"><path d="M24 48v4M34 50v4M44 48v4"/></g></symbol>
+  <symbol id="w-rain" viewBox="0 0 64 64"><use href="#w-cloud-shape" y="-10" fill="#fff"/><g stroke="#8fd0ff" stroke-width="4" stroke-linecap="round"><path d="M25 46l-3 10M35 46l-3 10M45 46l-3 10"/></g></symbol>
+  <symbol id="w-snow" viewBox="0 0 64 64"><use href="#w-cloud-shape" y="-10" fill="#fff"/><g fill="#fff"><circle cx="24" cy="50" r="3"/><circle cx="34" cy="55" r="3"/><circle cx="44" cy="50" r="3"/></g></symbol>
+  <symbol id="w-thunder" viewBox="0 0 64 64"><use href="#w-cloud-shape" y="-10" fill="#d5dbe3"/><path d="M35 40l-9 12h7l-4 10 11-14h-7l4-8z" fill="#ffd35c"/></symbol>
 </svg>
 
-<div id="app" class="offline">
-  <section class="info">
-    <div class="meta" id="meta">
-      <div class="artist" id="artist"></div>
-      <div class="title" id="title"></div>
-      <div class="album" id="album"></div>
+<div id="app" class="offline" data-screen="nowplaying">
+
+  <!-- 1 · Now Playing -->
+  <section class="screen active" id="screen-nowplaying">
+    <div class="panel">
+      <div class="meta" id="npMeta">
+        <div class="np-title" id="npTitle"></div>
+        <div class="np-artist" id="npArtist"></div>
+        <div class="np-album" id="npAlbum"></div>
+      </div>
+      <div class="row screen-bottom np-progress">
+        <span class="time" id="npElapsed"></span>
+        <div class="bar"><div class="fill" id="npProgress"></div></div>
+        <span class="time right" id="npDuration"></span>
+      </div>
     </div>
-    <div class="bottom">
-      <div class="row progress">
-        <span class="time" id="elapsed"></span>
-        <div class="bar"><div class="fill" id="progressFill"></div></div>
-        <span class="time right" id="duration"></span>
-      </div>
-      <div class="row volume">
-        <svg class="vol-icon"><use id="volIcon" href="#i-speaker"/></svg>
-        <div class="bar"><div class="fill" id="volumeFill"></div></div>
-        <span class="time right" id="volumeText"></span>
-        <span class="vol-note" id="volumeNote"></span>
-      </div>
+    <div class="stage np-art">
+      <div class="art-layer" id="npArtA"><div class="art-bg"></div><div class="art-img"></div></div>
+      <div class="art-layer" id="npArtB"><div class="art-bg"></div><div class="art-img"></div></div>
+      <div class="np-clock"><div class="np-clock-time" id="npClockTime"></div><div class="np-clock-date" id="npClockDate"></div></div>
+      <div class="paused-glyph"><svg><use href="#i-pause"/></svg></div>
+      <img class="badge" id="npBadge" alt="">
     </div>
   </section>
 
-  <section class="art" id="art">
-    <div class="art-layer" id="artA"><div class="art-bg"></div><div class="art-img"></div></div>
-    <div class="art-layer" id="artB"><div class="art-bg"></div><div class="art-img"></div></div>
-    <div class="clock" id="clock"><div class="clock-time" id="clockTime"></div><div class="clock-date" id="clockDate"></div></div>
-    <div class="paused-glyph"><svg><use href="#i-pause"/></svg></div>
-    <img class="badge" id="badge" alt="">
-    <div class="flash" id="flash"><svg><use id="flashIcon" href="#i-play"/></svg></div>
+  <!-- 2 · Weather -->
+  <section class="screen" id="screen-weather">
+    <div class="panel">
+      <div class="w-place" id="wPlace"></div>
+      <div class="w-temp" id="wTemp"></div>
+      <div class="w-cond"><svg class="w-cond-icon"><use id="wCondIcon" href=""/></svg><span id="wCond"></span></div>
+      <div class="w-sub" id="wSub"></div>
+      <div class="grow"></div>
+      <div class="row screen-bottom w-updated" id="wUpdated"></div>
+    </div>
+    <div class="stage w-stage" id="wStage">
+      <div class="w-hourly" id="wHourly"></div>
+      <div class="w-daily" id="wDaily"></div>
+      <div class="stage-message" id="wMessage"></div>
+    </div>
   </section>
+
+  <!-- 3 · Clock -->
+  <section class="screen" id="screen-clock">
+    <div class="panel">
+      <div class="c-day" id="cDay"></div>
+      <div class="c-time"><span id="cTime"></span><span class="c-ampm" id="cAmpm"></span></div>
+      <div class="c-date" id="cDate"></div>
+      <div class="grow"></div>
+      <div class="row screen-bottom c-next" id="cNext"></div>
+    </div>
+    <div class="stage c-stage">
+      <svg class="c-face" viewBox="0 0 400 400">
+        <circle cx="200" cy="200" r="196" class="c-dial"/>
+        <g id="cTicks"></g>
+        <g id="cNumerals" class="c-numerals"></g>
+        <g id="cHour"><rect x="194" y="102" width="12" height="104" rx="6" class="c-hand"/></g>
+        <g id="cMinute"><rect x="196" y="44" width="8" height="162" rx="4" class="c-hand"/></g>
+        <g id="cSecond"><rect x="198.75" y="30" width="2.5" height="204" rx="1.25" class="c-accent"/><circle cx="200" cy="200" r="7" class="c-accent"/></g>
+        <circle cx="200" cy="200" r="3" class="c-pin"/>
+      </svg>
+      <div class="c-digital"><span id="cDigital"></span><span class="c-digital-sec" id="cDigitalSec"></span></div>
+    </div>
+  </section>
+
+  <!-- 4 · Calendar -->
+  <section class="screen" id="screen-calendar">
+    <div class="panel">
+      <div class="k-weekday" id="kWeekday"></div>
+      <div class="k-day" id="kDay"></div>
+      <div class="k-month" id="kMonth"></div>
+      <div class="grow"></div>
+      <div class="row screen-bottom k-summary" id="kSummary"></div>
+    </div>
+    <div class="stage k-stage">
+      <div class="k-list" id="kList"></div>
+      <div class="stage-message" id="kMessage"></div>
+    </div>
+  </section>
+
+  <!-- Settings (back button) -->
+  <section class="screen" id="screen-settings">
+    <div class="panel">
+      <div class="s-title">Settings</div>
+      <div class="s-hint">Turn the knob to choose.<br>Press it to change.</div>
+      <div class="grow"></div>
+      <div class="row screen-bottom s-foot">Back button to close</div>
+    </div>
+    <div class="stage s-stage"><div class="s-list" id="sList"></div></div>
+  </section>
+
+  <!-- Global overlays -->
+  <div class="row volume-row" id="volumeRow">
+    <svg class="vol-icon"><use id="volIcon" href="#i-speaker"/></svg>
+    <div class="bar"><div class="fill" id="volumeFill"></div></div>
+    <span class="time right" id="volumeText"></span>
+    <span class="vol-note" id="volumeNote"></span>
+  </div>
+  <div class="flash" id="flash"><svg><use id="flashIcon" href="#i-play"/></svg></div>
+  <div class="toast" id="toast"></div>
+  <div class="hints" id="hints"><span></span><span></span><span></span><span></span></div>
 
   <div class="offline-screen">
     <div class="pulse"></div>
@@ -54,6 +146,11 @@
   </div>
 </div>
 
-<script src="app.js"></script>
+<script src="js/core.js"></script>
+<script src="js/nowplaying.js"></script>
+<script src="js/weather.js"></script>
+<script src="js/clock.js"></script>
+<script src="js/calendar.js"></script>
+<script src="js/settings.js"></script>
 </body>
 </html>

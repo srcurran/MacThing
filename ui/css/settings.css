@@ -1,0 +1,20 @@
+/* Settings (back button). Knob moves the selection, press changes it. */
+
+.s-title { font-size: 32px; line-height: 39px; font-weight: 600; }
+.s-hint { margin-top: 16px; font-size: 20px; line-height: 28px; font-weight: 300; color: var(--muted); }
+.s-foot { font-weight: 300; color: var(--muted); }
+
+.s-list { position: absolute; left: 0; right: 0; top: 18px; }
+.s-row {
+  position: relative; height: 72px; padding: 0 32px;
+  display: flex; align-items: center; justify-content: space-between;
+  transition: background 0.15s ease;
+}
+.s-row + .s-row::before { content: ''; position: absolute; left: 32px; right: 32px; top: 0; height: 1px; background: var(--line); }
+.s-row.sel { background: var(--selected); }
+.s-row.sel::after { content: ''; position: absolute; left: 0; top: 12px; bottom: 12px; width: 4px; border-radius: 0 2px 2px 0; background: var(--accent); }
+.s-row.sel + .s-row::before, .s-row.sel::before { display: none; }
+.s-label { font-size: 22px; font-weight: 500; }
+.s-value { max-width: 220px; font-size: 22px; font-weight: 600; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.s-row.sel .s-value { color: var(--text); }
+.s-value.link::after { content: ' ›'; }

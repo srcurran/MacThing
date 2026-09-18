@@ -2,6 +2,7 @@
 # Builds the two native pieces the bridge needs:
 #   native/bin/volumectl                         CoreAudio volume helper (Swift)
 #   native/bin/appinfo                           app name + icon lookup by bundle id (Swift)
+#   native/bin/CarThingHelper.app                location + calendar, with its own permissions (Swift)
 #   native/bin/MediaRemoteAdapter.framework      ungive/mediaremote-adapter, loaded by /usr/bin/perl
 # No cmake required — the adapter is small enough to build with clang directly.
 set -euo pipefail
@@ -19,6 +20,14 @@ fi
 echo "• volumectl, appinfo"
 swiftc -O -o "$OUT/volumectl" "$ROOT/native/volumectl.swift"
 swiftc -O -o "$OUT/appinfo" "$ROOT/native/appinfo.swift"
+
+echo "• CarThingHelper.app (location + calendar)"
+APP="$OUT/CarThingHelper.app"
+mkdir -p "$APP/Contents/MacOS"
+cp "$ROOT/native/helper/Info.plist" "$APP/Contents/Info.plist"
+swiftc -O -o "$APP/Contents/MacOS/CarThingHelper" "$ROOT/native/helper/main.swift"
+# Ad-hoc signed: macOS remembers the Location/Calendars grants until the binary changes.
+codesign --force --sign - --identifier com.carthing.helper "$APP" 2>/dev/null
 
 echo "• MediaRemoteAdapter.framework ($ADAPTER_TAG)"
 FW="$OUT/MediaRemoteAdapter.framework"

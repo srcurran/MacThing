@@ -20,10 +20,23 @@ export const config = {
   // What Chromium opens at boot (supervisord --app). scripts/setup-device.sh points it at deviceUiDir.
   deviceBootUrl: 'file:///usr/share/qt-superbird-app/webapp/index.html',
 
-  // Hardware input → action. Keys are what the device reports to the page:
-  // top buttons 1–4, knob press (Enter), back button under the knob (Escape), settings button (m).
-  // Actions: previous | next | playpause | play | pause | null (unassigned)
-  buttons: { 1: 'previous', 2: 'next', 3: null, 4: null, Enter: 'playpause', Escape: null, m: null },
+  // Buttons → action. Keys are what the device reports to the page: top buttons 1–4,
+  // the back button under the knob (Escape) and the small settings button (m).
+  // Actions: screen:<nowplaying|weather|clock|calendar> | settings | previous | next | playpause | null
+  buttons: {
+    1: 'screen:nowplaying',
+    2: 'screen:weather',
+    3: 'screen:clock',
+    4: 'screen:calendar',
+    Escape: 'settings',
+    m: null,
+  },
+  // Knob press, by number of quick presses. A single press waits multiClickMs to see if more follow.
+  knobClicks: { 1: 'playpause', 2: 'next', 3: 'previous' },
+  multiClickMs: 350,
+
+  // Mac-side settings page (weather location etc.), loopback only.
+  settingsPort: Number(process.env.CARTHING_SETTINGS_PORT || 4747),
 
   volumeStep: 1 / 64, // per knob detent — macOS's fine (Option+Shift) volume-key step
   // true: turn the knob by pressing the Mac's volume keys so macOS shows its volume indicator.
