@@ -1,0 +1,23 @@
+{
+  "name": "carthing-now-playing",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Spotify Car Thing as a Now Playing display + volume knob for macOS",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "./native/build.sh",
+    "start": "node bridge/main.js",
+    "dev": "DEBUG=1 node bridge/main.js --watch",
+    "screenshot": "node scripts/screenshot.js",
+    "setup-device": "./scripts/setup-device.sh",
+    "restore-device": "./scripts/restore-device.sh",
+    "install-agent": "./scripts/launch-agent.sh install",
+    "uninstall-agent": "./scripts/launch-agent.sh uninstall",
+    "restart": "./scripts/launch-agent.sh restart",
+    "status": "./scripts/launch-agent.sh status",
+    "logs": "./scripts/launch-agent.sh logs"
+  }
+}

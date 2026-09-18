@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=800,height=480,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Now Playing</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><rect x="5" y="4" width="5" height="16" rx="1.2"/><rect x="14" y="4" width="5" height="16" rx="1.2"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="M3 6.2v11.6a.8.8 0 0 0 1.25.66L12 13.2v4.6a.8.8 0 0 0 1.25.66l8.4-5.8a.8.8 0 0 0 0-1.32l-8.4-5.8A.8.8 0 0 0 12 6.2v4.6L4.25 5.54A.8.8 0 0 0 3 6.2z"/></symbol>
+  <symbol id="i-previous" viewBox="0 0 24 24"><path d="M21 6.2v11.6a.8.8 0 0 1-1.25.66L12 13.2v4.6a.8.8 0 0 1-1.25.66l-8.4-5.8a.8.8 0 0 1 0-1.32l8.4-5.8A.8.8 0 0 1 12 6.2v4.6l7.75-5.26A.8.8 0 0 1 21 6.2z"/></symbol>
+  <symbol id="i-speaker" viewBox="0 0 24 24"><path d="M4 9h3.5L12 5v14l-4.5-4H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+  <symbol id="i-muted" viewBox="0 0 24 24"><path d="M4 9h3.5L12 5v14l-4.5-4H4a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1z"/><path d="M16 9.5l5 5M21 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+</svg>
+
+<div id="app" class="offline">
+  <section class="info">
+    <div class="meta" id="meta">
+      <div class="artist" id="artist"></div>
+      <div class="title" id="title"></div>
+      <div class="album" id="album"></div>
+    </div>
+    <div class="bottom">
+      <div class="row progress">
+        <span class="time" id="elapsed"></span>
+        <div class="bar"><div class="fill" id="progressFill"></div></div>
+        <span class="time right" id="duration"></span>
+      </div>
+      <div class="row volume">
+        <svg class="vol-icon"><use id="volIcon" href="#i-speaker"/></svg>
+        <div class="bar"><div class="fill" id="volumeFill"></div></div>
+        <span class="time right" id="volumeText"></span>
+        <span class="vol-note" id="volumeNote"></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="art" id="art">
+    <div class="art-layer" id="artA"><div class="art-bg"></div><div class="art-img"></div></div>
+    <div class="art-layer" id="artB"><div class="art-bg"></div><div class="art-img"></div></div>
+    <div class="clock" id="clock"><div class="clock-time" id="clockTime"></div><div class="clock-date" id="clockDate"></div></div>
+    <div class="paused-glyph"><svg><use href="#i-pause"/></svg></div>
+    <img class="badge" id="badge" alt="">
+    <div class="flash" id="flash"><svg><use id="flashIcon" href="#i-play"/></svg></div>
+  </section>
+
+  <div class="offline-screen">
+    <div class="pulse"></div>
+    <div class="offline-title">Waiting for your Mac</div>
+    <div class="offline-sub">Connect by USB and start the bridge</div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

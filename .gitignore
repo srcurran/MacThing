@@ -1,0 +1,6 @@
+node_modules/
+native/bin/
+vendor/
+*.png
+!ui/images/*.png
+.DS_Store
