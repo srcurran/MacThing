@@ -176,6 +176,10 @@ svg { fill: currentColor; }
 }
 .hints span.on b { background: #fff; color: #111; }
 
+/* Screen asleep (backlight off): render nothing, in case the backlight can't be switched. */
+#app.asleep { background: #000; }
+#app.asleep > * { visibility: hidden; }
+
 /* ---- Not connected to the Mac -------------------------------------------------------- */
 
 .offline-screen {

@@ -1,0 +1,56 @@
+import { spawn } from 'node:child_process';
+import { EventEmitter } from 'node:events';
+import path from 'node:path';
+import { createInterface } from 'node:readline';
+import { log } from '../log.js';
+
+/**
+ * Mac sleep/wake and display sleep/wake, via native/bin/powerwatch.
+ * Events: 'display' (asleep: boolean), 'willSleep', 'didWake'.
+ * After 'willSleep' the Mac waits (up to 3 s) until ack() is called, so there's time to
+ * turn the Car Thing's screen off before USB suspends.
+ */
+export class MacPower extends EventEmitter {
+  constructor(binDir) {
+    super();
+    this.bin = path.join(binDir, 'powerwatch');
+    this.displayAsleep = false;
+    this.proc = null;
+    this.stopped = false;
+  }
+
+  start() {
+    this.stopped = false;
+    const proc = spawn(this.bin, [], { stdio: ['pipe', 'pipe', 'inherit'] });
+    this.proc = proc;
+    createInterface({ input: proc.stdout }).on('line', (line) => {
+      let msg;
+      try {
+        msg = JSON.parse(line);
+      } catch {
+        return;
+      }
+      if (msg.event === 'display') {
+        this.displayAsleep = msg.asleep;
+        this.emit('display', msg.asleep);
+      } else if (msg.event === 'willSleep' || msg.event === 'didWake') {
+        this.emit(msg.event);
+      }
+    });
+    proc.on('exit', (code) => {
+      this.proc = null;
+      if (this.stopped) return;
+      log.warn(`[power] powerwatch exited (${code}); restarting in 2s`);
+      setTimeout(() => this.start(), 2000);
+    });
+  }
+
+  ack() {
+    this.proc?.stdin.write('ack\n');
+  }
+
+  stop() {
+    this.stopped = true;
+    this.proc?.stdin.end();
+  }
+}

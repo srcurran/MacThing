@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { config, paths } from '../config.js';
 import { log } from '../log.js';
-import { adb } from './adb.js';
+import { adb, shell } from './adb.js';
 import { CDP, listTargets } from './cdp.js';
 import { isBootInstalled, syncUi } from './deploy.js';
 
@@ -104,6 +104,19 @@ export class DeviceLink extends EventEmitter {
       log.info(`[device] UI redeployed (${sync.version})`);
       await this.reload();
     }
+  }
+
+  /** Backlight on/off. The ambient-light daemon is paused while off so it can't relight the screen. */
+  async setScreen(on) {
+    this.send({ type: 'screen', on });
+    const power = '/sys/class/backlight/aml-bl/bl_power';
+    await shell(
+      this.serial,
+      on
+        ? `echo 0 > ${power}; supervisorctl start backlight >/dev/null 2>&1; true`
+        : `supervisorctl stop backlight >/dev/null 2>&1; echo 4 > ${power}; true`,
+      { timeout: 3000 },
+    );
   }
 
   async screenshot() {

@@ -7,8 +7,9 @@ It has four screens: Now Playing, Weather, Clock and Calendar.
 |---|---|
 | Top buttons 1 · 2 · 3 · 4 | Now Playing · Weather · Clock · Calendar |
 | Turn knob | Mac output volume (in Settings: move the selection) |
-| Press knob once / twice / three times | Play-pause / next track / previous track (in Settings: change the selected option) |
-| Back button (under the knob) | Settings (press again to close) |
+| Press knob once / twice / three times | Play-pause / next track / previous track; starts Apple Music if nothing is playing (in Settings: change the selected option) |
+| Fifth top button (settings) | Settings (press it again, or the back button, to close) |
+| Back button (under the knob) | Favorite / unfavorite the playing Apple Music song |
 
 The four screens:
 
@@ -16,6 +17,8 @@ The four screens:
 - **Weather** shows the current conditions, the next few hours and five days. It uses [Open-Meteo](https://open-meteo.com) (free, no account) for your Mac's location or a place you pick.
 - **Clock** shows an analog face (plain or with numbers) or a digital one, plus your next calendar event.
 - **Calendar** shows the next 7 days from every account in the Mac's Calendar app.
+
+**Sleep:** the Car Thing's screen turns off whenever your Mac's display sleeps. Press any button or turn the knob to wake it for a minute; that first input only wakes it.
 
 **Settings** covers appearance (dark, light or match the Mac), °F/°C, 12/24-hour time, the clock face and the weather location. Anything that needs typing, like a city, opens a settings page on your Mac at http://127.0.0.1:4747.
 
@@ -37,6 +40,8 @@ npm run install-agent  # starts the bridge now and at every login
 ```
 
 That's it. The Car Thing switches to the Now Playing screen within a few seconds.
+
+The first time you favorite a song with the back button, macOS asks whether **musicctl** may control Music. That's `native/bin/musicctl`, a small helper that sends the favorite and play commands to Apple Music.
 
 The first time the Weather and Calendar screens load, macOS asks whether **Car Thing Helper** may use your location and your calendars. That's `native/bin/CarThingHelper.app`, a small helper so these permissions don't go to Node or Terminal. If you decline location, pick a place in Settings instead. You can change either answer later in System Settings → Privacy & Security.
 
@@ -75,15 +80,15 @@ npm run restart   # the bridge pushes any UI changes to the Car Thing by itself
 
 ## Customizing
 
-**Everyday settings.** Use the device's Settings screen (back button) or http://127.0.0.1:4747 on the Mac. They're saved in `~/Library/Application Support/carthing-now-playing/settings.json`.
+**Everyday settings.** Use the device's Settings screen (fifth top button) or http://127.0.0.1:4747 on the Mac. They're saved in `~/Library/Application Support/carthing-now-playing/settings.json`.
 
 **Hardware mapping and behavior.** Edit `bridge/config.js`, then `npm run restart`:
 
 - `buttons`: what each button does (`screen:<name>`, `settings`, or a media command)
 - `knobClicks` and `multiClickMs`: the single, double and triple press actions, and how long a single press waits for more
 - `volumeStep`: volume change per knob click
-- `knobDirection`: set to `-1` if clockwise turns the volume down
-- `idlePlayApp`: which app the knob press starts when nothing is playing
+- `knobDirection`: `1` matches Spotify's own mapping (turning right raises the volume); `-1` flips it
+- `sleepWithMac` and `screenWakeMs`: screen sleep, and how long a button or knob wake lasts while the Mac's display is off
 - `macVolumeIndicator`: see below
 
 **macOS volume pop-up.** By default the knob sets the volume directly. The Sound menu reflects the change, but macOS doesn't show its volume pop-up. To get the pop-up, set `macVolumeIndicator: true`, restart, and allow `native/bin/volumectl` under **System Settings → Privacy & Security → Accessibility**. The knob then presses the Mac's volume keys. macOS requires that permission for any software that generates keystrokes. A physical keyboard doesn't need it because its keys come from hardware.
@@ -118,6 +123,7 @@ bridge/main.js (Node, no npm deps)
  ├─ Volume     ⇄ native/bin/volumectl (CoreAudio)             → symlink → /var/lib/carthing/ui
  ├─ App badges ← native/bin/appinfo (name + icon)             ui/js/core.js + one file per screen
  ├─ Location, calendar ← native/bin/CarThingHelper.app
+ ├─ Sleep/wake  ← native/bin/powerwatch (IOKit; holds sleep ≤3 s to switch the backlight off)
  ├─ Weather    ← Open-Meteo (HTTPS)
  ├─ Settings page http://127.0.0.1:4747
  └─ Device link ── adb forward tcp:22222 → tcp:2222 ──────▶     (Chromium devtools port)

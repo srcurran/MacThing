@@ -1,4 +1,4 @@
-/* Settings (back button) — quick toggles on the device; anything that needs typing opens the
+/* Settings (fifth top button) — quick toggles on the device; anything that needs typing opens the
  * settings page on the Mac. Knob turns move the selection, a knob press changes it. */
 (function () {
   'use strict';

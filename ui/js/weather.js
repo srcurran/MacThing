@@ -55,7 +55,7 @@
       if (data.status === 'noLocation') {
         showMessage(
           data.reason === 'denied' || data.reason === 'restricted' ? 'Location access is off' : 'Can’t find your location',
-          'Press the back button and choose Weather location to pick a place.'
+          'Press the settings button and choose Weather location to pick a place.'
         );
       } else if (data.status === 'error') {
         showMessage('Weather unavailable', 'Trying again shortly.');

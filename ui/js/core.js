@@ -23,7 +23,7 @@
 
   // Replaced by the bridge's config/settings on connect; these just let the page render before that.
   CT.config = {
-    buttons: { 1: 'screen:nowplaying', 2: 'screen:weather', 3: 'screen:clock', 4: 'screen:calendar', Escape: 'settings' },
+    buttons: { 1: 'screen:nowplaying', 2: 'screen:weather', 3: 'screen:clock', 4: 'screen:calendar', m: 'settings', Escape: 'favorite' },
     knobClicks: { 1: 'playpause', 2: 'next', 3: 'previous' },
     multiClickMs: 350, volumeStep: 1 / 64, knobDirection: 1, debug: false
   };
@@ -171,9 +171,10 @@
     CT.send({ type: 'command', action: action });
   };
 
-  CT.flash = function (icon) {
+  CT.flash = function (icon, color) {
     var f = CT.$('flash');
     CT.$('flashIcon').setAttribute('href', '#i-' + icon);
+    f.style.color = color || '';
     f.classList.remove('on');
     void f.offsetWidth; // restart the animation
     f.classList.add('on');
@@ -187,6 +188,22 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function () { t.classList.remove('on'); }, 1800);
   };
+  CT.on('toast', function (msg) { CT.toast(msg.text); });
+
+  // ---- Screen sleep ----------------------------------------------------------------------
+  // The Mac turns the backlight off when it sleeps (or its display sleeps with nothing
+  // playing). While dark, the first button or knob input only wakes the screen.
+
+  var asleep = false;
+  CT.on('screen', function (msg) {
+    asleep = !msg.on;
+    app.classList.toggle('asleep', asleep);
+  });
+  function wakeInstead() {
+    if (!asleep) return false;
+    CT.send({ type: 'wake' });
+    return true;
+  }
 
   // ---- Hardware input -------------------------------------------------------------------
   // Top buttons 1–4 and the settings button arrive as keys; the knob press is Enter, the back
@@ -230,7 +247,7 @@
     debugInput('keydown key=' + e.key + ' code=' + e.code + ' → ' + key);
     if (!key) return;
     e.preventDefault();
-    if (e.repeat) return;
+    if (e.repeat || wakeInstead()) return;
     if (key === 'Enter') return knobPress();
     if (key === 'Escape' && CT.current === 'settings') return CT.closeSettings();
     runButton(CT.config.buttons[key]);
@@ -240,7 +257,7 @@
     e.preventDefault();
     var d = e.deltaX || e.deltaY;
     debugInput('wheel dx=' + e.deltaX + ' dy=' + e.deltaY);
-    if (!d) return;
+    if (!d || wakeInstead()) return;
     var steps = (d > 0 ? 1 : -1) * (CT.config.knobDirection || 1);
     var screen = CT.screens[CT.current];
     if (screen.turn) screen.turn(steps);

@@ -20,16 +20,18 @@ export const config = {
   // What Chromium opens at boot (supervisord --app). scripts/setup-device.sh points it at deviceUiDir.
   deviceBootUrl: 'file:///usr/share/qt-superbird-app/webapp/index.html',
 
-  // Buttons → action. Keys are what the device reports to the page: top buttons 1–4,
-  // the back button under the knob (Escape) and the small settings button (m).
-  // Actions: screen:<nowplaying|weather|clock|calendar> | settings | previous | next | playpause | null
+  // Buttons → action. Keys are what the device reports to the page: top buttons 1–4, the
+  // fifth (settings) button at the end of the top row (m) and the back button under the knob
+  // (Escape — also closes Settings whatever it's mapped to).
+  // Actions: screen:<nowplaying|weather|clock|calendar> | settings | favorite (toggle the Apple
+  // Music song's favorite) | previous | next | playpause | null
   buttons: {
     1: 'screen:nowplaying',
     2: 'screen:weather',
     3: 'screen:clock',
     4: 'screen:calendar',
-    Escape: 'settings',
-    m: null,
+    m: 'settings',
+    Escape: 'favorite',
   },
   // Knob press, by number of quick presses. A single press waits multiClickMs to see if more follow.
   knobClicks: { 1: 'playpause', 2: 'next', 3: 'previous' },
@@ -43,10 +45,13 @@ export const config = {
   // Needs native/bin/volumectl allowed under Privacy & Security → Accessibility (software
   // can't press keys without it). false: set the volume directly — silent, no permission.
   macVolumeIndicator: false,
-  knobDirection: 1, // set to -1 if turning clockwise lowers the volume
+  knobDirection: 1, // 1 = turning right raises the volume (same as Spotify's firmware); -1 flips it
 
-  // Knob press while nothing is playing starts this app.
-  idlePlayApp: 'com.apple.Music',
+  // Turn the Car Thing's screen off whenever the Mac's display sleeps (including when the Mac
+  // itself sleeps). A button or knob input wakes it for screenWakeMs.
+  sleepWithMac: true,
+  screenWakeMs: 60 * 1000,
+
   // Sources that don't get an app badge on the artwork (your "home" player).
   unbadgedApps: ['com.apple.Music'],
 };

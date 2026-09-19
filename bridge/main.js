@@ -6,6 +6,7 @@
 
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
+import path from 'node:path';
 import { Volume } from './audio/volume.js';
 import { config, paths } from './config.js';
 import { listCarThings, trackDevices } from './device/adb.js';
@@ -16,6 +17,7 @@ import { ArtworkCache } from './nowplaying/artwork.js';
 import { MediaRemoteSource } from './nowplaying/mediaremote.js';
 import { MacAppearance } from './mac/appearance.js';
 import { MacHelper } from './mac/helper.js';
+import { MacPower } from './mac/power.js';
 import { settings } from './settings.js';
 import { startSettingsPage } from './settings-page/server.js';
 import { Calendar } from './widgets/calendar.js';
@@ -29,6 +31,7 @@ const helper = new MacHelper(paths.bin);
 const weather = new Weather(helper, settings);
 const calendar = new Calendar(helper);
 const appearance = new MacAppearance();
+const power = new MacPower(paths.bin);
 
 /** @type {DeviceLink|null} */
 let link = null;
@@ -121,6 +124,32 @@ function pushAll(target) {
   pushNowPlaying(target);
   target.send({ type: 'weather', weather: weather.state });
   target.send({ type: 'calendar', calendar: calendar.state });
+  if (screenOn === false) target.send({ type: 'screen', on: false });
+}
+
+// ---- Screen sleep ---------------------------------------------------------
+
+let systemAsleep = false;
+let lastDeviceInput = 0;
+let screenOn = null; // unknown until applied to the current device link
+
+// The Car Thing's screen follows the Mac's display; a button/knob press wakes it for a while.
+function screenShouldBeOn() {
+  if (!config.sleepWithMac) return true;
+  if (systemAsleep) return false;
+  if (!power.displayAsleep) return true;
+  return Date.now() - lastDeviceInput < config.screenWakeMs;
+}
+
+async function applyScreen() {
+  const on = screenShouldBeOn();
+  if (!link || on === screenOn) return;
+  screenOn = on;
+  log.info(`[screen] ${on ? 'on' : 'off'}`);
+  await link.setScreen(on).catch((err) => {
+    screenOn = null;
+    log.warn('[screen]', err.message);
+  });
 }
 
 async function macStatus() {
@@ -138,22 +167,48 @@ function openSettingsPage(section) {
 
 // ---- Input from the device ------------------------------------------------
 
-function osascript(script) {
-  return new Promise((resolve, reject) =>
-    execFile('/usr/bin/osascript', ['-e', script], (err) => (err ? reject(err) : resolve())),
+/** Apple Music actions via native/bin/musicctl (macOS asks once to let "musicctl" control Music). */
+function musicctl(command) {
+  return new Promise((resolve) =>
+    // Long timeout: the first run waits on the Automation permission prompt.
+    execFile(path.join(paths.bin, 'musicctl'), [command], { timeout: 60000 }, (err, stdout) => {
+      try {
+        resolve(JSON.parse(stdout));
+      } catch {
+        resolve({ ok: false, error: err?.message || 'musicctl failed' });
+      }
+    }),
   );
 }
 
 async function runCommand(action) {
   log.info(`[input] ${action}`);
+  if (action === 'favorite') return toggleFavorite();
   try {
     if (!current.np.active && (action === 'playpause' || action === 'play')) {
-      await osascript(`tell application id "${config.idlePlayApp}" to play`);
+      const r = await musicctl('play'); // nothing playing: start Apple Music
+      if (!r.ok) log.warn('[input] starting Music failed:', r.error);
     } else {
       await source.command(action);
     }
   } catch (err) {
     log.warn(`[input] ${action} failed:`, err.message);
+  }
+}
+
+async function toggleFavorite() {
+  const { np } = current;
+  if (np.bundleId !== 'com.apple.Music') {
+    return link?.send({ type: 'toast', text: np.active ? 'Favorites work with Apple Music' : 'Nothing playing' });
+  }
+  const r = await musicctl('favorite');
+  if (r.ok) {
+    log.info(`[favorite] ${np.title}: ${r.favorited ? 'added' : 'removed'}`);
+    link?.send({ type: 'favorite', favorited: r.favorited });
+  } else {
+    log.warn('[favorite]', r.error);
+    // -1743: the user said no to "musicctl wants to control Music".
+    link?.send({ type: 'toast', text: r.code === -1743 ? 'Allow musicctl to control Music' : 'Couldn’t favorite this song' });
   }
 }
 
@@ -179,6 +234,10 @@ function checkKeyAccess(state) {
 }
 
 function onDeviceMessage(msg) {
+  if (msg.type === 'command' || msg.type === 'volume' || msg.type === 'wake') {
+    lastDeviceInput = Date.now();
+    applyScreen();
+  }
   switch (msg.type) {
     case 'command':
       return runCommand(msg.action);
@@ -222,6 +281,8 @@ async function connect(serial) {
     log.info(`[device] connecting to ${serial}…`);
     await l.connect();
     log.info('[device] connected');
+    screenOn = null;
+    applyScreen();
   } catch (err) {
     log.warn('[device] connect failed:', err.message);
     if (link === l) link = null;
@@ -252,18 +313,30 @@ settings.on('change', (values) => link?.send({ type: 'settings', settings: value
 weather.on('change', (state) => link?.send({ type: 'weather', weather: state }));
 calendar.on('change', (state) => link?.send({ type: 'calendar', calendar: state }));
 appearance.on('change', (dark) => link?.send({ type: 'appearance', dark }));
+power.on('display', () => applyScreen());
+power.on('willSleep', async () => {
+  systemAsleep = true;
+  await Promise.race([applyScreen(), new Promise((r) => setTimeout(r, 2500))]);
+  power.ack(); // let the Mac go to sleep
+});
+power.on('didWake', () => {
+  systemAsleep = false;
+  applyScreen();
+});
 source.start();
 volume.start();
 helper.start();
 weather.start();
 calendar.start();
 appearance.start();
+power.start();
 startSettingsPage({ port: config.settingsPort, settings, status: macStatus });
 
 trackDevices(debounce(refreshDevices, 400));
 refreshDevices();
 
 setInterval(() => link?.send(tickMessage()), 2000);
+setInterval(() => applyScreen(), 5000); // lets the post-input wake window expire
 setInterval(() => link?.send(nowPlayingMessage()), 15000); // re-anchor the device's progress clock
 
 if (process.argv.includes('--watch')) {
@@ -272,12 +345,15 @@ if (process.argv.includes('--watch')) {
   fs.watch(paths.ui, { recursive: true }, redeploy);
 }
 
-function shutdown() {
+async function shutdown() {
   log.info('shutting down');
+  // Don't leave the Car Thing dark with nothing to wake it.
+  if (link && screenOn === false) await Promise.race([link.setScreen(true).catch(() => {}), new Promise((r) => setTimeout(r, 1500))]);
   link?.send({ type: 'bye' });
   source.stop();
   volume.stop();
   helper.stop();
+  power.stop();
   setTimeout(() => process.exit(0), 300);
 }
 process.on('SIGINT', shutdown);

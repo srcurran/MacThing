@@ -120,6 +120,12 @@
     }
   });
 
+  // Back button: favorite / unfavorite the Apple Music song (the Mac replies with the new state).
+  CT.on('favorite', function (msg) {
+    CT.flash(msg.favorited ? 'heart' : 'heart-off', msg.favorited ? '#ff453a' : '');
+    CT.toast(msg.favorited ? 'Added to Favorites' : 'Removed from Favorites');
+  });
+
   // ---- Artwork (two layers so track changes crossfade) ----------------------------
 
   var artworks = {}; // only the most recent is kept

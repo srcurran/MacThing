@@ -2,6 +2,8 @@
 # Builds the two native pieces the bridge needs:
 #   native/bin/volumectl                         CoreAudio volume helper (Swift)
 #   native/bin/appinfo                           app name + icon lookup by bundle id (Swift)
+#   native/bin/powerwatch                        Mac sleep/wake + display sleep events (Swift)
+#   native/bin/musicctl                          Apple Music favorite/play via Apple Events (Swift)
 #   native/bin/CarThingHelper.app                location + calendar, with its own permissions (Swift)
 #   native/bin/MediaRemoteAdapter.framework      ungive/mediaremote-adapter, loaded by /usr/bin/perl
 # No cmake required — the adapter is small enough to build with clang directly.
@@ -17,17 +19,35 @@ if [[ ! -d "$ADAPTER" ]]; then
   git clone -q --depth 1 --branch "$ADAPTER_TAG" https://github.com/ungive/mediaremote-adapter.git "$ADAPTER"
 fi
 
-echo "• volumectl, appinfo"
+echo "• volumectl, appinfo, powerwatch"
 swiftc -O -o "$OUT/volumectl" "$ROOT/native/volumectl.swift"
 swiftc -O -o "$OUT/appinfo" "$ROOT/native/appinfo.swift"
+swiftc -O -o "$OUT/powerwatch" "$ROOT/native/powerwatch.swift"
 
-echo "• CarThingHelper.app (location + calendar)"
+# Ad-hoc signed tools that hold a macOS permission lose it whenever the binary changes,
+# so they're only rebuilt when their source changed.
+MUSICCTL="$OUT/musicctl"
+if [[ ! -x "$MUSICCTL" || "$ROOT/native/musicctl.swift" -nt "$MUSICCTL" ]]; then
+  echo "• musicctl (Apple Music favorite/play) — macOS will ask again to let it control Music"
+  swiftc -O -o "$MUSICCTL" "$ROOT/native/musicctl.swift"
+  codesign --force --sign - --identifier com.carthing.musicctl "$MUSICCTL" 2>/dev/null
+else
+  echo "• musicctl unchanged (keeping its permission)"
+fi
+
 APP="$OUT/CarThingHelper.app"
-mkdir -p "$APP/Contents/MacOS"
-cp "$ROOT/native/helper/Info.plist" "$APP/Contents/Info.plist"
-swiftc -O -o "$APP/Contents/MacOS/CarThingHelper" "$ROOT/native/helper/main.swift"
-# Ad-hoc signed: macOS remembers the Location/Calendars grants until the binary changes.
-codesign --force --sign - --identifier com.carthing.helper "$APP" 2>/dev/null
+HELPER_BIN="$APP/Contents/MacOS/CarThingHelper"
+# Ad-hoc signed: macOS keeps the Location/Calendars grants only while the binary is unchanged,
+# so rebuild it only when its source changed.
+if [[ ! -x "$HELPER_BIN" || "$ROOT/native/helper/main.swift" -nt "$HELPER_BIN" || "$ROOT/native/helper/Info.plist" -nt "$HELPER_BIN" ]]; then
+  echo "• CarThingHelper.app (location + calendar) — macOS will ask for permissions again"
+  mkdir -p "$APP/Contents/MacOS"
+  cp "$ROOT/native/helper/Info.plist" "$APP/Contents/Info.plist"
+  swiftc -O -o "$HELPER_BIN" "$ROOT/native/helper/main.swift"
+  codesign --force --sign - --identifier com.carthing.helper "$APP" 2>/dev/null
+else
+  echo "• CarThingHelper.app unchanged (keeping its permissions)"
+fi
 
 echo "• MediaRemoteAdapter.framework ($ADAPTER_TAG)"
 FW="$OUT/MediaRemoteAdapter.framework"
