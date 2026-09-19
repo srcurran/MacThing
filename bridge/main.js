@@ -112,6 +112,9 @@ function pushAll(target) {
       buttons: config.buttons,
       knobClicks: config.knobClicks,
       multiClickMs: config.multiClickMs,
+      buttonHolds: config.buttonHolds,
+      holdMs: config.holdMs,
+      offlineSleepMs: config.deviceSleepSeconds * 1000,
       volumeStep: config.volumeStep,
       knobDirection: config.knobDirection,
       debug: Boolean(process.env.DEBUG), // page reports raw key/wheel events to the log
@@ -124,17 +127,19 @@ function pushAll(target) {
   pushNowPlaying(target);
   target.send({ type: 'weather', weather: weather.state });
   target.send({ type: 'calendar', calendar: calendar.state });
-  if (screenOn === false) target.send({ type: 'screen', on: false });
+  target.send({ type: 'screen', on: screenOn !== false }); // the page may have gone dark by itself
 }
 
 // ---- Screen sleep ---------------------------------------------------------
 
 let systemAsleep = false;
 let lastDeviceInput = 0;
+let manualSleep = false; // held down the sleep button; any input clears it
 let screenOn = null; // unknown until applied to the current device link
 
 // The Car Thing's screen follows the Mac's display; a button/knob press wakes it for a while.
 function screenShouldBeOn() {
+  if (manualSleep) return false;
   if (!config.sleepWithMac) return true;
   if (systemAsleep) return false;
   if (!power.displayAsleep) return true;
@@ -150,6 +155,13 @@ async function applyScreen() {
     screenOn = null;
     log.warn('[screen]', err.message);
   });
+  heartbeat(); // tell the device's watchdog what the screen is doing now, not in ten seconds
+}
+
+// The Mac says "still here" every few seconds. When it stops — the Mac was shut down, or the
+// cable now only carries power — the device puts itself to sleep. See device/sleepd.sh.
+function heartbeat() {
+  link?.heartbeat(screenOn !== false).catch((err) => log.debug('[heartbeat]', err.message));
 }
 
 async function macStatus() {
@@ -236,9 +248,14 @@ function checkKeyAccess(state) {
 function onDeviceMessage(msg) {
   if (msg.type === 'command' || msg.type === 'volume' || msg.type === 'wake') {
     lastDeviceInput = Date.now();
+    manualSleep = false;
     applyScreen();
   }
   switch (msg.type) {
+    case 'sleep':
+      log.info('[screen] sleep requested from the device');
+      manualSleep = true;
+      return applyScreen();
     case 'command':
       return runCommand(msg.action);
     case 'volume':
@@ -282,7 +299,9 @@ async function connect(serial) {
     await l.connect();
     log.info('[device] connected');
     screenOn = null;
-    applyScreen();
+    manualSleep = false;
+    await applyScreen();
+    heartbeat();
   } catch (err) {
     log.warn('[device] connect failed:', err.message);
     if (link === l) link = null;
@@ -337,6 +356,7 @@ refreshDevices();
 
 setInterval(() => link?.send(tickMessage()), 2000);
 setInterval(() => applyScreen(), 5000); // lets the post-input wake window expire
+setInterval(heartbeat, config.heartbeatMs);
 setInterval(() => link?.send(nowPlayingMessage()), 15000); // re-anchor the device's progress clock
 
 if (process.argv.includes('--watch')) {
@@ -347,8 +367,11 @@ if (process.argv.includes('--watch')) {
 
 async function shutdown() {
   log.info('shutting down');
-  // Don't leave the Car Thing dark with nothing to wake it.
-  if (link && screenOn === false) await Promise.race([link.setScreen(true).catch(() => {}), new Promise((r) => setTimeout(r, 1500))]);
+  // Don't leave the Car Thing dark with nothing to wake it — unless its own watchdog is there,
+  // which wakes the screen on any button or knob press and would only turn it off again anyway.
+  if (link && screenOn === false && !link.sleepd) {
+    await Promise.race([link.setScreen(true).catch(() => {}), new Promise((r) => setTimeout(r, 1500))]);
+  }
   link?.send({ type: 'bye' });
   source.stop();
   volume.stop();
