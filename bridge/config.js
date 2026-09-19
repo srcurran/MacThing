@@ -7,6 +7,7 @@ export const paths = {
   root,
   ui: path.join(root, 'ui'),
   bin: path.join(root, 'native', 'bin'),
+  sleepd: path.join(root, 'device', 'sleepd.sh'),
 };
 
 export const config = {
@@ -14,8 +15,9 @@ export const config = {
   // NOTE: never use `adb reverse` with this firmware — it crashes adbd and drops USB until a reboot.
   cdpPort: Number(process.env.CARTHING_CDP_PORT || 22222),
 
-  // Where the UI lives on the device. /var/lib is the persistent "settings" partition,
-  // so UI updates never need the read-only rootfs remounted.
+  // Where our files live on the device. /var/lib is the persistent "settings" partition,
+  // so updates never need the read-only rootfs remounted.
+  deviceDir: '/var/lib/carthing',
   deviceUiDir: '/var/lib/carthing/ui',
   // What Chromium opens at boot (supervisord --app). scripts/setup-device.sh points it at deviceUiDir.
   deviceBootUrl: 'file:///usr/share/qt-superbird-app/webapp/index.html',
@@ -37,6 +39,11 @@ export const config = {
   knobClicks: { 1: 'playpause', 2: 'next', 3: 'previous' },
   multiClickMs: 350,
 
+  // Hold a button for holdMs to get a second action out of it; the short press then happens on
+  // release instead. `sleep` puts the screen to sleep until the next button or knob input.
+  buttonHolds: { m: 'sleep' },
+  holdMs: 1200,
+
   // Mac-side settings page (weather location etc.), loopback only.
   settingsPort: Number(process.env.CARTHING_SETTINGS_PORT || 4747),
 
@@ -51,6 +58,17 @@ export const config = {
   // itself sleeps). A button or knob input wakes it for screenWakeMs.
   sleepWithMac: true,
   screenWakeMs: 60 * 1000,
+
+  // Deep sleep, run by the device itself (device/sleepd.sh, installed by `npm run setup-device`).
+  // The bridge writes deviceHeartbeat every heartbeatMs with the screen state it wants; when the
+  // Mac stops writing it — shut down, cable pulled, bridge stopped — the device turns its own
+  // backlight off after deviceSleepSeconds and idles the CPU, since nothing on the Mac can do it
+  // any more. Any button or knob input wakes it for deviceWakeSeconds.
+  deviceSleepSeconds: 90,
+  deviceWakeSeconds: 20,
+  devicePowersave: true, // also drop the device's CPU governor to powersave while asleep
+  heartbeatMs: 10 * 1000,
+  deviceHeartbeat: '/tmp/carthing-heartbeat', // tmpfs: the rootfs is read-only and flash wears out
 
   // Sources that don't get an app badge on the artwork (your "home" player).
   unbadgedApps: ['com.apple.Music'],

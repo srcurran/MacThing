@@ -35,6 +35,35 @@ export async function syncUi(serial, localDir, remoteDir, { force = false } = {}
   return { version, changed: true };
 }
 
+/** Single-quoted for the device's shell. */
+const q = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
+
+/**
+ * Keeps the device-side sleep watchdog in step with device/sleepd.sh and bridge/config.js.
+ * Does nothing unless scripts/setup-device.sh has registered it with supervisord — installing it
+ * means editing /etc/supervisord.conf on the read-only rootfs, which is a setup job, not
+ * something the bridge should be doing behind the user's back.
+ */
+export async function syncSleepd(serial, localScript, remoteDir, conf) {
+  const registered = (await shell(serial, `grep -q '^\\[program:carthing-sleep\\]' /etc/supervisord.conf && echo yes; true`)).trim() === 'yes';
+  if (!registered) return { installed: false, changed: false };
+
+  const script = await fs.readFile(localScript);
+  const lines = Object.entries(conf).map(([k, v]) => `${k}=${v}`);
+  const version = createHash('sha1').update(script).update(lines.join('\n')).digest('hex').slice(0, 12);
+  const current = (await shell(serial, `cat ${remoteDir}/sleepd.version 2>/dev/null; true`)).trim();
+  if (current === version) return { installed: true, changed: false };
+
+  await adb(['push', localScript, `${remoteDir}/sleepd.sh`], { serial });
+  await shell(
+    serial,
+    `printf '%s\\n' ${lines.map(q).join(' ')} > ${remoteDir}/sleep.conf && ` +
+      `chmod +x ${remoteDir}/sleepd.sh && echo ${version} > ${remoteDir}/sleepd.version && sync; ` +
+      `supervisorctl restart carthing-sleep >/dev/null 2>&1; true`,
+  );
+  return { installed: true, changed: true };
+}
+
 /** True once scripts/setup-device.sh has pointed the boot web app at the UI folder. */
 export async function isBootInstalled(serial, remoteDir) {
   const target = (await shell(serial, 'readlink /usr/share/qt-superbird-app/webapp; true')).trim();

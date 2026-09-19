@@ -25,6 +25,7 @@
   CT.config = {
     buttons: { 1: 'screen:nowplaying', 2: 'screen:weather', 3: 'screen:clock', 4: 'screen:calendar', m: 'settings', Escape: 'favorite' },
     knobClicks: { 1: 'playpause', 2: 'next', 3: 'previous' },
+    buttonHolds: { m: 'sleep' }, holdMs: 1200, offlineSleepMs: 90000,
     multiClickMs: 350, volumeStep: 1 / 64, knobDirection: 1, debug: false
   };
   CT.settings = { theme: 'dark', units: 'F', clock24h: false, clockFace: 'analog', location: { mode: 'auto' } };
@@ -68,7 +69,9 @@
   }
   CT.applyTheme = applyTheme;
 
+  var offlineSince = 0; // when the Mac was last seen; 0 means "not since this page loaded"
   function setConnected(on) {
+    if (on !== connected) offlineSince = on ? 0 : performance.now();
     connected = on;
     app.classList.toggle('offline', !on);
   }
@@ -113,7 +116,8 @@
   CT.onSecond = function (fn) { secondFns.push(fn); };
   (function secondLoop() {
     var now = CT.now();
-    for (var i = 0; i < secondFns.length; i++) secondFns[i](now);
+    // Nothing is visible while the backlight is off — don't spend the device's CPU redrawing it.
+    if (!CT.asleep) for (var i = 0; i < secondFns.length; i++) secondFns[i](now);
     setTimeout(secondLoop, 1005 - (now % 1000));
   })();
 
@@ -191,17 +195,28 @@
   CT.on('toast', function (msg) { CT.toast(msg.text); });
 
   // ---- Screen sleep ----------------------------------------------------------------------
-  // The Mac turns the backlight off when it sleeps (or its display sleeps with nothing
-  // playing). While dark, the first button or knob input only wakes the screen.
+  // The Mac turns the backlight off when its display sleeps, and when the sleep button is held.
+  // When the Mac stops talking to us altogether the device does it for itself (device/sleepd.sh)
+  // and we go black here to match. While dark, the first button or knob input only wakes us.
 
-  var asleep = false;
-  CT.on('screen', function (msg) {
-    asleep = !msg.on;
-    app.classList.toggle('asleep', asleep);
-  });
+  CT.asleep = false;
+  function setAsleep(on) {
+    CT.asleep = on;
+    app.classList.toggle('asleep', on);
+  }
+  CT.on('screen', function (msg) { setAsleep(!msg.on); });
+
+  /** Holding the sleep button: the Mac turns the backlight off until the next input. */
+  function sleepNow() {
+    setAsleep(true); // black straight away, even if the Mac isn't there to answer
+    CT.send({ type: 'sleep' });
+  }
+
   function wakeInstead() {
-    if (!asleep) return false;
+    if (!CT.asleep) return false;
     CT.send({ type: 'wake' });
+    offlineSince = performance.now();
+    if (!connected) setAsleep(false); // no Mac to turn the backlight back on for us
     return true;
   }
 
@@ -242,15 +257,68 @@
     }, CT.config.multiClickMs || 350);
   }
 
-  window.addEventListener('keydown', function (e) {
-    var key = keyName(e);
-    debugInput('keydown key=' + e.key + ' code=' + e.code + ' → ' + key);
-    if (!key) return;
-    e.preventDefault();
-    if (e.repeat || wakeInstead()) return;
+  function runKey(key) {
     if (key === 'Enter') return knobPress();
     if (key === 'Escape' && CT.current === 'settings') return CT.closeSettings();
     runButton(CT.config.buttons[key]);
+  }
+
+  // Buttons in config.buttonHolds do a second thing when held (by default: the settings button
+  // puts the screen to sleep). Those act on release, so a hold isn't also a short press —
+  // every other button still acts the moment it goes down.
+  var holds = {}; // key → {start, done}
+  var releasesWork = true; // until a key goes down twice with no keyup in between
+  function holdAction(key) { return releasesWork && (CT.config.buttonHolds || {})[key]; }
+  function holdMs() { return CT.config.holdMs || 1200; }
+
+  function fireHold(key, press) {
+    if (press.done) return;
+    press.done = true;
+    clearTimeout(press.timer);
+    var action = holdAction(key);
+    debugInput('hold ' + key + ' → ' + action);
+    if (action === 'sleep') return sleepNow();
+    runButton(action);
+  }
+
+  window.addEventListener('keydown', function (e) {
+    var key = keyName(e);
+    debugInput('keydown key=' + e.key + ' code=' + e.code + ' → ' + key + (e.repeat ? ' (repeat)' : ''));
+    if (!key) return;
+    e.preventDefault();
+
+    var press = holds[key];
+    if (e.repeat) {
+      // Auto-repeat is the backstop for the timer on a device that fires it while a key is held.
+      if (press && !press.done && holdAction(key) && performance.now() - press.start >= holdMs()) fireHold(key, press);
+      return;
+    }
+    if (press) { // no keyup arrived for the last press: this firmware only sends keydown
+      releasesWork = false;
+      clearTimeout(press.timer);
+      debugInput('no keyup seen — holds disabled');
+    }
+    if (wakeInstead()) {
+      holds[key] = { start: performance.now(), done: true }; // the wake was the whole press
+      return;
+    }
+    press = holds[key] = { start: performance.now(), done: false, timer: null };
+    if (!holdAction(key)) {
+      press.done = true; // nothing to hold for: act now, as every button always has
+      return runKey(key);
+    }
+    press.timer = setTimeout(function () { fireHold(key, press); }, holdMs());
+  }, true);
+
+  window.addEventListener('keyup', function (e) {
+    var key = keyName(e);
+    if (!key) return;
+    e.preventDefault();
+    var press = holds[key];
+    delete holds[key];
+    if (!press) return;
+    clearTimeout(press.timer);
+    if (!press.done) runKey(key); // short press: the action happens on release
   }, true);
 
   window.addEventListener('wheel', function (e) {
@@ -327,6 +395,10 @@
   setInterval(function () {
     if (connected && performance.now() - lastMsgAt > 6500) setConnected(false);
     if (!connected || !gotConfig) CT.send({ type: 'hello' }); // ask the bridge for full state
+    // The Mac is gone, so nothing will send us a screen message: go dark on our own. The device's
+    // own watchdog (device/sleepd.sh) kills the backlight at the same point; this just means the
+    // panel shows black rather than "Waiting for your Mac" even without it installed.
+    if (!connected && !CT.asleep && performance.now() - offlineSince > (CT.config.offlineSleepMs || 90000)) setAsleep(true);
   }, 1000);
 
   // Runs after every screen script has registered.
