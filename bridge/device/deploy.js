@@ -51,8 +51,12 @@ export async function syncSleepd(serial, localScript, remoteDir, conf) {
   const script = await fs.readFile(localScript);
   const lines = Object.entries(conf).map(([k, v]) => `${k}=${v}`);
   const version = createHash('sha1').update(script).update(lines.join('\n')).digest('hex').slice(0, 12);
-  const current = (await shell(serial, `cat ${remoteDir}/sleepd.version 2>/dev/null; true`)).trim();
-  if (current === version) return { installed: true, changed: false };
+  // Read the config back rather than trusting the stamp alone: a sleep.conf edited on the device
+  // would otherwise keep its own idle and wake times for as long as the stamp matched.
+  const SPLIT = '--8<--';
+  const out = await shell(serial, `cat ${remoteDir}/sleepd.version 2>/dev/null; echo '${SPLIT}'; cat ${remoteDir}/sleep.conf 2>/dev/null; true`);
+  const [current = '', onDevice = ''] = out.replace(/\r/g, '').split(SPLIT);
+  if (current.trim() === version && onDevice.trim() === lines.join('\n')) return { installed: true, changed: false };
 
   await adb(['push', localScript, `${remoteDir}/sleepd.sh`], { serial });
   await shell(
