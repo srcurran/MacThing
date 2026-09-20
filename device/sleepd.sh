@@ -27,7 +27,7 @@ POLL=1                      # seconds between checks (also the wake-on-input lat
 POWERSAVE=1                 # also idle the CPU while asleep (governor, or a clock cap)
 HEAL=180                    # seconds of quiet before rebinding a dead USB gadget (0 = never)
 HEAL_PRESS=25               # …or this many, when a button press asks for it (~2 missed heartbeats)
-HEAL_MAX=900                # longest gap between attempts once they stop sticking
+HEAL_MAX=300                # longest gap between attempts once they stop sticking
 
 [ -f "$CONF" ] && . "$CONF"
 
@@ -244,6 +244,10 @@ while :; do
   # Then see whether USB needs rebinding: every HEAL seconds of quiet, and right away on a button
   # press, since someone reaching for it is the clearest sign they want it back. This runs after
   # the screen work above so a press lights the panel first — rebinding takes a few seconds.
+  #
+  # The gap stretches while attempts don't stick, but never past HEAL_MAX: on a hub that drops the
+  # port nightly this is the only way back, and a Mac woken in the morning shouldn't wait longer
+  # than that for the device to reappear on its own.
   if [ "$HEAL" -gt 0 ]; then
     if [ "$input" = yes ] && [ "$idle" -ge "$HEAL_PRESS" ]; then
       heal_usb
