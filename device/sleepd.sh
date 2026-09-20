@@ -104,6 +104,23 @@ usb_state() {
   echo unknown
 }
 
+udc_dir() {
+  for u in /sys/class/udc/*; do [ -d "$u" ] && echo "$u" && return 0; done
+  return 1
+}
+
+# Gentlest first: drop and raise the D+ pullup, which makes the host enumerate us again without
+# tearing the gadget down. adbd keeps its endpoint through this.
+soft_reconnect() {
+  d=$(udc_dir) || return 1
+  [ -w "$d/soft_connect" ] || return 1
+  echo disconnect > "$d/soft_connect" 2>/dev/null
+  sleep 1
+  echo connect > "$d/soft_connect" 2>/dev/null
+  sleep 2
+  [ "$(usb_state)" = configured ]
+}
+
 rebind_udc() {
   udc=$(ls -1 /sys/class/udc/ 2>/dev/null | head -1)
   [ -n "$udc" ] || return 1
@@ -120,7 +137,16 @@ heal_usb() {
   [ "$(usb_state)" = configured ] && return 0
   [ -w "$GADGET/UDC" ] || { say "no $GADGET/UDC — can't rebind"; return 0; }
 
-  say "usb $(usb_state) after ${idle}s quiet — rebinding"
+  # One line of kernel log with it: whoever reads this later wants to know what the controller
+  # saw when the host went away, not just that we tried something.
+  say "usb $(usb_state) after ${idle}s quiet; last: $(dmesg 2>/dev/null | grep -i 'dwc\|gadget' | tail -1)"
+
+  if soft_reconnect; then
+    say "usb configured again after a soft reconnect"
+    return 0
+  fi
+
+  say "soft reconnect didn't take ($(usb_state)) — rebinding the gadget"
   if rebind_udc; then
     say "usb configured again"
     return 0
