@@ -7,12 +7,20 @@
 #  2. Stops Spotify's background app (qt-superbird-app) from autostarting: with no Spotify
 #     service it only burns ~15% CPU on "Hey Spotify" wake-word listening and BT pairing.
 #     The original supervisord.conf is kept as supervisord.conf.spotify.
+#  3. Installs device/sleepd.sh as a supervisord program, so the Car Thing turns its own
+#     backlight off when the Mac stops talking to it — shut down, asleep, or unplugged from
+#     everything but power. Any button or the knob wakes it.
 #
 # Undo everything with scripts/restore-device.sh.
 set -euo pipefail
 
+here=${0:A:h}
+
 serial=$(adb devices -l | awk '/spotify-car-thing|Car_Thing/ && $2=="device" {print $1; exit}')
 [[ -n "$serial" ]] || { echo "No Car Thing found over adb" >&2; exit 1; }
+
+adb -s "$serial" shell 'mkdir -p /var/lib/carthing'
+adb -s "$serial" push "$here/../device/sleepd.sh" /var/lib/carthing/sleepd.sh >/dev/null
 
 adb -s "$serial" shell '
 set -e
@@ -40,5 +48,25 @@ else
   echo "• supervisord already modified"
 fi
 supervisorctl stop superbird >/dev/null 2>&1 || true
+
+chmod +x /var/lib/carthing/sleepd.sh
+if ! grep -q "^\[program:carthing-sleep\]" /etc/supervisord.conf; then
+  cat >> /etc/supervisord.conf <<EOF
+
+[program:carthing-sleep]
+command=/bin/sh /var/lib/carthing/sleepd.sh
+autostart=true
+autorestart=true
+startsecs=5
+stdout_logfile=/tmp/carthing-sleep.log
+redirect_stderr=true
+EOF
+  echo "• sleep watchdog installed (backlight off when the Mac goes away)"
+else
+  echo "• sleep watchdog already installed"
+fi
+tmpmount=$(grep " /tmp " /proc/mounts || true)
+case "$tmpmount" in *tmpfs*) ;; *) echo "  warning: /tmp is not tmpfs — the heartbeat file would write to flash" ;; esac
 '
+adb -s "$serial" shell 'supervisorctl reread >/dev/null 2>&1; supervisorctl update >/dev/null 2>&1; supervisorctl start carthing-sleep >/dev/null 2>&1; supervisorctl status carthing-sleep'
 echo "Done. Start the bridge (npm start) — it deploys the UI and takes over the screen."

@@ -9,6 +9,7 @@ It has four screens: Now Playing, Weather, Clock and Calendar.
 | Turn knob | Mac output volume (in Settings: move the selection) |
 | Press knob once / twice / three times | Play-pause / next track / previous track; starts Apple Music if nothing is playing (in Settings: change the selected option) |
 | Fifth top button (settings) | Settings (press it again, or the back button, to close) |
+| Hold the fifth top button | Sleep now — screen off until the next button or knob input |
 | Back button (under the knob) | Favorite / unfavorite the playing Apple Music song |
 
 The four screens:
@@ -18,7 +19,11 @@ The four screens:
 - **Clock** shows an analog face (plain or with numbers) or a digital one, plus the next event still to come today, or "No events today".
 - **Calendar** shows today's remaining events and, by default, tomorrow's under their own heading. Choose how many days (1–7) and which calendars on the Mac settings page.
 
-**Sleep:** the Car Thing's backlight turns off whenever your Mac's display sleeps. Press any button or turn the knob to wake it for a minute; that first input only wakes it.
+**Sleep:** the Car Thing's screen turns off whenever your Mac's display sleeps, when you hold the settings button, and — this part runs on the device itself — about a minute and a half after the Mac stops talking to it at all: shut down, unplugged from the Mac but still powered, or just the bridge stopped. Press any button or turn the knob to wake it; while the Mac is away it stays lit for 20 seconds, and while the Mac is only asleep, for a minute. That first input only wakes it.
+
+**Lock:** while your Mac is locked — the lock screen, or switched to another account — the screen stays off and no button wakes it. It comes back when you log in.
+
+The backlight is the part that wears out, so "off" means the backlight really is off, not a black page — plus the device's CPU drops to its powersave governor and the UI stops redrawing. There's no suspend-to-RAM: the Car Thing's kernel can't resume from one, and USB would drop with it, so an idle backlit-off device drawing very little is as deep as this goes.
 
 **Lock:** while your Mac is locked — the lock screen, or switched to another account — the backlight stays off and no button wakes it. It comes back when you log in.
 
@@ -78,8 +83,9 @@ Don't run a manual copy while the agent is running, because both would fight ove
 ### After pulling updates
 
 ```bash
-npm run build     # only needed if native/ changed
-npm run restart   # the bridge pushes any UI changes to the Car Thing by itself
+npm run build         # only needed if native/ changed
+npm run restart       # the bridge pushes any UI changes to the Car Thing by itself
+npm run setup-device  # only if you set the device up before the sleep watchdog existed
 ```
 
 ## Customizing
@@ -93,6 +99,8 @@ npm run restart   # the bridge pushes any UI changes to the Car Thing by itself
 - `volumeStep`: volume change per knob click
 - `knobDirection`: `1` matches Spotify's own mapping (turning right raises the volume); `-1` flips it
 - `sleepWithMac` and `screenWakeMs`: follow the Mac's display and lock screen, and how long a button or knob wake lasts while the Mac's display is off
+- `buttonHolds` and `holdMs`: what a held button does (`sleep` by default on the settings button) and how long the hold is. A button with a hold acts on release, so one press isn't both things
+- `deviceSleepSeconds`, `deviceWakeSeconds`, `devicePowersave`: the device's own sleep once the Mac goes quiet — how long it waits, how long an input wakes it for, and whether it also idles the CPU. Changes reach the device the next time the bridge connects (`npm run restart`)
 - `macVolumeIndicator`: see below
 
 **macOS volume pop-up.** By default the knob sets the volume directly. The Sound menu reflects the change, but macOS doesn't show its volume pop-up. To get the pop-up, set `macVolumeIndicator: true`, restart, and allow `native/bin/volumectl` under **System Settings → Privacy & Security → Accessibility**. The knob then presses the Mac's volume keys. macOS requires that permission for any software that generates keystrokes. A physical keyboard doesn't need it because its keys come from hardware.
@@ -128,6 +136,7 @@ bridge/main.js (Node, no npm deps)
  ├─ App badges ← native/bin/appinfo (name + icon)             ui/js/core.js + one file per screen
  ├─ Location, calendar ← native/bin/CarThingHelper.app
  ├─ Sleep/lock  ← native/bin/powerwatch (IOKit + CGSession; holds sleep ≤3 s to kill the backlight)
+ ├─ Heartbeat  ── adb shell → /tmp/carthing-heartbeat ───▶     sleepd.sh (backlight off when it stops)
  ├─ Weather    ← Open-Meteo (HTTPS)
  ├─ Settings page http://127.0.0.1:4747
  └─ Device link ── adb forward tcp:22222 → tcp:2222 ──────▶     (Chromium devtools port)
@@ -149,10 +158,22 @@ The device this was built on runs Spotify's final firmware, `v8.9.2`, community-
 - Weston compositor
 - 32-bit userland on a 64-bit kernel, 512 MB RAM
 
-`npm run setup-device` changes two things, and `npm run restore-device` reverts both:
+`npm run setup-device` changes three things, and `npm run restore-device` reverts all of them:
 
 - `/usr/share/qt-superbird-app/webapp` becomes a symlink to `/var/lib/carthing/ui`. Spotify's original is kept as `webapp.spotify`.
 - Spotify's background app (`qt-superbird-app`) no longer autostarts. It was using about 15% CPU on wake-word listening and Bluetooth pairing. The original config is kept as `/etc/supervisord.conf.spotify`.
+- `device/sleepd.sh` is installed at `/var/lib/carthing/sleepd.sh` and registered with supervisord as `carthing-sleep`, so the device can sleep without the Mac (below). The bridge keeps the script and its `sleep.conf` up to date on every connect; `supervisorctl status carthing-sleep` and `/tmp/carthing-sleep.log` on the device show what it's doing.
+
+### Sleeping without the Mac
+
+Nothing on the Mac can turn the backlight off once the Mac is gone, so the device watches for the Mac instead:
+
+- while the bridge is connected it writes `/tmp/carthing-heartbeat` every 10 seconds — a counter plus the screen state it wants. The bridge still owns the backlight; `sleepd.sh` only reads along.
+- when that file stops changing for `deviceSleepSeconds`, the Mac isn't there any more: `sleepd.sh` stops the ambient-light daemon, writes `0` to `/sys/class/aml_bl/power` and switches the CPU governor to `powersave`.
+- it wakes on any input by reading `/dev/input/event*` in the background. evdev hands every reader its own copy of each event, so Chromium still sees the same press.
+- when the heartbeat starts changing again it puts the governor back and hands the screen over in whatever state the heartbeat last asked for.
+
+The page does its own small version of this: after the same timeout with no messages it renders black, so the screen isn't showing "Waiting for your Mac" all night even on a device where the watchdog isn't installed.
 
 ### Gotchas
 
@@ -175,6 +196,8 @@ The device this was built on runs Spotify's final firmware, `v8.9.2`, community-
 - **Weather data.** Your location leaves the Mac rounded to about 1 km, and only to Open-Meteo. Hourly and daily labels use the forecast place's own timezone.
 - **Rebuilding the helper can reset its permissions.** `CarThingHelper.app` is ad-hoc signed, so after changing and rebuilding `native/helper/` macOS may ask for Location and Calendars again. `npm run build` skips the helper when its source hasn't changed.
 - **Single press delay.** A single knob press waits `multiClickMs` (350 ms) to see whether a second press follows, so play/pause reacts slightly later than it would without double and triple presses.
+- **No real suspend.** Sleep means backlight off, CPU idled and the UI stopped redrawing. Chromium stays loaded so waking is instant, and the device keeps drawing a little current as long as the cable does.
+- **Waking takes up to a second.** While the Mac is away, `sleepd.sh` notices a button or knob event on its next one-second poll rather than instantly.
 
 ## Layout
 
@@ -191,6 +214,7 @@ native/           Swift helpers + build script (output in native/bin, git-ignore
 ui/               everything that runs on the Car Thing (800×480)
   js/             core.js (channel, input, screens, volume) + one file per screen
   css/            base.css (layout, dark/light palettes) + one file per screen
+device/           sleepd.sh — the device's own sleep watchdog, installed by setup-device
 scripts/          device setup/restore, screenshot, LaunchAgent
 vendor/           mediaremote-adapter source (cloned by native/build.sh, git-ignored)
 ```

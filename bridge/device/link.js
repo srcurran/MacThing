@@ -3,10 +3,18 @@ import { config, paths } from '../config.js';
 import { log } from '../log.js';
 import { adb, shell } from './adb.js';
 import { CDP, listTargets } from './cdp.js';
-import { isBootInstalled, syncUi } from './deploy.js';
+import { isBootInstalled, syncSleepd, syncUi } from './deploy.js';
 
 const BINDING = '__carthingSend'; // page → Mac (Runtime.addBinding)
 const CONSOLE_MARK = '⁣carthing '; // fallback channel if bindings are unavailable
+
+/** What device/sleepd.sh reads out of /var/lib/carthing/sleep.conf. */
+const sleepConf = () => ({
+  HB: config.deviceHeartbeat,
+  IDLE: config.deviceSleepSeconds,
+  WAKE: config.deviceWakeSeconds,
+  POWERSAVE: config.devicePowersave ? 1 : 0,
+});
 
 /**
  * One live connection to a Car Thing: forwards its Chromium devtools port over adb,
@@ -22,6 +30,8 @@ export class DeviceLink extends EventEmitter {
     this.serial = serial;
     this.cdp = null;
     this.closed = false;
+    this.sleepd = false; // is the device-side sleep watchdog installed?
+    this.beat = 0;
   }
 
   async connect() {
@@ -29,6 +39,14 @@ export class DeviceLink extends EventEmitter {
     const sync = await syncUi(this.serial, paths.ui, config.deviceUiDir);
     if (sync.changed) log.info(`[device] UI deployed (${sync.version})`);
     this.uiVersion = sync.version;
+
+    const sleepd = await syncSleepd(this.serial, paths.sleepd, config.deviceDir, sleepConf()).catch((err) => {
+      log.warn('[device] sleep watchdog:', err.message);
+      return { installed: false, changed: false };
+    });
+    this.sleepd = sleepd.installed;
+    if (sleepd.changed) log.info('[device] sleep watchdog updated');
+    else if (!sleepd.installed) log.warn('[device] no sleep watchdog — run `npm run setup-device` so the screen sleeps when the Mac is off');
 
     const installed = await isBootInstalled(this.serial, config.deviceUiDir);
     this.pageUrl = installed ? config.deviceBootUrl : `file://${config.deviceUiDir}/index.html`;
@@ -107,11 +125,21 @@ export class DeviceLink extends EventEmitter {
   }
 
   /**
+   * Tells the device-side watchdog the Mac is still here, and what the screen should be doing.
+   * It's the heartbeat going stale — not the screen state — that makes the device sleep on its own.
+   */
+  async heartbeat(on) {
+    if (!this.sleepd || this.closed) return;
+    await shell(this.serial, `echo ${++this.beat} ${on ? 'on' : 'off'} > ${config.deviceHeartbeat}`, { timeout: 5000 });
+  }
+
+  /**
    * Backlight on/off. The ambient-light daemon is paused while off so it can't relight the screen.
    *
    * Use the Amlogic driver's own switch: the standard /sys/class/backlight/aml-bl/bl_power and
    * its `brightness` are both accepted on this panel and do nothing — the LEDs stay lit while the
    * page goes black, which looks like a dark screen in a dark room and lit everywhere else.
+   * device/sleepd.sh switches the same file when the Mac isn't there to do it.
    */
   async setScreen(on) {
     this.send({ type: 'screen', on });
