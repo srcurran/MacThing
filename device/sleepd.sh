@@ -17,6 +17,7 @@ CONF=/var/lib/carthing/sleep.conf
 BL=/sys/class/aml_bl/power  # echo 0|1; the standard backlight/aml-bl/bl_power does nothing here
 GOV=/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
 MARK=/tmp/carthing-input
+GADGET=/sys/kernel/config/usb_gadget/g1 # built by /etc/init.d/S49usbgadget, at boot only
 
 # Defaults. sleep.conf, generated from bridge/config.js, overrides them.
 HB=/tmp/carthing-heartbeat  # what the Mac writes: "<counter> <on|off>"
@@ -24,6 +25,7 @@ IDLE=90                     # seconds without a heartbeat before the screen slee
 WAKE=20                     # seconds awake after a button or knob press while the Mac is away
 POLL=1                      # seconds between checks (also the wake-on-input latency)
 POWERSAVE=1                 # also idle the CPU while asleep (governor, or a clock cap)
+HEAL=180                    # seconds of quiet before rebinding a dead USB gadget (0 = never)
 
 [ -f "$CONF" ] && . "$CONF"
 
@@ -81,6 +83,56 @@ governor() {
     else echo "$MAXF_WAS" > "$MAXF" 2>/dev/null; fi
     say "max clock $(cat "$MAXF" 2>/dev/null)"
   fi
+  return 0
+}
+
+# When the Mac suspends it stops driving the port, and this firmware's gadget doesn't always come
+# back with it: the Mac wakes to no Car Thing on the bus. /etc/init.d/S49usbgadget only builds the
+# gadget at boot, so the only cure is a full power cycle — a replug doesn't do it while the device
+# keeps power from a hub. Rebinding the UDC is that cure, without the unplugging.
+#
+# The gate is what keeps this safe: it only ever runs when the heartbeat has been quiet for HEAL
+# seconds AND no host has the gadget configured. A working link — even an idle one with the bridge
+# stopped — reads "configured", so a rebind can never interrupt something that was working.
+usb_state() {
+  for u in /sys/class/udc/*; do
+    [ -r "$u/state" ] || continue
+    cat "$u/state" 2>/dev/null
+    return 0
+  done
+  echo unknown
+}
+
+rebind_udc() {
+  udc=$(ls -1 /sys/class/udc/ 2>/dev/null | head -1)
+  [ -n "$udc" ] || return 1
+  echo "" > "$GADGET/UDC" 2>/dev/null
+  sleep 1
+  echo "$udc" > "$GADGET/UDC" 2>/dev/null
+  sleep 2
+  [ "$(usb_state)" = configured ]
+}
+
+heal_usb() {
+  [ "$HEAL" -gt 0 ] || return 0
+  [ -n "$beat" ] || return 0 # never saw the Mac this run: nothing to win back
+  [ "$(usb_state)" = configured ] && return 0
+  [ -w "$GADGET/UDC" ] || { say "no $GADGET/UDC — can't rebind"; return 0; }
+
+  say "usb $(usb_state) after ${idle}s quiet — rebinding"
+  if rebind_udc; then
+    say "usb configured again"
+    return 0
+  fi
+
+  # adbd serves the gadget's ffs endpoint, and its end of it doesn't survive every unbind. Give it
+  # a fresh start and try once more before waiting out the next interval.
+  say "still $(usb_state) — restarting adbd"
+  killall adbd 2>/dev/null
+  sleep 1
+  /usr/bin/adbd &
+  sleep 2
+  if rebind_udc; then say "usb configured again"; else say "usb still $(usb_state); will retry in ${HEAL}s"; fi
   return 0
 }
 
@@ -143,6 +195,9 @@ while :; do
 
   input=no
   input_seen && input=yes
+
+  # Every HEAL seconds of quiet, check whether the USB gadget needs rebinding.
+  [ "$HEAL" -gt 0 ] && [ "$idle" -ge "$HEAL" ] && [ $((idle % HEAL)) -eq 0 ] && heal_usb
 
   if [ "$idle" -lt "$IDLE" ]; then
     if [ "$mode" != host ]; then

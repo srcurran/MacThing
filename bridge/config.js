@@ -67,6 +67,11 @@ export const config = {
   deviceSleepSeconds: 90,
   deviceWakeSeconds: 20,
   devicePowersave: true, // also idle the device's CPU while asleep (see device/sleepd.sh)
+  // This firmware's USB gadget doesn't always survive the Mac suspending the port, and it's only
+  // built at boot, so the Mac can wake to no device on the bus until it's fully power-cycled.
+  // After this many seconds without a heartbeat — and only while no host has the gadget
+  // configured — the device rebinds it itself.
+  deviceUsbHealSeconds: 180, // 0 turns it off
   heartbeatMs: 10 * 1000,
   deviceHeartbeat: '/tmp/carthing-heartbeat', // tmpfs: the rootfs is read-only and flash wears out
 

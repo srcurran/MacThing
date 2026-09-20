@@ -14,6 +14,7 @@ const sleepConf = () => ({
   IDLE: config.deviceSleepSeconds,
   WAKE: config.deviceWakeSeconds,
   POWERSAVE: config.devicePowersave ? 1 : 0,
+  HEAL: config.deviceUsbHealSeconds,
 });
 
 /**
