@@ -4,3 +4,4 @@ vendor/
 *.png
 !ui/images/*.png
 .DS_Store
+.claude/

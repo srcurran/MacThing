@@ -41,12 +41,15 @@
 
 <div id="app" class="offline" data-screen="nowplaying">
 
+  <!-- Album art background (setting): blurred, tinted current artwork behind the screens -->
+  <div class="ambient"><div class="ambient-img" id="ambientImg"></div></div>
+
   <!-- 1 · Now Playing -->
   <section class="screen active" id="screen-nowplaying">
     <div class="panel">
       <div class="meta" id="npMeta">
-        <div class="np-title" id="npTitle"></div>
         <div class="np-artist" id="npArtist"></div>
+        <div class="np-title" id="npTitle"></div>
         <div class="np-album" id="npAlbum"></div>
       </div>
       <div class="row screen-bottom np-progress">
@@ -58,7 +61,7 @@
     <div class="stage np-art">
       <div class="art-layer" id="npArtA"><div class="art-bg"></div><div class="art-img"></div></div>
       <div class="art-layer" id="npArtB"><div class="art-bg"></div><div class="art-img"></div></div>
-      <div class="np-clock"><div class="np-clock-time" id="npClockTime"></div><div class="np-clock-date" id="npClockDate"></div></div>
+      <svg class="c-face np-face" id="npFace" viewBox="0 0 400 400"></svg>
       <div class="paused-glyph"><svg><use href="#i-pause"/></svg></div>
       <img class="badge" id="npBadge" alt="">
     </div>
@@ -70,9 +73,8 @@
       <div class="w-place" id="wPlace"></div>
       <div class="big-num w-temp" id="wTemp"></div>
       <div class="w-cond"><svg class="w-cond-icon"><use id="wCondIcon" href=""/></svg><span id="wCond"></span></div>
-      <div class="w-sub" id="wSub"></div>
       <div class="grow"></div>
-      <div class="row screen-bottom w-updated" id="wUpdated"></div>
+      <div class="w-updated screen-bottom" id="wUpdated"></div>
     </div>
     <div class="stage w-stage" id="wStage">
       <div class="w-hourly" id="wHourly"></div>
@@ -84,23 +86,14 @@
   <!-- 3 · Clock -->
   <section class="screen" id="screen-clock">
     <div class="panel">
-      <div class="c-day" id="cDay"></div>
-      <div class="big-num c-daynum" id="cDate"></div>
       <div class="c-month" id="cMonth"></div>
-      <div class="c-year" id="cYear"></div>
+      <div class="big-num c-daynum" id="cDate"></div>
+      <div class="c-day" id="cDay"></div>
       <div class="grow"></div>
-      <div class="row screen-bottom c-next" id="cNext"></div>
+      <div class="c-next screen-bottom" id="cNext"></div>
     </div>
     <div class="stage c-stage">
-      <svg class="c-face" viewBox="0 0 400 400">
-        <circle cx="200" cy="200" r="196" class="c-dial"/>
-        <g id="cTicks"></g>
-        <g id="cNumerals" class="c-numerals"></g>
-        <g id="cHour"><rect x="194" y="102" width="12" height="104" rx="6" class="c-hand"/></g>
-        <g id="cMinute"><rect x="196" y="44" width="8" height="162" rx="4" class="c-hand"/></g>
-        <g id="cSecond"><rect x="198.75" y="30" width="2.5" height="204" rx="1.25" class="c-accent"/><circle cx="200" cy="200" r="7" class="c-accent"/></g>
-        <circle cx="200" cy="200" r="3" class="c-pin"/>
-      </svg>
+      <svg class="c-face" id="cFace" viewBox="0 0 400 400"></svg>
       <div class="c-digital"><span id="cDigital"></span><span class="c-digital-sec" id="cDigitalSec"></span></div>
     </div>
   </section>
@@ -109,10 +102,7 @@
   <section class="screen" id="screen-calendar">
     <div class="panel">
       <div class="k-weekday" id="kWeekday"></div>
-      <div class="big-num k-clock" id="kClock"><span id="kTime"></span><span class="k-ampm" id="kAmpm"></span></div>
-      <div class="k-date" id="kDate"></div>
-      <div class="grow"></div>
-      <div class="row screen-bottom k-summary" id="kSummary"></div>
+      <div class="big-num k-clock" id="kClock"></div>
     </div>
     <div class="stage k-stage">
       <div class="k-list" id="kList"></div>
@@ -140,7 +130,6 @@
   </div>
   <div class="flash" id="flash"><svg><use id="flashIcon" href="#i-play"/></svg></div>
   <div class="toast" id="toast"></div>
-  <div class="hints" id="hints"><span></span><span></span><span></span><span></span></div>
 
   <div class="offline-screen">
     <div class="pulse"></div>
@@ -151,6 +140,7 @@
 
 <script src="js/core.js"></script>
 <script src="js/nowplaying.js"></script>
+<script src="js/ambient.js"></script>
 <script src="js/weather.js"></script>
 <script src="js/clock.js"></script>
 <script src="js/calendar.js"></script>

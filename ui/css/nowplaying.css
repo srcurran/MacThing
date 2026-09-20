@@ -2,19 +2,24 @@
 
 #screen-nowplaying .meta { flex: 1; min-height: 0; overflow: hidden; }
 
-/* Figma "spotify-now-playing" 203:4 — title 32 semibold, artist 20 bold, album 20 light, 16 apart. */
-.np-title {
-  font-size: 32px; line-height: 39px; font-weight: 600;
-  display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden;
-  word-wrap: break-word;
-}
+/* Figma 8:46 — artist (Inter 22 bold), title (Merriweather 40 semibold), album (Inter 22 light),
+   24px apart: small label, big serif line, secondary line. */
 .np-artist, .np-album {
-  margin-top: 16px;
-  font-size: 20px; line-height: 24px;
+  font-size: 22px; line-height: 28px;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
 }
 .np-artist { font-weight: 700; min-height: 29px; } /* the Figma's artist box is 29px tall */
-.np-album { font-weight: 300; }
+.np-album { margin-top: 24px; font-weight: 300; }
+.np-title {
+  margin-top: 24px;
+  font-family: Merriweather, Georgia, serif;
+  font-size: 40px; line-height: 56px; font-weight: 600;
+  display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden;
+  word-wrap: break-word;
+}
+.np-artist:empty + .np-title { margin-top: 0; }
+.np-progress { height: 28px; }
+.np-progress .time { font-size: 22px; line-height: 28px; }
 .np-album.is-source { color: var(--muted); }
 .np-artist:empty, .np-album:empty { display: none; }
 
@@ -37,13 +42,14 @@
 .art-layer.square .art-bg { display: none; }
 .art-img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: center / contain no-repeat; }
 
-.paused .art-layer { -webkit-filter: brightness(0.5); filter: brightness(0.5); }
+/* Paused: the same round badge as the flash, left in place (the art isn't dimmed). */
 .paused-glyph {
-  position: absolute; left: 50%; top: 50%; width: 64px; height: 64px; margin: -32px 0 0 -32px;
+  position: absolute; left: 50%; top: 50%; width: 112px; height: 112px; margin: -56px 0 0 -56px;
+  border-radius: 50%; background: rgba(0, 0, 0, 0.55); color: #fff;
+  display: flex; align-items: center; justify-content: center;
   opacity: 0; transition: opacity 0.3s ease;
-  -webkit-filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5)); filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
 }
-.paused-glyph svg { width: 64px; height: 64px; }
+.paused-glyph svg { width: 48px; height: 48px; }
 .paused .paused-glyph { opacity: 1; }
 
 .badge {
@@ -53,14 +59,10 @@
 }
 .has-badge .badge { display: block; }
 
-/* Nothing playing: a clock in the art area. */
-.np-clock {
-  position: absolute; left: 0; top: 0; width: 480px; height: 480px;
-  display: none; flex-direction: column; align-items: center; justify-content: center;
-}
-.np-clock-time { font-size: 104px; line-height: 1; font-weight: 500; letter-spacing: -0.045em; font-variant-numeric: tabular-nums; }
-.np-clock-date { margin-top: 18px; font-size: 24px; font-weight: 300; color: var(--muted); }
+/* Nothing playing: the Clock screen's face in the art area, and a muted line in the panel. */
+.np-face { display: none; }
 
+#screen-nowplaying.idle .stage { background: var(--panel); } /* one continuous background, like the Clock screen */
 .idle .art-layer, .idle .badge, .idle .paused-glyph, .idle .np-progress { visibility: hidden; }
-.idle .np-clock { display: flex; }
-.idle .np-title { color: var(--muted); }
+.idle .np-face { display: block; }
+.idle .np-title { font-family: Inter, sans-serif; font-weight: 600; color: var(--muted); }

@@ -1,37 +1,39 @@
 /* Weather */
 
 .w-place {
-  font-size: 20px; line-height: 24px; font-weight: 700;
+  font-size: 22px; line-height: 28px; font-weight: 700;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.w-cond { margin-top: 12px; display: flex; align-items: center; font-size: 32px; line-height: 39px; font-weight: 600; }
+.w-cond { margin-top: 12px; display: flex; align-items: center; font-size: 32px; line-height: 40px; font-weight: 600; }
 .w-cond-icon { width: 42px; height: 42px; flex: none; margin: 0 10px 0 -3px; }
-.w-sub { margin-top: 16px; font-size: 20px; line-height: 28px; font-weight: 300; color: var(--muted); white-space: pre-line; }
-.w-updated { font-weight: 300; color: var(--muted); }
+.w-updated { flex: none; font-size: 22px; line-height: 28px; font-weight: 500; color: var(--muted); }
 
 /* One continuous background; whitespace separates the panel from the forecast. */
 .w-stage { background: var(--panel); }
 
-.w-hourly { position: absolute; left: 24px; right: 24px; top: 26px; display: flex; justify-content: space-between; }
-.w-hour { width: 68px; text-align: center; }
-.w-hour-t { font-size: 18px; line-height: 22px; font-weight: 600; color: var(--text-2); }
-.w-hour svg { display: block; width: 44px; height: 44px; margin: 8px auto 4px; }
-.w-hour-temp { font-size: 24px; line-height: 29px; font-weight: 600; }
-.w-pop { font-size: 15px; line-height: 18px; font-weight: 600; color: var(--rain); }
+/* Square insets: 48 top/bottom, 24 left, 64 right (clear of the dial). Hourly on top, five days below. */
+.w-hourly { position: absolute; left: 24px; right: 64px; top: 48px; display: flex; justify-content: space-between; }
+.w-hour { width: 64px; text-align: center; }
+.w-hour-t { font-size: 22px; line-height: 28px; font-weight: 600; color: var(--text-2); }
+.w-hour svg { display: block; width: 40px; height: 40px; margin: 4px auto; }
+.w-hour-temp { font-size: 22px; line-height: 28px; font-weight: 600; }
+.w-pop { font-size: 22px; line-height: 28px; font-weight: 600; color: var(--rain); }
 .w-pop:empty::before { content: '\00a0'; }
 
 .w-daily {
-  position: absolute; left: 32px; right: 32px; top: 196px;
+  position: absolute; left: 24px; right: 64px; bottom: 48px;
   border-top: 1px solid var(--line); padding-top: 6px;
 }
-.w-day { height: 52px; display: flex; align-items: center; }
-.w-day-name { width: 84px; flex: none; font-size: 20px; font-weight: 600; }
+/* Row: day, icon, chance, low, range, high — 8px apart (Chromium 69 has no flex gap). */
+.w-day { height: 44px; display: flex; align-items: center; font-size: 22px; line-height: 28px; }
+.w-day > * + * { margin-left: 8px; }
+.w-day-name { width: 76px; flex: none; font-weight: 600; }
 .w-day svg { width: 32px; height: 32px; flex: none; }
-.w-day .w-pop { width: 48px; flex: none; margin-left: 6px; }
-.w-lo, .w-hi { width: 44px; flex: none; text-align: right; font-size: 20px; font-variant-numeric: tabular-nums; }
+.w-day .w-pop { width: 52px; flex: none; }
+.w-lo, .w-hi { width: 44px; flex: none; text-align: right; font-variant-numeric: tabular-nums; }
 .w-lo { font-weight: 400; color: var(--muted); }
 .w-hi { font-weight: 600; }
-.w-range { position: relative; flex: 1; height: 5px; margin: 0 12px; border-radius: 3px; background: var(--line); }
-.w-range i { position: absolute; top: 0; bottom: 0; border-radius: 3px; background: linear-gradient(90deg, #8fd0ff, #ffd35c); }
+.w-range { position: relative; flex: 1; height: 5px; border-radius: 3px; background: var(--line); }
+.w-range i { position: absolute; top: 0; bottom: 0; border-radius: 3px; background: var(--text); }
 
 .w-empty .w-hourly, .w-empty .w-daily { display: none; }

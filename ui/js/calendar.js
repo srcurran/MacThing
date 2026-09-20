@@ -1,20 +1,21 @@
-/* Screen 4 · Calendar — the next 7 days from the Mac's Calendar app (bridge/widgets/calendar.js). */
+/* Screen 4 · Calendar — what's left of today, then tomorrow, from the Mac's Calendar app
+   (bridge/widgets/calendar.js). */
 (function () {
   'use strict';
 
   var $ = CT.$;
   var setText = CT.setText;
   var screen = CT.screen('calendar');
-  var el = {
-    weekday: $('kWeekday'), clock: $('kClock'), time: $('kTime'), ampm: $('kAmpm'), date: $('kDate'), summary: $('kSummary'),
-    list: $('kList'), message: $('kMessage')
-  };
+  var el = { weekday: $('kWeekday'), clock: $('kClock'), list: $('kList'), message: $('kMessage') };
   var data = { status: 'loading' };
 
   CT.on('calendar', function (msg) { data = msg.calendar; render(); });
   CT.on('settings', render); // 12/24-hour times
   // Re-render on the minute so finished events drop off and "Now" moves along.
   CT.onSecond(function (now) { if (CT.current === 'calendar' && CT.parts(now).seconds === 0) render(); });
+
+  /** True once the Mac has sent real events — the Clock screen waits for this before saying there are none. */
+  CT.calendarReady = function () { return data.status === 'ok'; };
 
   /** Next timed event that hasn't started yet — also used by the Clock screen. */
   CT.nextEvent = function (now) {
@@ -31,19 +32,11 @@
     el.message.classList.toggle('on', !!title);
   }
 
-  function groupLabel(day, today, ms) {
-    if (day === today) return 'Today';
-    if (day === today + 1) return 'Tomorrow';
-    var p = CT.parts(ms);
-    return CT.DAYS[p.day] + ', ' + CT.MONTHS[p.month].slice(0, 3) + ' ' + p.date;
-  }
-
-  // Big clock at the weather-temperature size; steps down only if "12:59 PM" wouldn't fit.
+  // Big clock at the weather-temperature size (no AM/PM); steps down only if it wouldn't fit.
   function renderClock(p) {
-    var c = CT.clockText(p);
-    if (el.time.textContent === c.time && el.ampm.textContent === c.ampm) return;
-    setText(el.time, c.time);
-    setText(el.ampm, c.ampm);
+    var time = CT.clockText(p).time;
+    if (el.clock.textContent === time) return;
+    setText(el.clock, time);
     el.clock.style.fontSize = '';
     for (var size = 112; el.clock.scrollWidth > el.clock.clientWidth && size > 72; ) {
       size -= 8;
@@ -55,13 +48,11 @@
     var now = CT.now();
     var p = CT.parts(now);
     var today = CT.dayNumber(now);
-    setText(el.weekday, CT.DAYS[p.day]);
-    setText(el.date, CT.MONTHS[p.month] + ' ' + p.date);
+    setText(el.weekday, CT.DAYS[p.day] + ' ' + (p.month + 1) + '/' + p.date); // "Friday 9/18"
     renderClock(p);
 
     if (data.status !== 'ok') {
       el.list.innerHTML = '';
-      setText(el.summary, '');
       if (data.status === 'denied' || data.status === 'restricted' || data.status === 'writeOnly') {
         showMessage('Calendar access is off', 'Allow “Car Thing Helper” in System Settings → Privacy & Security → Calendars.');
       } else if (data.status === 'loading' || data.status === 'notDetermined') {
@@ -72,55 +63,62 @@
       return;
     }
 
-    var todays = data.events.filter(function (e) {
-      return CT.dayNumber(e.start) <= today && CT.dayNumber(e.end - 1) >= today;
-    }).length;
-    setText(el.summary, todays === 0 ? 'No events today' : todays === 1 ? '1 event today' : todays + ' events today');
+    var days = CT.settings.calendarDays || 2; // today plus the next (days − 1), from the Mac settings page
 
-    // Upcoming events grouped by day; multi-day events that started earlier show under Today.
-    var upcoming = data.events
-      .filter(function (e) { return e.end > now; })
-      .map(function (e) { return { e: e, day: Math.max(CT.dayNumber(e.start), today) }; })
-      .sort(function (a, b) {
-        return a.day - b.day || (b.e.allDay - a.e.allDay) || a.e.start - b.e.start;
+    // One section per day. Within a day: all-day first, then by start time. An event that runs
+    // past midnight stays under the day it started, so it's only listed once.
+    function byDay(keep) {
+      return data.events.filter(keep).sort(function (a, b) { return (b.allDay - a.allDay) || a.start - b.start; });
+    }
+    var sections = [{ label: '', events: byDay(function (e) { return e.end > now && CT.dayNumber(e.start) <= today; }) }];
+    for (var i = 1; i < days; i++) {
+      sections.push({
+        label: i === 1 ? 'Tomorrow' : CT.DAYS[CT.parts(now + i * 86400000).day],
+        events: byDay((function (day) {
+          return function (e) { return CT.dayNumber(e.start) === day; };
+        })(today + i))
       });
+    }
+    sections = sections.filter(function (s) { return s.events.length; });
 
-    if (!upcoming.length) {
+    if (!sections.length) {
       el.list.innerHTML = '';
-      return showMessage('Nothing coming up', 'The next 7 days are clear.');
+      return showMessage('Nothing scheduled', days > 1 ? 'The next ' + days + ' days are clear.' : 'The rest of the day is clear.');
     }
     showMessage('');
 
-    var rows = [];
-    var lastDay = null;
-    upcoming.forEach(function (item) {
-      var e = item.e;
-      if (item.day !== lastDay) {
-        rows.push({ header: true, html: '<div class="k-group">' + groupLabel(item.day, today, Math.max(e.start, now)) + '</div>' });
-        lastDay = item.day;
-      }
+    function eventRow(e) {
       var ongoing = !e.allDay && e.start <= now;
       var where = (e.location || '').split('\n')[0];
-      rows.push({
-        html: '<div class="k-event' + (ongoing ? ' now' : '') + '">' +
-          '<div class="k-bar" style="background:' + CT.esc(e.color) + '"></div>' +
-          '<div class="k-time">' + (e.allDay ? 'All day' : ongoing ? 'Now' : CT.esc(CT.timeText(e.start))) + '</div>' +
-          '<div class="k-body"><div class="k-title">' + CT.esc(e.title || 'Untitled') + '</div>' +
-          (where ? '<div class="k-where">' + CT.esc(where) + '</div>' : '') + '</div></div>'
-      });
-    });
+      return '<div class="k-event' + (ongoing ? ' now' : '') + '">' +
+        '<div class="k-bar" style="background:' + CT.esc(e.color) + '"></div>' +
+        '<div class="k-body"><div class="k-line">' +
+        '<span class="k-time">' + (e.allDay ? 'All day' : ongoing ? 'NOW' : CT.esc(CT.timeText(e.start))) + '</span>' +
+        '<span class="k-title">' + CT.esc(e.title || 'Untitled') + '</span></div>' +
+        (where ? '<div class="k-where">' + CT.esc(where) + '</div>' : '') + '</div></div>';
+    }
 
-    // Show as many as fit, then "+N more".
-    var shown = rows.length;
-    for (;;) {
-      var hidden = rows.slice(0, shown).filter(function (r) { return !r.header; }).length;
-      hidden = upcoming.length - hidden;
-      var visible = rows.slice(0, shown);
-      while (visible.length && visible[visible.length - 1].header) visible.pop();
-      el.list.innerHTML = visible.map(function (r) { return r.html; }).join('') +
-        (hidden > 0 ? '<div class="k-more">+' + hidden + ' more</div>' : '');
-      if (el.list.scrollHeight <= el.list.clientHeight || shown <= 1) break;
-      shown--;
+    function draw(kept) {
+      el.list.innerHTML = kept.map(function (s) {
+        var hidden = s.events.length - s.shown;
+        return (s.label ? '<div class="k-day">' + CT.esc(s.label) + '</div>' : '') +
+          s.events.slice(0, s.shown).map(eventRow).join('') +
+          (hidden > 0 ? '<div class="k-more">+' + hidden + ' more</div>' : '');
+      }).join('');
+      return el.list.scrollHeight <= el.list.clientHeight;
+    }
+
+    // Fit the days on screen: trim whichever day shows the most (latest day first on a tie), so
+    // every day keeps a row for as long as possible. Days that still don't fit drop off the end.
+    var kept = sections.map(function (s) { return { label: s.label, events: s.events, shown: s.events.length }; });
+    while (!draw(kept)) {
+      var fattest = -1;
+      for (var k = 0; k < kept.length; k++) {
+        if (kept[k].shown > 1 && (fattest < 0 || kept[k].shown >= kept[fattest].shown)) fattest = k;
+      }
+      if (fattest >= 0) kept[fattest].shown--;
+      else if (kept.length > 1) kept.pop();
+      else break;
     }
   }
 

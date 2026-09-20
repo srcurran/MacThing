@@ -13,7 +13,10 @@ export const DEFAULTS = {
   units: 'F', // weather temperature: 'F' | 'C'
   clock24h: false,
   clockFace: 'analog', // 'analog' | 'numbers' | 'digital'
+  artBackground: false, // blurred album art behind Now Playing and the widgets
   location: { mode: 'auto' }, // or { mode: 'manual', name, lat, lon }
+  calendars: null, // null = every calendar in the Mac's Calendar app; else an array of calendar ids
+  calendarDays: 2, // days of events on the Calendar screen: today plus the next (n − 1)
 };
 
 const VALID = {
@@ -21,9 +24,12 @@ const VALID = {
   units: (v) => v === 'F' || v === 'C',
   clock24h: (v) => typeof v === 'boolean',
   clockFace: (v) => ['analog', 'numbers', 'digital'].includes(v),
+  artBackground: (v) => typeof v === 'boolean',
   location: (v) =>
     v?.mode === 'auto' ||
     (v?.mode === 'manual' && typeof v.name === 'string' && Number.isFinite(v.lat) && Number.isFinite(v.lon)),
+  calendars: (v) => v === null || (Array.isArray(v) && v.every((id) => typeof id === 'string')),
+  calendarDays: (v) => Number.isInteger(v) && v >= 1 && v <= 7,
 };
 
 class Settings extends EventEmitter {

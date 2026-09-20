@@ -5,8 +5,8 @@ import { createInterface } from 'node:readline';
 import { log } from '../log.js';
 
 /**
- * Mac sleep/wake and display sleep/wake, via native/bin/powerwatch.
- * Events: 'display' (asleep: boolean), 'willSleep', 'didWake'.
+ * Mac sleep/wake, display sleep/wake and the lock screen, via native/bin/powerwatch.
+ * Events: 'display' (asleep: boolean), 'lock' (locked: boolean), 'willSleep', 'didWake'.
  * After 'willSleep' the Mac waits (up to 3 s) until ack() is called, so there's time to
  * turn the Car Thing's screen off before USB suspends.
  */
@@ -15,6 +15,7 @@ export class MacPower extends EventEmitter {
     super();
     this.bin = path.join(binDir, 'powerwatch');
     this.displayAsleep = false;
+    this.locked = false;
     this.proc = null;
     this.stopped = false;
   }
@@ -33,6 +34,9 @@ export class MacPower extends EventEmitter {
       if (msg.event === 'display') {
         this.displayAsleep = msg.asleep;
         this.emit('display', msg.asleep);
+      } else if (msg.event === 'lock') {
+        this.locked = msg.locked;
+        this.emit('lock', msg.locked);
       } else if (msg.event === 'willSleep' || msg.event === 'didWake') {
         this.emit(msg.event);
       }

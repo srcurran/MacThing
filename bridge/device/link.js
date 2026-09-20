@@ -106,15 +106,21 @@ export class DeviceLink extends EventEmitter {
     }
   }
 
-  /** Backlight on/off. The ambient-light daemon is paused while off so it can't relight the screen. */
+  /**
+   * Backlight on/off. The ambient-light daemon is paused while off so it can't relight the screen.
+   *
+   * Use the Amlogic driver's own switch: the standard /sys/class/backlight/aml-bl/bl_power and
+   * its `brightness` are both accepted on this panel and do nothing — the LEDs stay lit while the
+   * page goes black, which looks like a dark screen in a dark room and lit everywhere else.
+   */
   async setScreen(on) {
     this.send({ type: 'screen', on });
-    const power = '/sys/class/backlight/aml-bl/bl_power';
+    const power = '/sys/class/aml_bl/power'; // echo 0|1 (see `cat /sys/class/aml_bl/help`)
     await shell(
       this.serial,
       on
-        ? `echo 0 > ${power}; supervisorctl start backlight >/dev/null 2>&1; true`
-        : `supervisorctl stop backlight >/dev/null 2>&1; echo 4 > ${power}; true`,
+        ? `echo 1 > ${power}; supervisorctl start backlight >/dev/null 2>&1; true`
+        : `supervisorctl stop backlight >/dev/null 2>&1; echo 0 > ${power}; true`,
       { timeout: 3000 },
     );
   }

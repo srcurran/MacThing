@@ -29,7 +29,7 @@ const apps = new AppInfo(paths.bin);
 const artwork = new ArtworkCache();
 const helper = new MacHelper(paths.bin);
 const weather = new Weather(helper, settings);
-const calendar = new Calendar(helper);
+const calendar = new Calendar(helper, settings);
 const appearance = new MacAppearance();
 const power = new MacPower(paths.bin);
 
@@ -134,9 +134,10 @@ let lastDeviceInput = 0;
 let screenOn = null; // unknown until applied to the current device link
 
 // The Car Thing's screen follows the Mac's display; a button/knob press wakes it for a while.
+// While the Mac is locked it stays off for good: what's on it is the locked-away Mac's business.
 function screenShouldBeOn() {
   if (!config.sleepWithMac) return true;
-  if (systemAsleep) return false;
+  if (systemAsleep || power.locked) return false;
   if (!power.displayAsleep) return true;
   return Date.now() - lastDeviceInput < config.screenWakeMs;
 }
@@ -154,9 +155,11 @@ async function applyScreen() {
 
 async function macStatus() {
   const s = await helper.status().catch(() => ({}));
+  // The list is for the settings page's calendar checkboxes; it's empty until access is granted.
+  const cals = await helper.calendars().catch(() => ({}));
   return {
     location: { status: s.location || 'unknown', name: weather.auto?.name || null },
-    calendar: { status: s.calendar || 'unknown' },
+    calendar: { status: s.calendar || 'unknown', list: cals.ok ? cals.calendars : [] },
   };
 }
 
@@ -314,6 +317,10 @@ weather.on('change', (state) => link?.send({ type: 'weather', weather: state }))
 calendar.on('change', (state) => link?.send({ type: 'calendar', calendar: state }));
 appearance.on('change', (dark) => link?.send({ type: 'appearance', dark }));
 power.on('display', () => applyScreen());
+power.on('lock', (locked) => {
+  log.info(`[screen] Mac ${locked ? 'locked' : 'unlocked'}`);
+  applyScreen();
+});
 power.on('willSleep', async () => {
   systemAsleep = true;
   await Promise.race([applyScreen(), new Promise((r) => setTimeout(r, 2500))]);

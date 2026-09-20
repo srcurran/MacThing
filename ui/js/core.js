@@ -35,6 +35,7 @@
     var fns = listeners[type] || [];
     for (var i = 0; i < fns.length; i++) fns[i](arg);
   }
+  CT.emit = emit; // for page-local events (e.g. 'art' from Now Playing)
 
   // ---- Channel to the Mac ------------------------------------------------------------
 
@@ -117,12 +118,64 @@
     setTimeout(secondLoop, 1005 - (now % 1000));
   })();
 
+  // ---- Analog face ---------------------------------------------------------------------
+  // Fills an empty <svg viewBox="0 0 400 400"> with hour marks, optional numerals and hands,
+  // and returns an update(now) function. Used by the Clock screen and by Now Playing when
+  // nothing is playing (Figma: Widgets / Clock and Now Playing / Nothing Playing).
+  var SVG = 'http://www.w3.org/2000/svg';
+  CT.analogFace = function (svg) {
+    function point(r, turns) {
+      var a = turns * 2 * Math.PI;
+      return { x: 200 + r * Math.sin(a), y: 200 - r * Math.cos(a) };
+    }
+    function node(name, attrs) {
+      var el = document.createElementNS(SVG, name);
+      for (var k in attrs) el.setAttribute(k, attrs[k]);
+      return el;
+    }
+
+    // 60 marks: the 12 hour ones long and in the hand colour, the rest short and dim.
+    var ticks = node('g', {});
+    for (var i = 0; i < 60; i++) {
+      var isHour = i % 5 === 0;
+      var a = point(isHour ? 170 : 181, i / 60);
+      var b = point(188, i / 60);
+      ticks.appendChild(node('line', {
+        x1: a.x.toFixed(2), y1: a.y.toFixed(2), x2: b.x.toFixed(2), y2: b.y.toFixed(2),
+        class: isHour ? 'c-tick-hour' : 'c-tick-minor'
+      }));
+    }
+    var numerals = node('g', { class: 'c-numerals' });
+    for (var n = 1; n <= 12; n++) {
+      var p = point(144, n / 12);
+      var text = node('text', { x: p.x.toFixed(2), y: (p.y + 12).toFixed(2), 'text-anchor': 'middle' });
+      text.textContent = String(n); // optical centring (no dominant-baseline needed)
+      numerals.appendChild(text);
+    }
+    var hour = node('g', {});
+    hour.appendChild(node('rect', { x: 194, y: 102, width: 12, height: 104, rx: 6, class: 'c-hand' }));
+    var minute = node('g', {});
+    minute.appendChild(node('rect', { x: 196, y: 44, width: 8, height: 162, rx: 4, class: 'c-hand' }));
+    svg.appendChild(ticks);
+    svg.appendChild(numerals);
+    svg.appendChild(hour);
+    svg.appendChild(minute);
+    svg.appendChild(node('circle', { cx: 200, cy: 200, r: 10.4, class: 'c-hand' })); // cap over the hands
+
+    function rotate(g, deg) { g.setAttribute('transform', 'rotate(' + deg.toFixed(2) + ' 200 200)'); }
+    return function update(now) {
+      var p = CT.parts(now);
+      var minutes = p.minutes + p.seconds / 60;
+      rotate(hour, ((p.hours % 12) + minutes / 60) * 30);
+      rotate(minute, minutes * 6);
+    };
+  };
+
   // ---- Screens -------------------------------------------------------------------------
 
   CT.screens = {};
   CT.current = 'nowplaying';
   var beforeSettings = 'nowplaying';
-  var LABELS = { nowplaying: 'Now Playing', weather: 'Weather', clock: 'Clock', calendar: 'Calendar' };
 
   /** Registers a screen. Optional hooks: show(), hide(), turn(steps), press(). */
   CT.screen = function (name) {
@@ -144,23 +197,8 @@
       next.el.classList.add('active');
       if (next.show) next.show();
     }
-    if (name !== 'settings') showHints(name);
   };
   CT.closeSettings = function () { CT.show(beforeSettings); };
-
-  var hintTimer = null;
-  function showHints(active) {
-    var spans = CT.$('hints').children;
-    for (var i = 0; i < spans.length; i++) {
-      var action = CT.config.buttons[i + 1] || '';
-      var target = action.indexOf('screen:') === 0 ? action.slice(7) : '';
-      spans[i].innerHTML = LABELS[target] ? '<b>' + LABELS[target] + '</b>' : '';
-      spans[i].className = target === active ? 'on' : '';
-    }
-    app.classList.add('show-hints');
-    clearTimeout(hintTimer);
-    hintTimer = setTimeout(function () { app.classList.remove('show-hints'); }, 1400);
-  }
 
   // ---- Commands and feedback ------------------------------------------------------------
 

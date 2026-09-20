@@ -1,22 +1,20 @@
 /* Clock. Face style is a class on #screen-clock: analog | numbers | digital. */
 
-.c-day { font-size: 20px; line-height: 24px; font-weight: 700; }
+/* Panel, top to bottom: month, the date, then the weekday (Figma: Widgets / Clock). */
+.c-month { font-size: 22px; line-height: 28px; font-weight: 700; }
 .c-daynum { color: var(--red); }
-.c-month { margin-top: 2px; font-size: 32px; line-height: 39px; font-weight: 600; }
-.c-year { margin-top: 16px; font-size: 20px; line-height: 24px; font-weight: 300; }
-.c-next { font-weight: 300; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
-.c-next b { color: var(--text); font-weight: 600; }
+.c-day { margin-top: 12px; font-size: 32px; line-height: 40px; font-weight: 600; }
+.c-next { flex: none; font-size: 22px; line-height: 28px; font-weight: 500; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.c-next b { color: var(--text); font-weight: 500; }
 
 /* One continuous background; whitespace separates the panel from the dial. */
 #screen-clock .stage { background: var(--panel); }
 
-.c-face { position: absolute; left: 20px; top: 20px; width: 440px; height: 440px; }
-.c-dial, .c-pin { fill: var(--dial); }
-.c-tick-minor { stroke: var(--tick); stroke-width: 2; stroke-linecap: round; }
-.c-tick-hour { stroke: var(--hand); stroke-width: 5; stroke-linecap: round; }
+.c-face { position: absolute; left: 48px; top: 48px; width: 384px; height: 384px; } /* 48px inset in the square */
+.c-tick-minor { stroke: var(--tick); stroke-width: 2.3; stroke-linecap: round; }
+.c-tick-hour { stroke: var(--hand); stroke-width: 5.7; stroke-linecap: round; }
 .c-numerals { display: none; fill: var(--text); font-size: 34px; font-weight: 600; letter-spacing: -0.02em; }
 .c-hand { fill: var(--hand); }
-.c-accent { fill: var(--red); }
 .numbers .c-numerals { display: block; }
 .numbers .c-tick-hour { stroke-width: 3; }
 

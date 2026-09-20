@@ -13,14 +13,16 @@ It has four screens: Now Playing, Weather, Clock and Calendar.
 
 The four screens:
 
-- **Now Playing** follows whatever is playing in Control Center's Now Playing: Apple Music, Spotify, Podcasts, YouTube in a browser, and so on. It shows the artist, title, album, progress and artwork, plus a paused state, an app badge for non-Music sources, and a clock when nothing is playing.
+- **Now Playing** follows whatever is playing in Control Center's Now Playing: Apple Music, Spotify, Podcasts, YouTube in a browser, and so on. It shows the artist, title, album, progress and artwork, plus a paused state, an app badge for non-Music sources, and the analog clock face when nothing is playing. Optionally the artwork also fills the screen behind everything, blurred and tinted.
 - **Weather** shows the current conditions, the next few hours and five days. It uses [Open-Meteo](https://open-meteo.com) (free, no account) for your Mac's location or a place you pick.
-- **Clock** shows an analog face (plain or with numbers) or a digital one, plus your next calendar event.
-- **Calendar** shows the next 7 days from every account in the Mac's Calendar app.
+- **Clock** shows an analog face (plain or with numbers) or a digital one, plus the next event still to come today, or "No events today".
+- **Calendar** shows today's remaining events and, by default, tomorrow's under their own heading. Choose how many days (1–7) and which calendars on the Mac settings page.
 
-**Sleep:** the Car Thing's screen turns off whenever your Mac's display sleeps. Press any button or turn the knob to wake it for a minute; that first input only wakes it.
+**Sleep:** the Car Thing's backlight turns off whenever your Mac's display sleeps. Press any button or turn the knob to wake it for a minute; that first input only wakes it.
 
-**Settings** covers appearance (dark, light or match the Mac), °F/°C, 12/24-hour time, the clock face and the weather location. Anything that needs typing, like a city, opens a settings page on your Mac at http://127.0.0.1:4747.
+**Lock:** while your Mac is locked — the lock screen, or switched to another account — the backlight stays off and no button wakes it. It comes back when you log in.
+
+**Settings** covers appearance (dark, light or match the Mac), °F/°C, 12/24-hour time, the album art background and the weather location. Anything that needs typing or a longer list — a city, and which calendars and how many days the Calendar screen shows — opens a settings page on your Mac at http://127.0.0.1:4747.
 
 ## What you need
 
@@ -40,6 +42,8 @@ npm run install-agent  # starts the bridge now and at every login
 ```
 
 That's it. The Car Thing switches to the Now Playing screen within a few seconds.
+
+Re-run `npm run setup-device` after the Car Thing loses power: on this firmware the change to the read-only rootfs doesn't survive a power cycle. Nothing breaks without it — the bridge points the device at this UI on every connect — but until you do, the device shows Spotify's own app before the bridge connects. The log says `boot web app not pointed at our UI yet` when it needs re-running.
 
 The first time you favorite a song with the back button, macOS asks whether **musicctl** may control Music. That's `native/bin/musicctl`, a small helper that sends the favorite and play commands to Apple Music.
 
@@ -88,7 +92,7 @@ npm run restart   # the bridge pushes any UI changes to the Car Thing by itself
 - `knobClicks` and `multiClickMs`: the single, double and triple press actions, and how long a single press waits for more
 - `volumeStep`: volume change per knob click
 - `knobDirection`: `1` matches Spotify's own mapping (turning right raises the volume); `-1` flips it
-- `sleepWithMac` and `screenWakeMs`: screen sleep, and how long a button or knob wake lasts while the Mac's display is off
+- `sleepWithMac` and `screenWakeMs`: follow the Mac's display and lock screen, and how long a button or knob wake lasts while the Mac's display is off
 - `macVolumeIndicator`: see below
 
 **macOS volume pop-up.** By default the knob sets the volume directly. The Sound menu reflects the change, but macOS doesn't show its volume pop-up. To get the pop-up, set `macVolumeIndicator: true`, restart, and allow `native/bin/volumectl` under **System Settings → Privacy & Security → Accessibility**. The knob then presses the Mac's volume keys. macOS requires that permission for any software that generates keystrokes. A physical keyboard doesn't need it because its keys come from hardware.
@@ -102,15 +106,15 @@ npm run restore-device    # put Spotify's original web app and config back, then
 
 ## Design
 
-Now Playing follows the Figma file [spotify-now-playing](https://www.figma.com/design/goo129yUNTmPcrk1nepqn0/spotify-now-playing?node-id=203-4). The other screens reuse its type scale:
+Every screen is drawn in the Figma file [spotify-now-playing-2026](https://www.figma.com/design/Xw7pn5j4QZ8Ns237keo3ev/spotify-now-playing-2026?node-id=0-1) — Now Playing and its states, the three widgets, Settings, and light copies of them all. The type scale is by size, so the same numbers turn up everywhere:
 
-- title/heading: 32 semibold
-- secondary: 20 bold
-- tertiary: 20 light
-- bottom row: 18 regular
-- side and top/bottom panel padding: 24 / 48
+- 112 / 120 semibold, Merriweather: the big number (weather temperature, clock date, calendar time)
+- 40 / 56 semibold, Merriweather: the song title
+- 32 / 40 semibold: second line of a panel, weather conditions
+- 22 / 28: everything else, in bold, semibold, medium, regular or light by role — nothing is smaller
+- panel and square insets: 48 top and bottom, 24 left, 64 right so the knob's dial doesn't cover anything
 
-Inter is bundled in weights 300–700.
+Inter is bundled in weights 300–700, plus variable Merriweather for the song title and the big numbers.
 
 ## How it works
 
@@ -123,7 +127,7 @@ bridge/main.js (Node, no npm deps)
  ├─ Volume     ⇄ native/bin/volumectl (CoreAudio)             → symlink → /var/lib/carthing/ui
  ├─ App badges ← native/bin/appinfo (name + icon)             ui/js/core.js + one file per screen
  ├─ Location, calendar ← native/bin/CarThingHelper.app
- ├─ Sleep/wake  ← native/bin/powerwatch (IOKit; holds sleep ≤3 s to switch the backlight off)
+ ├─ Sleep/lock  ← native/bin/powerwatch (IOKit + CGSession; holds sleep ≤3 s to kill the backlight)
  ├─ Weather    ← Open-Meteo (HTTPS)
  ├─ Settings page http://127.0.0.1:4747
  └─ Device link ── adb forward tcp:22222 → tcp:2222 ──────▶     (Chromium devtools port)
@@ -156,6 +160,8 @@ The device this was built on runs Spotify's final firmware, `v8.9.2`, community-
 - macOS has no RNDIS driver, so the device's USB network interface is unused.
 - The kernel has no USB HID gadget driver, so the Car Thing can't simply act as a USB media-key device.
 - The device clock is never set, so the idle clock uses the Mac's time and timezone.
+- The backlight switch is `/sys/class/aml_bl/power` (`echo 0|1`). The standard `/sys/class/backlight/aml-bl/bl_power` and its `brightness` accept writes and do nothing: the LEDs stay lit while the page goes black.
+- `npm run setup-device` doesn't survive a power cycle (see Setup).
 - Userland is 32-bit, so a raw `input_event` is 16 bytes, not 24. This matters only if you read or inject `/dev/input/event*` yourself.
 - The UI must be plain ES2017 and CSS that Chromium 69 supports: no `?.`, `??`, flex `gap`, `inset`, `aspect-ratio` or `clamp()`.
 
@@ -167,7 +173,7 @@ The device this was built on runs Spotify's final firmware, `v8.9.2`, community-
 - **Non-Latin scripts.** The device has no CJK font, so Japanese, Chinese or Korean titles render as boxes. Adding a Noto Sans CJK subset to `ui/fonts` would fix it.
 - **Volume depends on the output device.** HDMI, S/PDIF and some USB DACs have no software volume. The screen then says "No volume control on …".
 - **Weather data.** Your location leaves the Mac rounded to about 1 km, and only to Open-Meteo. Hourly and daily labels use the forecast place's own timezone.
-- **Rebuilding the helper resets its permissions.** `CarThingHelper.app` is ad-hoc signed, so after changing and rebuilding `native/helper/` macOS asks for Location and Calendars again.
+- **Rebuilding the helper can reset its permissions.** `CarThingHelper.app` is ad-hoc signed, so after changing and rebuilding `native/helper/` macOS may ask for Location and Calendars again. `npm run build` skips the helper when its source hasn't changed.
 - **Single press delay.** A single knob press waits `multiClickMs` (350 ms) to see whether a second press follows, so play/pause reacts slightly later than it would without double and triple presses.
 
 ## Layout
@@ -192,4 +198,4 @@ vendor/           mediaremote-adapter source (cloned by native/build.sh, git-ign
 ## Credits
 
 - [ungive/mediaremote-adapter](https://github.com/ungive/mediaremote-adapter) (BSD-3-Clause), cloned and built by `npm run build`.
-- [Inter](https://rsms.me/inter/) by Rasmus Andersson (SIL Open Font License), bundled in `ui/fonts`.
+- [Inter](https://rsms.me/inter/) by Rasmus Andersson and [Merriweather](https://github.com/EbenSorkin/Merriweather4) by Eben Sorkin (both SIL Open Font License), bundled in `ui/fonts`.

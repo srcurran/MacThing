@@ -9,9 +9,10 @@
   var el = {
     meta: $('npMeta'), artist: $('npArtist'), title: $('npTitle'), album: $('npAlbum'),
     elapsed: $('npElapsed'), duration: $('npDuration'), progress: $('npProgress'),
-    artA: $('npArtA'), artB: $('npArtB'), badge: $('npBadge'),
-    clockTime: $('npClockTime'), clockDate: $('npClockDate')
+    artA: $('npArtA'), artB: $('npArtB'), badge: $('npBadge')
   };
+  // Nothing playing shows the Clock screen's face in the art area (Figma 9:78).
+  var idleFace = CT.analogFace($('npFace'));
 
   var np = { active: false };
   var npAt = 0; // performance.now() at which np.elapsed was current
@@ -67,6 +68,16 @@
 
     if (el.artist.textContent + '\n' + el.title.textContent + '\n' + el.album.textContent !== textBefore) fitTitle();
     renderProgress();
+    announceArt();
+  }
+
+  // Tell other parts of the page (the album art background) which artwork is current.
+  var announced;
+  function announceArt() {
+    var url = np.active && shownArtKey && artworks[shownArtKey] ? artworks[shownArtKey].dataUrl : null;
+    if (url === announced) return;
+    announced = url;
+    CT.emit('art', url);
   }
 
   function currentElapsed() {
@@ -85,13 +96,20 @@
   setInterval(function () { if (CT.current === 'nowplaying') renderProgress(); }, 250);
 
   // Largest title size that fits the panel (and stays ≤ 5 lines); clamp as a last resort.
-  var TITLE_SIZES = [32, 29, 26, 23, 20];
+  // Sizes and line heights come from the type scale (40/56, 32/40, 22/28).
+  var TITLE_SIZES = [40, 32, 22];
+  var TITLE_LINE = { 40: 56, 32: 40, 22: 28 };
   function fitTitle() {
     var t = el.title;
     var lh = 0;
     t.style.webkitLineClamp = '';
+    if (!np.active) { // "Nothing playing" is Inter 32/40, not a song title (Figma 9:78)
+      t.style.fontSize = '32px';
+      t.style.lineHeight = '40px';
+      return;
+    }
     for (var i = 0; i < TITLE_SIZES.length; i++) {
-      lh = Math.round(TITLE_SIZES[i] * 1.21); // Inter's normal line height
+      lh = TITLE_LINE[TITLE_SIZES[i]];
       t.style.fontSize = TITLE_SIZES[i] + 'px';
       t.style.lineHeight = lh + 'px';
       var fits = el.meta.scrollHeight <= el.meta.clientHeight;
@@ -100,6 +118,9 @@
     var overflow = el.meta.scrollHeight - el.meta.clientHeight;
     if (overflow > 0) t.style.webkitLineClamp = String(Math.max(1, Math.floor((t.offsetHeight - overflow) / lh)));
   }
+  // Measure with the real face: Merriweather only starts loading when a title first uses it,
+  // and the fallback is wider, which would drop the title a size for no reason.
+  if (document.fonts && document.fonts.load) document.fonts.load('600 40px Merriweather').then(fitTitle, function () {});
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitTitle);
 
   // Knob presses are handled in core; reflect them here right away (the Mac confirms shortly).
@@ -153,17 +174,14 @@
     back.classList.add('front');
     old.classList.remove('front');
     front = back;
+    announceArt();
     setTimeout(function () { if (old !== front) paint(old, null); }, 600); // free the old image
   }
 
   // ---- Nothing playing: clock in the art area ----------------------------------------
 
   function renderIdleClock() {
-    if (np.active) return;
-    var p = CT.parts(CT.now());
-    var c = CT.clockText(p);
-    setText(el.clockTime, c.time);
-    setText(el.clockDate, CT.DAYS[p.day] + ', ' + CT.MONTHS[p.month] + ' ' + p.date);
+    if (!np.active) idleFace(CT.now());
   }
   CT.onSecond(function () { if (CT.current === 'nowplaying') renderIdleClock(); });
 

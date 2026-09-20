@@ -7,7 +7,7 @@
   var screen = CT.screen('weather');
   var root = screen.el;
   var el = {
-    place: $('wPlace'), temp: $('wTemp'), cond: $('wCond'), condIcon: $('wCondIcon'), sub: $('wSub'),
+    place: $('wPlace'), temp: $('wTemp'), cond: $('wCond'), condIcon: $('wCondIcon'),
     updated: $('wUpdated'), hourly: $('wHourly'), daily: $('wDaily'), message: $('wMessage')
   };
   var data = { status: 'loading' };
@@ -50,7 +50,6 @@
       setText(el.temp, '--°');
       setText(el.cond, '');
       el.condIcon.setAttribute('href', '');
-      setText(el.sub, '');
       setText(el.updated, '');
       if (data.status === 'noLocation') {
         showMessage(
@@ -72,7 +71,6 @@
     setText(el.temp, data.current.temp + '°');
     el.condIcon.setAttribute('href', now.icon);
     setText(el.cond, now.label);
-    setText(el.sub, 'Feels like ' + data.current.feels + '°\nH ' + data.today.hi + '°  L ' + data.today.lo + '°');
     setText(el.updated, 'Updated ' + CT.timeText(data.updatedAt));
 
     el.hourly.innerHTML = data.hourly.map(function (h, i) {

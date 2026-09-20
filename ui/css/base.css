@@ -10,6 +10,9 @@
 @font-face { font-family: Inter; font-weight: 600; src: url(../fonts/inter-latin-ext-600-normal.woff2) format('woff2'); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
 @font-face { font-family: Inter; font-weight: 700; src: url(../fonts/inter-latin-700-normal.woff2) format('woff2'); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
 @font-face { font-family: Inter; font-weight: 700; src: url(../fonts/inter-latin-ext-700-normal.woff2) format('woff2'); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
+/* Merriweather (variable weight) — the song title and the big numbers (Figma 8:46, Widgets). */
+@font-face { font-family: Merriweather; font-weight: 300 900; src: url(../fonts/merriweather-latin-wght-normal.woff2) format('woff2'); unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD; }
+@font-face { font-family: Merriweather; font-weight: 300 900; src: url(../fonts/merriweather-latin-ext-wght-normal.woff2) format('woff2'); unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF; }
 
 /* Dark is the default; #app.light swaps the palette (Settings → Appearance). */
 :root {
@@ -22,7 +25,8 @@
   --selected: rgba(255, 255, 255, 0.07);
   --accent: #2d9cdb; /* progress/volume track, selection */
   --bar-fill: #fff; /* played part of the progress bar */
-  --red: #ff453a; /* clock second hand, calendar date */
+  --red: #ff453a; /* clock-screen date, calendar NOW label */
+  --orange: #ff8b00; /* calendar clock */
   --dial: #1d1d1d;
   --tick: #4a4a4a;
   --hand: #fff;
@@ -30,6 +34,7 @@
   --toast-text: #111;
   --offline-bg: #121212;
   --hud-bg: rgba(38, 38, 38, 0.94);
+  --ambient-tint: rgba(0, 0, 0, 0.75);
   /* weather icons */
   --sun: #ffd35c;
   --moon: #f2efd8;
@@ -54,6 +59,7 @@
   --toast-text: #fff;
   --offline-bg: #f2f2f0;
   --hud-bg: rgba(255, 255, 255, 0.96);
+  --ambient-tint: rgba(255, 255, 255, 0.75);
   --sun: #f5b301;
   --moon: #a59c72;
   --cloud: #c3cad3;
@@ -90,14 +96,18 @@ svg { fill: currentColor; }
 .stage { position: relative; width: 480px; height: 480px; flex: none; overflow: hidden; background: var(--stage); }
 .grow { flex: 1; }
 
-/* The big number on the left panel: weather temperature, clock-screen date, calendar-screen time. */
-.big-num { margin: 8px 0 0 -5px; font-size: 112px; line-height: 1.05; font-weight: 600; letter-spacing: -0.055em; white-space: nowrap; }
+/* The big number on the left panel: weather temperature, clock-screen date, calendar-screen time.
+   Merriweather 112/120 semibold, like the song title (Figma: Widgets). */
+.big-num {
+  margin: 12px 0 0; font-family: Merriweather, Georgia, serif;
+  font-size: 112px; line-height: 120px; font-weight: 600; white-space: nowrap;
+}
 
 /* Bottom row of the left panel (progress, "updated", …). The volume row takes its place.
-   Type scale (from the Figma): 32 semibold / 20 bold / 20 light, 18 regular for this row. */
-.row { height: 22px; display: flex; align-items: center; font-size: 18px; line-height: 22px; transition: opacity 0.25s ease; }
+   Nothing on the device is smaller than 22/28. */
+.row { height: 28px; display: flex; align-items: center; font-size: 22px; line-height: 28px; transition: opacity 0.25s ease; }
 .panel > .row { flex: none; margin-top: 12px; }
-.time { flex: none; font-size: 18px; font-weight: 400; letter-spacing: 0; }
+.time { flex: none; font-size: 22px; font-weight: 400; letter-spacing: 0; }
 .time.right { text-align: right; }
 .bar { position: relative; flex: 1; height: 8px; margin: 0 8px; background: var(--accent); border-radius: 8px; overflow: hidden; }
 .fill {
@@ -159,22 +169,21 @@ svg { fill: currentColor; }
 }
 .toast.on { opacity: 1; }
 
-/* Labels under the four top buttons, shown briefly when switching screens. */
-.hints { position: absolute; left: 0; top: 8px; width: 800px; height: 30px; opacity: 0; transition: opacity 0.3s ease; pointer-events: none; }
-.show-hints .hints { opacity: 1; }
-.hints span {
-  position: absolute; top: 0; width: 160px; margin-left: -80px; text-align: center;
-  font-size: 16px; line-height: 30px; font-weight: 600; color: rgba(255, 255, 255, 0.75);
+/* Album art background: blurred art under a 75% tint; the panels and stages of Now Playing and
+   the widgets go transparent so it shows through. Settings keeps its own backgrounds. */
+.ambient { position: absolute; left: 0; top: 0; width: 800px; height: 480px; overflow: hidden; display: none; background: var(--panel); }
+.ambient-on .ambient { display: block; }
+/* Figma: background blur 24 (≈ CSS blur 12px). Overscanned so the blur doesn't fade at the edges. */
+.ambient-img {
+  position: absolute; left: -32px; top: -32px; right: -32px; bottom: -32px;
+  background: center / cover no-repeat;
+  -webkit-filter: blur(12px); filter: blur(12px);
 }
-.hints span:nth-child(1) { left: 100px; }
-.hints span:nth-child(2) { left: 300px; }
-.hints span:nth-child(3) { left: 500px; }
-.hints span:nth-child(4) { left: 700px; }
-.hints span b {
-  display: inline-block; padding: 0 13px; border-radius: 99px; font-weight: 600;
-  background: rgba(0, 0, 0, 0.62);
-}
-.hints span.on b { background: #fff; color: #111; }
+.ambient::after { content: ''; position: absolute; left: 0; top: 0; right: 0; bottom: 0; background: var(--ambient-tint); }
+.ambient-on #screen-nowplaying .panel,
+.ambient-on #screen-weather .panel, .ambient-on #screen-weather .stage,
+.ambient-on #screen-clock .panel, .ambient-on #screen-clock .stage,
+.ambient-on #screen-calendar .panel, .ambient-on #screen-calendar .stage { background: transparent; }
 
 /* Screen asleep (backlight off): render nothing, in case the backlight can't be switched. */
 #app.asleep { background: #000; }

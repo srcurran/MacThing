@@ -10,7 +10,8 @@
     { key: 'theme', label: 'Appearance', options: [['dark', 'Dark'], ['light', 'Light'], ['auto', 'Match Mac']] },
     { key: 'units', label: 'Temperature', options: [['F', '°F'], ['C', '°C']] },
     { key: 'clock24h', label: 'Time format', options: [[false, '12-hour'], [true, '24-hour']] },
-    { key: 'clockFace', label: 'Clock face', options: [['analog', 'Analog'], ['numbers', 'Numbers'], ['digital', 'Digital']] },
+    { key: 'artBackground', label: 'Album art background', options: [[false, 'Off'], [true, 'On']] },
+    // Clock face is hidden while the design has only the analog face (the Numbers/Digital faces still exist in clock.js).
     {
       label: 'Weather location', page: 'location',
       value: function (s) { return s.location && s.location.mode === 'manual' ? s.location.name : 'Current location'; }

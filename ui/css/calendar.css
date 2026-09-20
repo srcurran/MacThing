@@ -1,25 +1,25 @@
-/* Calendar */
+/* Calendar: today's and tomorrow's agenda on the right, a big clock on the left. */
 
-.k-weekday { font-size: 20px; line-height: 24px; font-weight: 700; }
-.k-clock { overflow: hidden; }
-.k-ampm { margin-left: 10px; font-size: 32px; letter-spacing: 0; color: var(--muted); }
-.k-date { margin-top: 2px; font-size: 32px; line-height: 39px; font-weight: 600; }
-.k-summary { font-weight: 300; color: var(--muted); }
+/* Panel: weekday and date, then the time (Figma: Widgets / Calendar). */
+.k-weekday { font-size: 22px; line-height: 28px; font-weight: 700; }
+.k-clock { color: var(--orange); overflow: hidden; }
 
-/* One continuous background; whitespace separates the panel from the agenda. */
 #screen-calendar .stage { background: var(--panel); }
-
-.k-list { position: absolute; left: 32px; right: 32px; top: 26px; bottom: 26px; overflow: hidden; }
-.k-group {
-  margin: 18px 0 6px; font-size: 15px; line-height: 18px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted);
+/* Square insets: 48 top/bottom, 24 left, 64 right (clear of the dial). */
+.k-list { position: absolute; left: 24px; right: 64px; top: 48px; bottom: 48px; overflow: hidden; }
+.k-event { display: flex; }
+.k-event + .k-event { margin-top: 16px; }
+.k-bar { width: 4px; flex: none; margin-right: 14px; border-radius: 2px; }
+.k-body { flex: 1; min-width: 0; padding: 8px 0; }
+.k-line { display: flex; font-size: 22px; line-height: 28px; }
+.k-time { width: 112px; flex: none; margin-right: 2px; font-weight: 500; color: var(--text-2); }
+.k-title { flex: 1; min-width: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.k-where { margin-top: 4px; font-size: 22px; line-height: 28px; font-weight: 300; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.k-event.now .k-time { color: var(--red); }
+/* Day heading before tomorrow's events. */
+.k-day {
+  margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line);
+  font-size: 22px; line-height: 28px; font-weight: 500; color: var(--muted);
 }
-.k-group:first-child { margin-top: 0; }
-.k-event { display: flex; align-items: flex-start; padding: 7px 0; }
-.k-bar { width: 4px; flex: none; align-self: stretch; margin-right: 14px; border-radius: 2px; }
-.k-time { width: 102px; flex: none; font-size: 18px; line-height: 24px; font-weight: 500; color: var(--text-2); font-variant-numeric: tabular-nums; }
-.k-body { flex: 1; min-width: 0; }
-.k-title { font-size: 20px; line-height: 24px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.k-where { margin-top: 2px; font-size: 16px; line-height: 20px; font-weight: 300; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.k-event.now .k-time { color: var(--red); font-weight: 600; }
-.k-more { margin-top: 10px; font-size: 17px; font-weight: 600; color: var(--muted); }
+.k-day + .k-event { margin-top: 12px; }
+.k-more { margin-top: 16px; font-size: 22px; line-height: 28px; font-weight: 500; color: var(--muted); }

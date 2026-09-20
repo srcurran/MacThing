@@ -2,6 +2,7 @@
 //
 // stdout, one JSON object per line:
 //   {"event":"display","asleep":true|false}   on start and whenever the main display changes
+//   {"event":"lock","locked":true|false}      on start and whenever the session locks/unlocks
 //   {"event":"willSleep"}                      system is about to sleep (held until "ack" or 3 s)
 //   {"event":"didWake"}                        system woke up
 // stdin: "ack" — the bridge has finished getting ready for sleep.
@@ -57,13 +58,27 @@ if rootPort != 0, let notifier {
   FileHandle.standardError.write("powerwatch: could not register for system power notifications\n".data(using: .utf8)!)
 }
 
-// Display sleep: cheap to poll, and works without an NSApplication.
+/// Locked: the lock screen is up, or someone switched away from this login session.
+func sessionLocked() -> Bool {
+  guard let info = CGSessionCopyCurrentDictionary() as? [String: Any] else { return false }
+  let locked = info["CGSSessionScreenIsLocked"] as? Bool ?? false
+  let onConsole = info["kCGSSessionOnConsoleKey"] as? Bool ?? true
+  return locked || !onConsole
+}
+
+// Display sleep and the lock screen: cheap to poll, and works without an NSApplication.
 var displayAsleep: Bool?
+var locked: Bool?
 Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
   let asleep = CGDisplayIsAsleep(CGMainDisplayID()) != 0
   if asleep != displayAsleep {
     displayAsleep = asleep
     emit(["event": "display", "asleep": asleep])
+  }
+  let isLocked = sessionLocked()
+  if isLocked != locked {
+    locked = isLocked
+    emit(["event": "lock", "locked": isLocked])
   }
 }.fire()
 

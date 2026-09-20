@@ -80,8 +80,13 @@ export class MacHelper extends EventEmitter {
     return this.request('location');
   }
 
-  /** @returns {Promise<{ok, status, events?: Array<{title, location, start, end, allDay, calendar, color}>}>} */
+  /** @returns {Promise<{ok, status, events?: Array<{title, location, start, end, allDay, calendar, calendarId, color}>}>} */
   events(from, to) {
     return this.request('events', { from, to });
+  }
+
+  /** Every event calendar on the Mac. @returns {Promise<{ok, status, calendars?: Array<{id, title, color, account}>}>} */
+  calendars() {
+    return this.request('calendars');
   }
 }

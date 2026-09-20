@@ -89,6 +89,8 @@ final class Helper: NSObject, CLLocationManagerDelegate {
       location(id)
     case "events":
       events(id, from: msg["from"] as? Double ?? 0, to: msg["to"] as? Double ?? 0)
+    case "calendars":
+      calendars(id)
     default:
       send(["id": id, "ok": false, "error": "unknown command"])
     }
@@ -172,9 +174,24 @@ final class Helper: NSObject, CLLocationManagerDelegate {
           "title": ev.title ?? "", "location": ev.location ?? "",
           "start": ev.startDate.timeIntervalSince1970 * 1000, "end": ev.endDate.timeIntervalSince1970 * 1000,
           "allDay": ev.isAllDay, "calendar": ev.calendar.title, "color": hex(ev.calendar.color),
+          "calendarId": ev.calendar.calendarIdentifier,
         ]
       }
     send(["id": id, "ok": true, "status": "authorized", "events": Array(events)])
+  }
+
+  /// Every event calendar the Mac knows about, so the settings page can offer them as choices.
+  func calendars(_ id: Any) {
+    guard EKEventStore.authorizationStatus(for: .event) == .fullAccess else {
+      send(["id": id, "ok": false, "status": calendarStatus])
+      return
+    }
+    let list = store.calendars(for: .event)
+      .sorted { ($0.source.title, $0.title) < ($1.source.title, $1.title) }
+      .map { cal -> [String: Any] in
+        ["id": cal.calendarIdentifier, "title": cal.title, "color": hex(cal.color), "account": cal.source.title]
+      }
+    send(["id": id, "ok": true, "status": "authorized", "calendars": list])
   }
 }
 
