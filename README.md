@@ -178,7 +178,7 @@ The page does its own small version of this: after the same timeout with no mess
 ### Gotchas
 
 - **Never run `adb reverse`.** It crashes this adbd, the USB gadget unbinds, and the device disappears from USB until it's power-cycled. That's why everything goes Mac → device.
-- **The USB gadget doesn't always survive the Mac sleeping.** The Mac wakes to no Car Thing on the bus. `/etc/init.d/S49usbgadget` only builds the gadget at boot, so replugging the cable isn't enough while the device keeps power from a hub — it has to lose power completely. `sleepd.sh` now rebinds the UDC itself after `deviceUsbHealSeconds` of silence, but only while no host has the gadget configured, so it can't interrupt a working link.
+- **The USB gadget doesn't always survive the Mac sleeping.** The Mac wakes to no Car Thing on the bus. `/etc/init.d/S49usbgadget` only builds the gadget at boot, so replugging the cable isn't enough while the device keeps power from a hub — it has to lose power completely. `sleepd.sh` now rebinds the UDC itself after `deviceUsbHealSeconds` of silence, and immediately when a button is pressed after about 25 seconds of it, so reaching for the device is what brings it back. Either way it only acts while no host has the gadget configured, so it can't interrupt a working link.
 - macOS has no RNDIS driver, so the device's USB network interface is unused.
 - The kernel has no USB HID gadget driver, so the Car Thing can't simply act as a USB media-key device.
 - The device clock is never set, so the idle clock uses the Mac's time and timezone.

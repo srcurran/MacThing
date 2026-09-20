@@ -26,6 +26,7 @@ WAKE=20                     # seconds awake after a button or knob press while t
 POLL=1                      # seconds between checks (also the wake-on-input latency)
 POWERSAVE=1                 # also idle the CPU while asleep (governor, or a clock cap)
 HEAL=180                    # seconds of quiet before rebinding a dead USB gadget (0 = never)
+HEAL_PRESS=25               # …or this many, when a button press asks for it (~2 missed heartbeats)
 
 [ -f "$CONF" ] && . "$CONF"
 
@@ -196,9 +197,6 @@ while :; do
   input=no
   input_seen && input=yes
 
-  # Every HEAL seconds of quiet, check whether the USB gadget needs rebinding.
-  [ "$HEAL" -gt 0 ] && [ "$idle" -ge "$HEAL" ] && [ $((idle % HEAL)) -eq 0 ] && heal_usb
-
   if [ "$idle" -lt "$IDLE" ]; then
     if [ "$mode" != host ]; then
       mode=host
@@ -225,6 +223,14 @@ while :; do
         fi
         ;;
     esac
+  fi
+
+  # Then see whether USB needs rebinding: every HEAL seconds of quiet, and right away on a button
+  # press, since someone reaching for it is the clearest sign they want it back. This runs after
+  # the screen work above so a press lights the panel first — rebinding takes a few seconds.
+  if [ "$HEAL" -gt 0 ]; then
+    if [ "$input" = yes ] && [ "$idle" -ge "$HEAL_PRESS" ]; then heal_usb
+    elif [ "$idle" -ge "$HEAL" ] && [ $((idle % HEAL)) -eq 0 ]; then heal_usb; fi
   fi
 
   ticks=$((ticks + 1))
