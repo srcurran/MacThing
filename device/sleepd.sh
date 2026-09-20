@@ -27,6 +27,7 @@ POLL=1                      # seconds between checks (also the wake-on-input lat
 POWERSAVE=1                 # also idle the CPU while asleep (governor, or a clock cap)
 HEAL=180                    # seconds of quiet before rebinding a dead USB gadget (0 = never)
 HEAL_PRESS=25               # …or this many, when a button press asks for it (~2 missed heartbeats)
+HEAL_MAX=900                # longest gap between attempts once they stop sticking
 
 [ -f "$CONF" ] && . "$CONF"
 
@@ -109,18 +110,6 @@ udc_dir() {
   return 1
 }
 
-# Gentlest first: drop and raise the D+ pullup, which makes the host enumerate us again without
-# tearing the gadget down. adbd keeps its endpoint through this.
-soft_reconnect() {
-  d=$(udc_dir) || return 1
-  [ -w "$d/soft_connect" ] || return 1
-  echo disconnect > "$d/soft_connect" 2>/dev/null
-  sleep 1
-  echo connect > "$d/soft_connect" 2>/dev/null
-  sleep 2
-  [ "$(usb_state)" = configured ]
-}
-
 rebind_udc() {
   udc=$(ls -1 /sys/class/udc/ 2>/dev/null | head -1)
   [ -n "$udc" ] || return 1
@@ -141,12 +130,6 @@ heal_usb() {
   # saw when the host went away, not just that we tried something.
   say "usb $(usb_state) after ${idle}s quiet; last: $(dmesg 2>/dev/null | grep -i 'dwc\|gadget' | tail -1)"
 
-  if soft_reconnect; then
-    say "usb configured again after a soft reconnect"
-    return 0
-  fi
-
-  say "soft reconnect didn't take ($(usb_state)) — rebinding the gadget"
   if rebind_udc; then
     say "usb configured again"
     return 0
@@ -159,7 +142,7 @@ heal_usb() {
   sleep 1
   /usr/bin/adbd &
   sleep 2
-  if rebind_udc; then say "usb configured again"; else say "usb still $(usb_state); will retry in ${HEAL}s"; fi
+  if rebind_udc; then say "usb configured again"; else say "usb still $(usb_state); next try in ${step}s"; fi
   return 0
 }
 
@@ -208,6 +191,9 @@ want=on     # screen state the bridge asked for, restored when it comes back
 mode=host   # host = the Mac drives the screen; sleep / wake = we do
 left=0      # seconds of wake time remaining
 ticks=0
+step=$HEAL      # gap until the next repair attempt; doubles while they don't stick
+next_heal=$HEAL # value of idle at which to try again
+good=0          # heartbeats in a row, to tell a real link from one that dies again
 
 while :; do
   hb=""
@@ -215,9 +201,13 @@ while :; do
   if [ -n "$hb" ] && [ "$hb" != "$beat" ]; then
     beat="$hb"
     idle=0
+    good=$((good + 1))
+    # A link that lasted about a minute is a real one: earn back the short retry gap.
+    if [ "$good" -ge 6 ]; then step=$HEAL; next_heal=$HEAL; fi
     case "$hb" in *" off") want=off ;; *) want=on ;; esac
   else
     idle=$((idle + POLL))
+    [ "$idle" -ge "$HEAL_PRESS" ] && good=0
   fi
 
   input=no
@@ -255,8 +245,15 @@ while :; do
   # press, since someone reaching for it is the clearest sign they want it back. This runs after
   # the screen work above so a press lights the panel first — rebinding takes a few seconds.
   if [ "$HEAL" -gt 0 ]; then
-    if [ "$input" = yes ] && [ "$idle" -ge "$HEAL_PRESS" ]; then heal_usb
-    elif [ "$idle" -ge "$HEAL" ] && [ $((idle % HEAL)) -eq 0 ]; then heal_usb; fi
+    if [ "$input" = yes ] && [ "$idle" -ge "$HEAL_PRESS" ]; then
+      heal_usb
+      next_heal=$((idle + step))
+    elif [ "$idle" -ge "$next_heal" ]; then
+      heal_usb
+      step=$((step * 2))
+      [ "$step" -gt "$HEAL_MAX" ] && step=$HEAL_MAX
+      next_heal=$((idle + step))
+    fi
   fi
 
   ticks=$((ticks + 1))
