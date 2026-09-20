@@ -23,7 +23,7 @@ The four screens:
 
 **Lock:** while your Mac is locked — the lock screen, or switched to another account — the screen stays off and no button wakes it. It comes back when you log in.
 
-The backlight is the part that wears out, so "off" means the backlight really is off, not a black page — plus the device's CPU drops to its powersave governor and the UI stops redrawing. There's no suspend-to-RAM: the Car Thing's kernel can't resume from one, and USB would drop with it, so an idle backlit-off device drawing very little is as deep as this goes.
+The backlight is the part that wears out, so "off" means the backlight really is off, not a black page — plus the device idles its CPU and the UI stops redrawing. There's no suspend-to-RAM: the Car Thing's kernel can't resume from one, and USB would drop with it, so an idle backlit-off device drawing very little is as deep as this goes.
 
 **Lock:** while your Mac is locked — the lock screen, or switched to another account — the backlight stays off and no button wakes it. It comes back when you log in.
 
@@ -169,7 +169,7 @@ The device this was built on runs Spotify's final firmware, `v8.9.2`, community-
 Nothing on the Mac can turn the backlight off once the Mac is gone, so the device watches for the Mac instead:
 
 - while the bridge is connected it writes `/tmp/carthing-heartbeat` every 10 seconds — a counter plus the screen state it wants. The bridge still owns the backlight; `sleepd.sh` only reads along.
-- when that file stops changing for `deviceSleepSeconds`, the Mac isn't there any more: `sleepd.sh` stops the ambient-light daemon, writes `0` to `/sys/class/aml_bl/power` and switches the CPU governor to `powersave`.
+- when that file stops changing for `deviceSleepSeconds`, the Mac isn't there any more: `sleepd.sh` stops the ambient-light daemon, writes `0` to `/sys/class/aml_bl/power` and idles the CPU. This kernel's governors are `interactive performance schedutil` — there's no `powersave` — so it uses `schedutil` where it exists and otherwise caps the clock to its lowest step.
 - it wakes on any input by reading `/dev/input/event*` in the background. evdev hands every reader its own copy of each event, so Chromium still sees the same press.
 - when the heartbeat starts changing again it puts the governor back and hands the screen over in whatever state the heartbeat last asked for.
 

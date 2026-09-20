@@ -23,7 +23,7 @@ HB=/tmp/carthing-heartbeat  # what the Mac writes: "<counter> <on|off>"
 IDLE=90                     # seconds without a heartbeat before the screen sleeps
 WAKE=20                     # seconds awake after a button or knob press while the Mac is away
 POLL=1                      # seconds between checks (also the wake-on-input latency)
-POWERSAVE=1                 # also drop the CPU governor to powersave while asleep
+POWERSAVE=1                 # also idle the CPU while asleep (governor, or a clock cap)
 
 [ -f "$CONF" ] && . "$CONF"
 
@@ -39,6 +39,20 @@ sctl() {
 
 GOV_WAS=""
 [ -r "$GOV" ] && read -r GOV_WAS < "$GOV" 2>/dev/null
+
+# This kernel offers "interactive performance schedutil" — there is no powersave governor, and
+# writing one that doesn't exist fails silently. Pick whichever idle-friendly governor is really
+# there; with none, cap the clock to its lowest step instead. Both are put back on wake.
+GOV_IDLE=""
+GOV_AVAIL=""
+[ -r "${GOV%governor}available_governors" ] && read -r GOV_AVAIL < "${GOV%governor}available_governors" 2>/dev/null
+for g in powersave schedutil; do
+  case " $GOV_AVAIL " in *" $g "*) GOV_IDLE=$g; break ;; esac
+done
+MAXF="${GOV%scaling_governor}scaling_max_freq"
+MINF="${GOV%scaling_governor}scaling_min_freq"
+MAXF_WAS=""
+[ -z "$GOV_IDLE" ] && [ -r "$MAXF" ] && read -r MAXF_WAS < "$MAXF" 2>/dev/null
 
 # Same sequence the bridge uses: the ambient-light daemon is paused while the screen is off so
 # it can't relight it behind our back.
@@ -58,9 +72,15 @@ backlight() {
 # our own sleep, and always put back before the bridge takes the screen over again.
 governor() {
   [ "$POWERSAVE" = 1 ] || return 0
-  [ -n "$GOV_WAS" ] && [ -w "$GOV" ] || return 0
-  if [ "$1" = powersave ]; then echo powersave > "$GOV" 2>/dev/null
-  else echo "$GOV_WAS" > "$GOV" 2>/dev/null; fi
+  if [ -n "$GOV_IDLE" ] && [ -n "$GOV_WAS" ] && [ -w "$GOV" ]; then
+    if [ "$1" = powersave ]; then echo "$GOV_IDLE" > "$GOV" 2>/dev/null
+    else echo "$GOV_WAS" > "$GOV" 2>/dev/null; fi
+    say "governor $(cat "$GOV" 2>/dev/null)"
+  elif [ -n "$MAXF_WAS" ] && [ -w "$MAXF" ] && [ -r "$MINF" ]; then
+    if [ "$1" = powersave ]; then cat "$MINF" > "$MAXF" 2>/dev/null
+    else echo "$MAXF_WAS" > "$MAXF" 2>/dev/null; fi
+    say "max clock $(cat "$MAXF" 2>/dev/null)"
+  fi
   return 0
 }
 

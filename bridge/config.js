@@ -66,7 +66,7 @@ export const config = {
   // any more. Any button or knob input wakes it for deviceWakeSeconds.
   deviceSleepSeconds: 90,
   deviceWakeSeconds: 20,
-  devicePowersave: true, // also drop the device's CPU governor to powersave while asleep
+  devicePowersave: true, // also idle the device's CPU while asleep (see device/sleepd.sh)
   heartbeatMs: 10 * 1000,
   deviceHeartbeat: '/tmp/carthing-heartbeat', // tmpfs: the rootfs is read-only and flash wears out
 
