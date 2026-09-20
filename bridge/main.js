@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Volume } from './audio/volume.js';
 import { config, paths } from './config.js';
-import { listCarThings, trackDevices } from './device/adb.js';
+import { listCarThings, restartServer, trackDevices } from './device/adb.js';
 import { DeviceLink } from './device/link.js';
 import { log } from './log.js';
 import { AppInfo, kindOf } from './nowplaying/apps.js';
@@ -274,6 +274,13 @@ function onDeviceMessage(msg) {
 
 // ---- Device lifecycle -----------------------------------------------------
 
+// After the Mac sleeps, adb's server can keep an empty device list while the Car Thing is sitting
+// on the USB bus perfectly happy — `ioreg -p IOUSB` shows it, `adb devices` doesn't, and no
+// track-devices event ever arrives to say otherwise. Restarting the server fixes it at once, so
+// treat a device-shaped silence as a stale server rather than an absent device.
+let lastSeen = Date.now();
+let lastServerRestart = 0;
+
 async function refreshDevices() {
   let devices;
   try {
@@ -281,6 +288,20 @@ async function refreshDevices() {
   } catch (err) {
     return log.warn('[adb]', err.message);
   }
+
+  if (!devices.length && !connecting) {
+    const quiet = Date.now() - lastSeen;
+    const since = Date.now() - lastServerRestart;
+    if (quiet > config.adbRestartMs && since > config.adbRestartMs) {
+      lastServerRestart = Date.now();
+      log.info(`[adb] no device for ${Math.round(quiet / 1000)}s — restarting the adb server`);
+      await restartServer();
+      devices = await listCarThings().catch(() => []);
+      if (devices.length) log.info('[adb] the server had gone stale; the device was there all along');
+    }
+  }
+  if (devices.length) lastSeen = Date.now();
+
   if (link && !devices.some((d) => d.serial === link.serial)) link.close();
   if (!link && !connecting && devices.length) await connect(devices[0].serial);
 }
@@ -359,6 +380,7 @@ power.start();
 startSettingsPage({ port: config.settingsPort, settings, status: macStatus });
 
 trackDevices(debounce(refreshDevices, 400));
+setInterval(refreshDevices, 30 * 1000); // a stale adb server sends no events; look anyway
 refreshDevices();
 
 setInterval(() => link?.send(tickMessage()), 2000);

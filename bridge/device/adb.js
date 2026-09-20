@@ -29,6 +29,18 @@ export async function listCarThings() {
     .map(([serial]) => ({ serial }));
 }
 
+/**
+ * Restart the adb server.
+ *
+ * Its device list goes stale after the Mac sleeps: the Car Thing is still on the USB bus and
+ * `ioreg -p IOUSB` lists it, but `adb devices` stays empty until the server is restarted, so
+ * nothing on this side can reach a device that is sitting there perfectly healthy.
+ */
+export async function restartServer() {
+  await adb(['kill-server'], { timeout: 10000 }).catch(() => {});
+  await adb(['start-server'], { timeout: 20000 }).catch(() => {});
+}
+
 /** Calls onChange() whenever adb's device list changes (plug, unplug, reboot). Returns stop(). */
 export function trackDevices(onChange) {
   let proc;
