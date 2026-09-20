@@ -48,7 +48,7 @@ npm run install-agent  # starts the bridge now and at every login
 
 That's it. The Car Thing switches to the Now Playing screen within a few seconds.
 
-Re-run `npm run setup-device` after the Car Thing loses power: on this firmware the change to the read-only rootfs doesn't survive a power cycle. Nothing breaks without it — the bridge points the device at this UI on every connect — but until you do, the device shows Spotify's own app before the bridge connects. The log says `boot web app not pointed at our UI yet` when it needs re-running.
+Re-run `npm run setup-device` if the bridge logs `boot web app not pointed at our UI yet` or `no sleep watchdog`. The rootfs edit normally survives a reboot, but it has been seen to revert, and a device that's been reflashed or restored will need it again. Nothing breaks meanwhile — the bridge points the device at this UI on every connect — but until you do, the Car Thing shows Spotify's own app before the bridge connects, and doesn't sleep on its own when the Mac goes away.
 
 The first time you favorite a song with the back button, macOS asks whether **musicctl** may control Music. That's `native/bin/musicctl`, a small helper that sends the favorite and play commands to Apple Music.
 
