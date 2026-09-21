@@ -3,6 +3,19 @@
 Turns a Spotify Car Thing into a desk display and volume knob for macOS.
 It has four screens: Now Playing, Weather, Clock and Calendar.
 
+No reflashing: this runs on the community firmware you already have, replaces the web app the
+device shows, and can be undone with one command. Nothing is installed on the device that a
+`npm run restore-device` doesn't put back.
+
+![Now Playing](docs/nowplaying.png)
+
+| | |
+|---|---|
+| ![Weather](docs/weather.png) | ![Clock](docs/clock.png) |
+| ![Calendar](docs/calendar.png) | ![Settings](docs/settings.png) |
+
+*Screens as drawn in Figma; the device renders these pixel for pixel at 800×480.*
+
 | Control | Action |
 |---|---|
 | Top buttons 1 · 2 · 3 · 4 | Now Playing · Weather · Clock · Calendar |
@@ -202,6 +215,33 @@ The page does its own small version of this: after the same timeout with no mess
 - Userland is 32-bit, so a raw `input_event` is 16 bytes, not 24. This matters only if you read or inject `/dev/input/event*` yourself.
 - The UI must be plain ES2017 and CSS that Chromium 69 supports: no `?.`, `??`, flex `gap`, `inset`, `aspect-ratio` or `clamp()`.
 
+## Troubleshooting
+
+**The device isn't showing up.** One command tells you which half is wrong:
+
+```bash
+ioreg -p IOUSB -w0 -l | grep -i superbird; adb devices
+```
+
+- Listed by `ioreg` but not by `adb devices` → adb's server has gone stale, which it does across Mac
+  sleep. `adb kill-server` fixes it instantly; the bridge now does this for you.
+- Listed by neither → the device is off the USB bus. Its gadget is only built at boot, so a replug
+  isn't enough while it still has power from a hub — unplug it completely for ten seconds. The
+  device's own watchdog also rebinds the gadget itself, and a button press triggers that at once.
+
+**The screen is dark.** That's usually correct: it follows your Mac's display, goes off while the Mac
+is locked, and the device blanks itself when the bridge stops talking to it. Press a button — one
+press only wakes it. If it stays dark with the Mac awake and unlocked, check `npm run status` and
+`npm run logs`.
+
+**The screen is black but the backlight is on.** Only possible on firmware where
+`/sys/class/aml_bl/power` is missing; see the gotcha below.
+
+**Nothing playing, but something is.** Whatever macOS shows in Control Center's Now Playing is what
+this shows. If Control Center is also empty, `npm run build` self-tests the MediaRemote adapter.
+
+**Watchdog and boot web app warnings in the log.** Run `npm run setup-device`.
+
 ## Known limitations
 
 - **Now Playing relies on a workaround.** Since macOS 15.4, Apple only lets its own entitled processes read MediaRemote. [ungive/mediaremote-adapter](https://github.com/ungive/mediaremote-adapter) gets around this by running inside `/usr/bin/perl`, which Apple signs. `npm run build` self-tests it. A future macOS update could break it. An AppleScript fallback for Music.app would be the plan B, and `bridge/nowplaying/mediaremote.js` documents the interface such a source would implement.
@@ -235,7 +275,25 @@ scripts/          device setup/restore, screenshot, LaunchAgent
 vendor/           mediaremote-adapter source (cloned by native/build.sh, git-ignored)
 ```
 
+## Contributing
+
+Issues and pull requests are welcome, especially from anyone running different Car Thing firmware —
+the device-side assumptions in `device/sleepd.sh` and `scripts/setup-device.sh` were written against
+one image and one panel, and are the most likely things to differ.
+
+Worth knowing before changing the device UI: it runs in the device's Chromium 69, so plain ES2017
+and no `?.`, `??`, flex `gap`, `inset`, `aspect-ratio` or `clamp()`. `npm run dev` redeploys `ui/` on
+every save.
+
 ## Credits
 
+- The Car Thing community — [Thing Labs](https://github.com/thinglabsoss) and
+  [DeskThing](https://github.com/ItsRiprod/DeskThing) — for the firmware that makes any of this
+  possible, and for working out ADB access on the device in the first place.
 - [ungive/mediaremote-adapter](https://github.com/ungive/mediaremote-adapter) (BSD-3-Clause), cloned and built by `npm run build`.
 - [Inter](https://rsms.me/inter/) by Rasmus Andersson and [Merriweather](https://github.com/EbenSorkin/Merriweather4) by Eben Sorkin (both SIL Open Font License), bundled in `ui/fonts`.
+
+---
+
+MIT licensed — see [LICENSE](LICENSE). Not affiliated with or endorsed by Spotify; "Car Thing" is
+their trademark, and the hardware is discontinued and unsupported by them.
