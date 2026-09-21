@@ -169,8 +169,8 @@
       text.textContent = String(n); // optical centring (no dominant-baseline needed)
       numerals.appendChild(text);
     }
-    // The hands are the two exact vector assets authored in Figma (116:2580 and 116:2581).
-    // The final rounded end of each asset is its pivot; the short tail runs behind it.
+    // The hands are the two exact vector assets authored in Figma (131:2585 and 131:2584).
+    // Their built-in circular ends are the pivots, so no separate centre cap is needed.
     function hand(src, x, y, width, height) {
       var g = node('g', {});
       g.appendChild(node('image', {
@@ -179,10 +179,10 @@
       }));
       return g;
     }
-    // The smaller (24×163) outline is the hour hand; the taller (16×212) outline is minute.
-    // Both are scaled proportionally from Figma and positioned with their pivots at 200,200.
-    var hour = hand('images/clock-hour-hand.svg', 189.781, 97.804, 20.438, 111.0);
-    var minute = hand('images/clock-minute-hand.svg', 189.737, 23.66, 20.526, 186.0);
+    // Scale both 25px-wide vectors so the Figma pivot dot matches the applied hour markers.
+    // The dot centres (12.5,170.5) and (12.5,221.5) land precisely at 200,200.
+    var hour = hand('images/clock-hour-hand.svg', 189.75, 60.19, 20.5, 150.06);
+    var minute = hand('images/clock-minute-hand.svg', 189.75, 18.37, 20.5, 191.88);
     // Keep the dial and hands in the same SVG. The hands above are grouped separately so each
     // can rotate around the centre without turning its open slot or its pivot ring.
     svg.appendChild(ticks);
