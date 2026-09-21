@@ -194,6 +194,8 @@ ticks=0
 step=$HEAL      # gap until the next repair attempt; doubles while they don't stick
 next_heal=$HEAL # value of idle at which to try again
 good=0          # heartbeats in a row, to tell a real link from one that dies again
+usb_prev=$(usb_state) # last USB state seen, to notice the host coming back
+cooldown=0      # seconds to wait before another state-triggered attempt
 
 while :; do
   hb=""
@@ -248,12 +250,31 @@ while :; do
   # The gap stretches while attempts don't stick, but never past HEAL_MAX: on a hub that drops the
   # port nightly this is the only way back, and a Mac woken in the morning shouldn't wait longer
   # than that for the device to reappear on its own.
+  # The controller's state changing while we're quiet means the host did something — plugged in,
+  # woke up, powered the port again. React to that rather than waiting out the interval.
+  [ "$cooldown" -gt 0 ] && cooldown=$((cooldown - POLL))
+  usb_now=$(usb_state)
+  if [ "$usb_now" != "$usb_prev" ]; then
+    usb_prev=$usb_now
+    if [ "$HEAL" -gt 0 ] && [ "$usb_now" != configured ] && [ "$idle" -ge "$HEAL_PRESS" ] && [ "$cooldown" -le 0 ]; then
+      say "usb changed to $usb_now while quiet — trying now"
+      heal_usb
+      usb_prev=$(usb_state)
+      cooldown=20
+      next_heal=$((idle + step))
+    fi
+  fi
+
   if [ "$HEAL" -gt 0 ]; then
     if [ "$input" = yes ] && [ "$idle" -ge "$HEAL_PRESS" ]; then
       heal_usb
+      usb_prev=$(usb_state)
+      cooldown=20
       next_heal=$((idle + step))
     elif [ "$idle" -ge "$next_heal" ]; then
       heal_usb
+      usb_prev=$(usb_state)
+      cooldown=20
       step=$((step * 2))
       [ "$step" -gt "$HEAL_MAX" ] && step=$HEAL_MAX
       next_heal=$((idle + step))

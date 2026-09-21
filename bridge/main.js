@@ -280,6 +280,7 @@ function onDeviceMessage(msg) {
 // treat a device-shaped silence as a stale server rather than an absent device.
 let lastSeen = Date.now();
 let lastServerRestart = 0;
+let wokeAt = 0;
 
 async function refreshDevices() {
   let devices;
@@ -292,7 +293,10 @@ async function refreshDevices() {
   if (!devices.length && !connecting) {
     const quiet = Date.now() - lastSeen;
     const since = Date.now() - lastServerRestart;
-    if (quiet > config.adbRestartMs && since > config.adbRestartMs) {
+    // Straight after a wake, a missing device is the stale list far more often than a real
+    // absence, so don't sit on it: 8 seconds is enough for USB to re-enumerate.
+    const wait = Date.now() - wokeAt < 2 * 60 * 1000 ? 8000 : config.adbRestartMs;
+    if (quiet > wait && since > wait) {
       lastServerRestart = Date.now();
       log.info(`[adb] no device for ${Math.round(quiet / 1000)}s — restarting the adb server`);
       await restartServer();
@@ -368,7 +372,12 @@ power.on('willSleep', async () => {
 });
 power.on('didWake', () => {
   systemAsleep = false;
+  wokeAt = Date.now();
   applyScreen();
+  // Waking is exactly when adb's list goes stale, so look now and again once USB has settled,
+  // instead of waiting out the timer that exists for ordinary unplugs.
+  refreshDevices();
+  setTimeout(refreshDevices, 8000);
 });
 source.start();
 volume.start();
