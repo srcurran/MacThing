@@ -153,9 +153,9 @@
     var marks = node('g', { class: 'c-marks' });
     for (var h = 0; h < 12; h++) {
       var shape;
-      if (h === 0) shape = node('polygon', { points: '188.5,43.5 211.5,43.5 200,66.5' }); // apex inwards
-      else if (h === 3 || h === 6 || h === 9) shape = node('rect', { x: 195, y: 44.5, width: 10, height: 21, rx: 1 });
-      else shape = node('circle', { cx: 200, cy: 55, r: 7.5 });
+      if (h === 0) shape = node('polygon', { points: '184.33,43.5 215.67,43.5 200,74.83' }); // apex inwards
+      else if (h === 3 || h === 6 || h === 9) shape = node('rect', { x: 192.92, y: 44.5, width: 14.17, height: 37.67, rx: 1 });
+      else shape = node('circle', { cx: 200, cy: 55, r: 10.25 });
       shape.setAttribute('class', 'c-mark');
       var g = node('g', { transform: 'rotate(' + h * 30 + ' 200 200)' });
       g.appendChild(shape);
@@ -177,7 +177,7 @@
     svg.appendChild(numerals);
     svg.appendChild(hour);
     svg.appendChild(minute);
-    svg.appendChild(node('circle', { cx: 200, cy: 200, r: 10.4, class: 'c-hand' })); // cap over the hands
+    svg.appendChild(node('circle', { cx: 200, cy: 200, r: 16.67, class: 'c-hand' })); // cap over the hands
 
     function rotate(g, deg) { g.setAttribute('transform', 'rotate(' + deg.toFixed(2) + ' 200 200)'); }
     return function update(now) {
