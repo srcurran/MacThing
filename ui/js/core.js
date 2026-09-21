@@ -190,6 +190,8 @@
     svg.appendChild(numerals);
     svg.appendChild(hour);
     svg.appendChild(minute);
+    // A small cap hides the shared SVG rotation origin where both hand tails meet.
+    svg.appendChild(node('circle', { cx: 200, cy: 200, r: 5, class: 'c-centre' }));
     function rotate(g, deg) { g.setAttribute('transform', 'rotate(' + deg.toFixed(2) + ' 200 200)'); }
     return function update(now) {
       var p = CT.parts(now);
