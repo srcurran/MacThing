@@ -187,18 +187,15 @@
     }
     // The smaller (24×163) outline is the hour hand; the taller (16×212) outline is minute.
     // Both are scaled proportionally from Figma and positioned with their pivots at 200,200.
-    var hour = hand('images/clock-hour-hand.svg', 191.2, 96.7, 16.35, 111.0,
-      { x: 193.92, y: 119.86, width: 10.90, height: 76.97, radius: 5.45 });
-    var minute = hand('images/clock-minute-hand.svg', 193.0, 24.0, 14.04, 186.0,
-      { x: 196.51, y: 55.58, width: 7.02, height: 139.42, radius: 3.51 });
+    var hour = hand('images/clock-hour-hand.svg', 189.781, 97.804, 20.438, 111.0,
+      { x: 194.545, y: 120.964, width: 10.90, height: 76.97, radius: 5.45 });
+    var minute = hand('images/clock-minute-hand.svg', 189.737, 23.66, 20.526, 186.0,
+      { x: 196.49, y: 55.24, width: 7.02, height: 139.42, radius: 3.51 });
     // Keep the dial and hands in the same SVG. The hands above are grouped separately so each
     // can rotate around the centre without turning its open slot or its pivot ring.
     svg.appendChild(ticks);
     svg.appendChild(marks);
     svg.appendChild(numerals);
-    // Sit the cap below the hand artwork: it masks the rotation join without hiding the
-    // authored taper where each Figma hand reaches the centre.
-    svg.appendChild(node('circle', { cx: 200, cy: 200, r: 10.25, class: 'c-centre' }));
     svg.appendChild(hour);
     svg.appendChild(minute);
     function rotate(g, deg) { g.setAttribute('transform', 'rotate(' + deg.toFixed(2) + ' 200 200)'); }
