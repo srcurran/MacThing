@@ -18,15 +18,24 @@ export function adb(args, { serial, timeout = 20000 } = {}) {
 
 export const shell = (serial, cmd, opts) => adb(['shell', cmd], { serial, ...opts });
 
-/** Car Things that are attached and online. */
-export async function listCarThings() {
+/** Everything the adb server lists right now, Car Thing or not. */
+export async function listDevices() {
   const out = await adb(['devices', '-l']);
   return out
     .split('\n')
     .slice(1)
     .map((line) => line.trim().split(/\s+/))
-    .filter(([serial, state, ...info]) => serial && state === 'device' && /spotify-car-thing|Car_Thing/.test(info.join(' ')))
-    .map(([serial]) => ({ serial }));
+    .filter(([serial, state]) => serial && state)
+    .map(([serial, state, ...info]) => ({
+      serial,
+      state,
+      carThing: state === 'device' && /spotify-car-thing|Car_Thing/.test(info.join(' ')),
+    }));
+}
+
+/** Car Things that are attached and online. */
+export async function listCarThings() {
+  return (await listDevices()).filter((d) => d.carThing).map(({ serial }) => ({ serial }));
 }
 
 /**
