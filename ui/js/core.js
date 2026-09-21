@@ -218,10 +218,10 @@
     if (name !== CT.current) {
       var prev = CT.screens[CT.current];
       if (name === 'settings') beforeSettings = CT.current;
-      prev.el.classList.remove('active');
       if (prev.hide) prev.hide();
       CT.current = name;
       app.setAttribute('data-screen', name);
+      prev.el.classList.remove('active');
       next.el.classList.add('active');
       if (next.show) next.show();
     }

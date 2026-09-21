@@ -16,6 +16,15 @@
 
 /* Dark is the default; #app.light swaps the palette (Settings → Appearance). */
 :root {
+  /* Layout scale. `gap-*` utilities below emulate flex gap for Chromium 69. */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --panel-inset-y: 48px;
+  --panel-inset-x: 24px;
+  --stage-safe-right: 64px;
   --panel: #000;
   --stage: #181818;
   --text: #fff;
@@ -37,7 +46,7 @@
   --toast-text: #111;
   --offline-bg: #121212;
   --hud-bg: rgba(38, 38, 38, 0.94);
-  --ambient-tint: rgba(0, 0, 0, 0.75);
+  --ambient-tint: rgba(0, 0, 0, 0.3);
   /* weather icons */
   --sun: #ffd35c;
   --moon: #f2efd8;
@@ -73,6 +82,9 @@
   --rain: #2d8fd5;
 }
 
+/* With album art behind the UI, accents read as unrelated color noise. Keep the widgets quiet. */
+#app.ambient-on { --red: var(--text); --orange: var(--text); }
+
 * { box-sizing: border-box; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 html, body { margin: 0; width: 800px; height: 480px; overflow: hidden; background: #000; cursor: none; touch-action: none; }
 body {
@@ -81,6 +93,31 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 svg { fill: currentColor; }
+
+/* ---- Reusable layout and type -------------------------------------------------------- */
+
+.flex-row { display: flex; align-items: center; }
+.stack { display: flex; flex-direction: column; }
+.grow { flex: 1; }
+/* Chromium 69 has no flex gap. Keep the API declarative while using supported CSS. */
+.flex-row.gap-xs > * + *, .stack.gap-xs > * + * { margin-left: var(--space-xs); }
+.stack.gap-xs > * + * { margin-left: 0; margin-top: var(--space-xs); }
+.flex-row.gap-sm > * + *, .stack.gap-sm > * + * { margin-left: var(--space-sm); }
+.stack.gap-sm > * + * { margin-left: 0; margin-top: var(--space-sm); }
+.flex-row.gap-md > * + *, .stack.gap-md > * + * { margin-left: var(--space-md); }
+.stack.gap-md > * + * { margin-left: 0; margin-top: var(--space-md); }
+.flex-row.gap-lg > * + *, .stack.gap-lg > * + * { margin-left: var(--space-lg); }
+.stack.gap-lg > * + * { margin-left: 0; margin-top: var(--space-lg); }
+.font-small { font-size: 22px; line-height: 28px; }
+.font-medium { font-size: 32px; line-height: 40px; }
+.font-display { font-family: Merriweather, Georgia, serif; font-size: 112px; line-height: 120px; font-weight: 600; white-space: nowrap; }
+.weight-light { font-weight: 300; }
+.weight-medium { font-weight: 500; }
+.weight-semibold { font-weight: 600; }
+.weight-bold { font-weight: 700; }
+.muted { color: var(--muted); }
+.accent { color: var(--red); }
+.text-truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 #app { position: relative; width: 800px; height: 480px; overflow: hidden; color: var(--text); }
 
@@ -95,24 +132,29 @@ svg { fill: currentColor; }
 
 .panel {
   position: relative; width: 320px; height: 480px; flex: none;
-  padding: 48px 24px;
+  padding: var(--panel-inset-y) var(--panel-inset-x);
   background: var(--panel);
   display: flex; flex-direction: column;
 }
+.panel-layout > .big-num { margin-top: var(--space-md); }
+.panel-layout > .font-medium { margin-top: var(--space-md); }
 .stage { position: relative; width: 480px; height: 480px; flex: none; overflow: hidden; background: var(--stage); }
-.grow { flex: 1; }
+
+/* Shared clear area for stage content: 24px left / 64px right keeps content outside the dial. */
+.stage-safe, .stage-safe-x { position: absolute; left: var(--panel-inset-x); right: var(--stage-safe-right); }
+.stage-safe, .stage-safe-top { top: var(--panel-inset-y); }
+.stage-safe, .stage-safe-bottom { bottom: var(--panel-inset-y); }
 
 /* The big number on the left panel: weather temperature, clock-screen date, calendar-screen time.
    Merriweather 112/120 semibold, like the song title (Figma: Widgets). */
 .big-num {
-  margin: 12px 0 0; font-family: Merriweather, Georgia, serif;
-  font-size: 112px; line-height: 120px; font-weight: 600; white-space: nowrap;
+  margin-bottom: 0;
 }
 
 /* Bottom row of the left panel (progress, "updated", …). The volume row takes its place.
    Nothing on the device is smaller than 22/28. */
 .row { height: 28px; display: flex; align-items: center; font-size: 22px; line-height: 28px; transition: opacity 0.25s ease; }
-.panel > .row { flex: none; margin-top: 12px; }
+.panel > .row { flex: none; margin-top: var(--space-md); }
 .time { flex: none; font-size: 22px; font-weight: 400; letter-spacing: 0; }
 .time.right { text-align: right; }
 .bar { position: relative; flex: 1; height: 8px; margin: 0 8px; background: var(--accent); border-radius: 8px; overflow: hidden; }
@@ -185,7 +227,7 @@ svg { fill: currentColor; }
 .ambient-img {
   position: absolute; left: -32px; top: -32px; right: -32px; bottom: -32px;
   background: center / cover no-repeat;
-  -webkit-filter: blur(20px); filter: blur(20px);
+  -webkit-filter: blur(60px); filter: blur(60px);
 }
 .ambient::after { content: ''; position: absolute; left: 0; top: 0; right: 0; bottom: 0; background: var(--ambient-tint); }
 .ambient-on #screen-nowplaying .panel,

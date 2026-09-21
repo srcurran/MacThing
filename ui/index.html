@@ -46,8 +46,8 @@
 
   <!-- 1 · Now Playing -->
   <section class="screen active" id="screen-nowplaying">
-    <div class="panel">
-      <div class="meta" id="npMeta">
+    <div class="panel panel-layout">
+      <div class="meta stack gap-md" id="npMeta">
         <div class="np-artist" id="npArtist"></div>
         <div class="np-title" id="npTitle"></div>
         <div class="np-album" id="npAlbum"></div>
@@ -68,26 +68,26 @@
 
   <!-- 2 · Weather -->
   <section class="screen" id="screen-weather">
-    <div class="panel">
-      <div class="w-place" id="wPlace"></div>
-      <div class="big-num w-temp" id="wTemp"></div>
-      <div class="w-cond"><svg class="w-cond-icon"><use id="wCondIcon" href=""/></svg><span id="wCond"></span></div>
+    <div class="panel panel-layout">
+      <div class="w-place font-small weight-bold text-truncate" id="wPlace"></div>
+      <div class="big-num w-temp font-display" id="wTemp"></div>
+      <div class="w-cond flex-row gap-sm font-medium weight-semibold"><svg class="w-cond-icon"><use id="wCondIcon" href=""/></svg><span id="wCond"></span></div>
       <div class="grow"></div>
       <div class="w-updated screen-bottom" id="wUpdated"></div>
     </div>
     <div class="stage w-stage" id="wStage">
-      <div class="w-hourly" id="wHourly"></div>
-      <div class="w-daily" id="wDaily"></div>
+      <div class="w-hourly stage-safe-x stage-safe-top" id="wHourly"></div>
+      <div class="w-daily stage-safe-x stage-safe-bottom" id="wDaily"></div>
       <div class="stage-message" id="wMessage"></div>
     </div>
   </section>
 
   <!-- 3 · Clock -->
   <section class="screen" id="screen-clock">
-    <div class="panel">
-      <div class="c-month" id="cMonth"></div>
-      <div class="big-num c-daynum" id="cDate"></div>
-      <div class="c-day" id="cDay"></div>
+    <div class="panel panel-layout">
+      <div class="c-month font-small weight-bold" id="cMonth"></div>
+      <div class="big-num c-daynum font-display accent" id="cDate"></div>
+      <div class="c-day font-medium weight-semibold" id="cDay"></div>
       <div class="grow"></div>
       <div class="c-next screen-bottom" id="cNext"></div>
     </div>
@@ -99,21 +99,21 @@
 
   <!-- 4 · Calendar -->
   <section class="screen" id="screen-calendar">
-    <div class="panel">
-      <div class="k-weekday" id="kWeekday"></div>
-      <div class="big-num k-clock" id="kClock"></div>
+    <div class="panel panel-layout">
+      <div class="k-weekday font-small weight-bold" id="kWeekday"></div>
+      <div class="big-num k-clock font-display" id="kClock"></div>
     </div>
     <div class="stage k-stage">
-      <div class="k-list" id="kList"></div>
+      <div class="k-list stage-safe" id="kList"></div>
       <div class="stage-message" id="kMessage"></div>
     </div>
   </section>
 
   <!-- Settings (fifth top button) -->
   <section class="screen" id="screen-settings">
-    <div class="panel">
-      <div class="s-title">Settings</div>
-      <div class="s-hint">Turn the knob to choose.<br>Press it to change.</div>
+    <div class="panel panel-layout">
+      <div class="s-title font-medium weight-semibold">Settings</div>
+      <div class="s-hint font-small weight-light muted">Turn the knob to choose.<br>Press it to change.</div>
       <div class="grow"></div>
       <div class="row screen-bottom s-foot">Settings or back button to close</div>
     </div>

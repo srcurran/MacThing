@@ -96,8 +96,8 @@
 
   // Largest title size that fits the panel (and stays ≤ 5 lines); clamp as a last resort.
   // Sizes and line heights come from the type scale (40/56, 32/40, 22/28).
-  var TITLE_SIZES = [40, 32, 22];
-  var TITLE_LINE = { 40: 56, 32: 40, 22: 28 };
+  var TITLE_SIZES = [48, 40, 32];
+  var TITLE_LINE = { 48: 64, 40: 56, 32: 42 };
   function fitTitle() {
     var t = el.title;
     var lh = 0;

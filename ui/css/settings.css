@@ -1,17 +1,16 @@
 /* Settings (fifth top button). Knob moves the selection, press changes it. */
 
-.s-title { font-size: 32px; line-height: 40px; font-weight: 600; }
-.s-hint { margin-top: 16px; font-size: 22px; line-height: 28px; font-weight: 300; color: var(--muted); }
+.s-hint { margin-top: var(--space-lg); }
 .s-foot { font-weight: 300; color: var(--muted); }
 
-.s-list { position: absolute; left: 0; right: 0; top: 48px; }
+.s-list { position: absolute; left: 0; right: 0; top: var(--panel-inset-y); }
 .s-row {
   /* Square insets shared with Weather and Calendar: 24 left, 64 right (clear of the dial). */
-  position: relative; height: 64px; padding: 0 64px 0 24px; /* 6 rows × 64 fit the 48px insets */
+  position: relative; height: 64px; padding: 0 var(--stage-safe-right) 0 var(--panel-inset-x); /* 6 rows × 64 fit the 48px insets */
   display: flex; align-items: center; justify-content: space-between;
   transition: background 0.15s ease;
 }
-.s-row + .s-row::before { content: ''; position: absolute; left: 24px; right: 64px; top: 0; height: 1px; background: var(--line); }
+.s-row + .s-row::before { content: ''; position: absolute; left: var(--panel-inset-x); right: var(--stage-safe-right); top: 0; height: 1px; background: var(--line); }
 .s-row.sel { background: var(--selected); }
 .s-row.sel::after { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 4px; border-radius: 0 2px 2px 0; background: var(--accent); }
 .s-row.sel + .s-row::before, .s-row.sel::before { display: none; }

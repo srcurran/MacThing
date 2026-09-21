@@ -1,9 +1,7 @@
 /* Clock. Face style is a class on #screen-clock: analog | numbers | digital. */
 
 /* Panel, top to bottom: month, the date, then the weekday (Figma: Widgets / Clock). */
-.c-month { font-size: 22px; line-height: 28px; font-weight: 700; }
-.c-daynum { color: var(--red); }
-.c-day { margin-top: 12px; font-size: 32px; line-height: 40px; font-weight: 600; }
+.c-day { margin-top: var(--space-md); }
 .c-next { flex: none; font-size: 22px; line-height: 28px; font-weight: 500; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .c-next b { color: var(--text); font-weight: 500; }
 

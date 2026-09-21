@@ -2,22 +2,22 @@
 
 #screen-nowplaying .meta { flex: 1; min-height: 0; overflow: hidden; }
 
-/* Figma 8:46 — artist (Inter 22 bold), title (Merriweather 40 semibold), album (Inter 22 light),
-   24px apart: small label, big serif line, secondary line. */
+/* Figma 8:46 — artist, title, album share the `stack gap-md` layout in index.html. */
 .np-artist, .np-album {
   font-size: 22px; line-height: 28px;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
 }
 .np-artist { font-weight: 700; min-height: 29px; } /* the Figma's artist box is 29px tall */
-.np-album { margin-top: 24px; font-weight: 300; }
+.np-album { font-weight: 300; }
 .np-title {
-  margin-top: 24px;
   font-family: Merriweather, Georgia, serif;
+  /* Fallback only: fitTitle() in js/nowplaying.js writes the selected size and leading inline. */
   font-size: 40px; line-height: 56px; font-weight: 600;
   display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden;
   word-wrap: break-word;
 }
-.np-artist:empty + .np-title { margin-top: 0; }
+/* The title still starts at the top when no artist arrives. JS removes the empty field from flow. */
+.np-artist:empty { display: none; }
 .np-progress { height: 28px; }
 .np-progress .time { font-size: 22px; line-height: 28px; }
 /* Played white whether playing or paused, the rest grey; with no elapsed time the bar starts
