@@ -171,14 +171,8 @@
     }
     // The hands are the two exact vector assets authored in Figma (116:2580 and 116:2581).
     // The final rounded end of each asset is its pivot; the short tail runs behind it.
-    function hand(src, x, y, width, height, fill) {
+    function hand(src, x, y, width, height) {
       var g = node('g', {});
-      // The Figma vectors deliberately leave this channel transparent. A matching translucent
-      // shape behind it gives the hand its requested 30% interior fill without softening its edge.
-      g.appendChild(node('rect', {
-        x: fill.x, y: fill.y, width: fill.width, height: fill.height, rx: fill.radius,
-        class: 'c-hand-fill'
-      }));
       g.appendChild(node('image', {
         x: x, y: y, width: width, height: height, preserveAspectRatio: 'none',
         href: src, 'xlink:href': src
@@ -187,10 +181,8 @@
     }
     // The smaller (24×163) outline is the hour hand; the taller (16×212) outline is minute.
     // Both are scaled proportionally from Figma and positioned with their pivots at 200,200.
-    var hour = hand('images/clock-hour-hand.svg', 189.781, 97.804, 20.438, 111.0,
-      { x: 194.545, y: 120.964, width: 10.90, height: 76.97, radius: 5.45 });
-    var minute = hand('images/clock-minute-hand.svg', 189.737, 23.66, 20.526, 186.0,
-      { x: 196.49, y: 55.24, width: 7.02, height: 139.42, radius: 3.51 });
+    var hour = hand('images/clock-hour-hand.svg', 189.781, 97.804, 20.438, 111.0);
+    var minute = hand('images/clock-minute-hand.svg', 189.737, 23.66, 20.526, 186.0);
     // Keep the dial and hands in the same SVG. The hands above are grouped separately so each
     // can rotate around the centre without turning its open slot or its pivot ring.
     svg.appendChild(ticks);

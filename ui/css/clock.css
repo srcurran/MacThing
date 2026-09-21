@@ -17,7 +17,6 @@
 .c-mark { fill: var(--hand); stroke: none; }
 .numbers .c-marks { display: none; }
 .c-numerals { display: none; fill: var(--text); font-size: 34px; font-weight: 600; letter-spacing: -0.02em; }
-.c-hand-fill { fill: var(--hand); fill-opacity: 0.3; }
 .numbers .c-numerals { display: block; }
 
 
