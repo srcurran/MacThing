@@ -169,8 +169,8 @@
       text.textContent = String(n); // optical centring (no dominant-baseline needed)
       numerals.appendChild(text);
     }
-    // Skeleton hands: a pointed tip, a slot down the middle and a ring where they sit on the
-    // post. Drawn pointing at twelve; the caller rotates them.
+    // Luminous skeleton hands: a pointed tip, an open centre channel and a circular pivot.
+    // Drawn pointing at twelve; the caller rotates them.
     function hand(half, tipY, baseY, slotHalf, slotTopY, slotBaseY, ringR, ringW) {
       var g = node('g', {});
       var x0 = 200 - half, x1 = 200 + half;
@@ -186,8 +186,13 @@
       g.appendChild(node('circle', { cx: 200, cy: 200, r: ringR, 'stroke-width': ringW, class: 'c-ring' }));
       return g;
     }
-    var hour = hand(9, 100, 187, 3.6, 124, 178, 13, 5.5);
-    var minute = hand(6.5, 36, 192, 2.6, 56, 184, 8.5, 4);
+    var hour = hand(10, 106, 186, 4.5, 128, 177, 14, 6);
+    var minute = hand(7.5, 38, 191, 3.2, 59, 183, 10, 4.5);
+    // The seconds hand is deliberately spare: a long lollipop pointer with a short tail,
+    // so the glowing primary hands remain the readable part of the face.
+    var second = node('g', {});
+    second.appendChild(node('line', { x1: 200, y1: 43, x2: 200, y2: 226, class: 'c-second' }));
+    second.appendChild(node('circle', { cx: 200, cy: 200, r: 10, class: 'c-second-cap' }));
     // Keep the dial and hands in the same SVG. The hands above are grouped separately so each
     // can rotate around the centre without turning its open slot or its pivot ring.
     svg.appendChild(ticks);
@@ -195,13 +200,15 @@
     svg.appendChild(numerals);
     svg.appendChild(hour);
     svg.appendChild(minute);
-    svg.appendChild(node('circle', { cx: 200, cy: 200, r: 3.6, class: 'c-hand' }));
+    svg.appendChild(second);
+    svg.appendChild(node('circle', { cx: 200, cy: 200, r: 3.4, class: 'c-centre' }));
     function rotate(g, deg) { g.setAttribute('transform', 'rotate(' + deg.toFixed(2) + ' 200 200)'); }
     return function update(now) {
       var p = CT.parts(now);
       var minutes = p.minutes + p.seconds / 60;
       rotate(hour, ((p.hours % 12) + minutes / 60) * 30);
       rotate(minute, minutes * 6);
+      rotate(second, p.seconds * 6);
     };
   };
 
