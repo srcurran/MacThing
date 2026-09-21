@@ -11,9 +11,13 @@ const run = (cmd, args) =>
   );
 
 /**
- * Re-encodes artwork as a JPEG no larger than 480px (the art panel is exactly 480×480)
- * so the device's 2018-era Chromium gets a small, decodable image whatever the source
- * format was (HEIC/TIFF would not render there).
+ * Re-encodes artwork as a square JPEG of at most 480px (the art panel is exactly 480×480) so the
+ * device's 2018-era Chromium gets a small, decodable image whatever the source format was
+ * (HEIC/TIFF would not render there).
+ *
+ * The centre crop happens here, at the source's own resolution, rather than in CSS. A 16:9 video
+ * thumbnail scaled to fit 480 first is only 270px tall, and filling the square from that means
+ * stretching it by 1.8×; cropping 360px of the original and resizing once is visibly sharper.
  */
 export class ArtworkCache {
   constructor(maxSize = 480) {
@@ -37,7 +41,18 @@ export class ArtworkCache {
     const out = path.join(this.dir, `${art.key}.out.jpg`);
     try {
       await fs.writeFile(src, Buffer.from(art.base64, 'base64'));
-      await run('/usr/bin/sips', ['-s', 'format', 'jpeg', '-s', 'formatOptions', '88', '-Z', String(this.maxSize), src, '--out', out]);
+      const srcDims = await run('/usr/bin/sips', ['-g', 'pixelWidth', '-g', 'pixelHeight', src]);
+      const sw = Number(/pixelWidth: (\d+)/.exec(srcDims)?.[1]) || 0;
+      const sh = Number(/pixelHeight: (\d+)/.exec(srcDims)?.[1]) || 0;
+      const side = sw && sh ? Math.min(sw, sh) : 0;
+      // Two passes on purpose: in one command sips resizes before it crops, which throws away the
+      // height of a wide image and leaves a smaller square than the source could give.
+      await run('/usr/bin/sips', [
+        '-s', 'format', 'jpeg', '-s', 'formatOptions', '88',
+        ...(side ? ['-c', String(side), String(side)] : []),
+        src, '--out', out,
+      ]);
+      if (!side || side > this.maxSize) await run('/usr/bin/sips', ['-Z', String(this.maxSize), out, '--out', out]);
       const dims = await run('/usr/bin/sips', ['-g', 'pixelWidth', '-g', 'pixelHeight', out]);
       const width = Number(/pixelWidth: (\d+)/.exec(dims)?.[1]) || 0;
       const height = Number(/pixelHeight: (\d+)/.exec(dims)?.[1]) || 0;

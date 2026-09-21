@@ -160,10 +160,7 @@
   }
 
   function paint(layer, art) {
-    var url = art ? 'url("' + art.dataUrl + '")' : 'none';
-    layer.children[0].style.backgroundImage = url;
-    layer.children[1].style.backgroundImage = url;
-    layer.classList.toggle('square', !!art && art.width > 0 && Math.abs(art.width / art.height - 1) < 0.04);
+    layer.children[0].style.backgroundImage = art ? 'url("' + art.dataUrl + '")' : 'none';
   }
 
   function showArt(key) {

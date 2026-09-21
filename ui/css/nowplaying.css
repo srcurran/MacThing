@@ -33,14 +33,9 @@
   opacity: 0; transition: opacity 0.45s ease, filter 0.3s ease;
 }
 .art-layer.front { opacity: 1; }
-/* Non-square art (video thumbnails): blurred fill behind a contained image. */
-.art-bg {
-  position: absolute; left: -40px; top: -40px; right: -40px; bottom: -40px;
-  background: center / cover no-repeat;
-  -webkit-filter: blur(26px) brightness(0.55); filter: blur(26px) brightness(0.55);
-}
-.art-layer.square .art-bg { display: none; }
-.art-img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: center / contain no-repeat; }
+/* Every source fills the square. A 16:9 video thumbnail is cropped to its middle rather than
+   letterboxed, so the stage always reads as one image. */
+.art-img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: center / cover no-repeat; }
 
 /* Paused: the same round badge as the flash, left in place (the art isn't dimmed). */
 .paused-glyph {
