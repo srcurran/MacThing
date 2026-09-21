@@ -169,30 +169,20 @@
       text.textContent = String(n); // optical centring (no dominant-baseline needed)
       numerals.appendChild(text);
     }
-    // Skeleton hands: a pointed tip and an open centre channel. Both sit beneath one shared
-    // pivot ring, as on the reference hand set, rather than carrying their own concentric rings.
-    function hand(half, tipY, baseY, slotHalf, slotTopY, slotBaseY) {
+    // The hands are the two exact vector assets authored in Figma (116:2580 and 116:2581).
+    // The final rounded end of each asset is its pivot; the short tail runs behind it.
+    function hand(src, x, y, width, height) {
       var g = node('g', {});
-      var x0 = 200 - half, x1 = 200 + half;
-      var shoulder = tipY + half * 2; // where the taper to the point begins
-      var sx0 = 200 - slotHalf, sx1 = 200 + slotHalf;
-      g.appendChild(node('path', {
-        'fill-rule': 'evenodd',
-        class: 'c-hand',
-        d: 'M' + x0 + ',' + baseY + ' L' + x0 + ',' + shoulder + ' L200,' + tipY + ' L' + x1 + ',' + shoulder + ' L' + x1 + ',' + baseY + ' Z' +
-           ' M' + sx0 + ',' + slotBaseY + ' L' + sx0 + ',' + slotTopY + ' L200,' + (slotTopY - slotHalf * 2) +
-           ' L' + sx1 + ',' + slotTopY + ' L' + sx1 + ',' + slotBaseY + ' Z'
+      g.appendChild(node('image', {
+        x: x, y: y, width: width, height: height, preserveAspectRatio: 'none',
+        href: src, 'xlink:href': src
       }));
       return g;
     }
-    var hour = hand(11, 104, 187, 5, 127, 179);
-    var minute = hand(8, 38, 191, 3.8, 61, 184);
-    // A long, slim seconds hand with the restrained counterweight from the reference.
-    var second = node('g', {});
-    second.appendChild(node('line', { x1: 200, y1: 48, x2: 200, y2: 224, class: 'c-second' }));
-    var pivot = node('g', {});
-    pivot.appendChild(node('circle', { cx: 200, cy: 200, r: 15, class: 'c-pivot' }));
-    pivot.appendChild(node('circle', { cx: 200, cy: 200, r: 7, class: 'c-centre' }));
+    // The smaller (24×163) outline is the hour hand; the taller (16×212) outline is minute.
+    // Both are scaled proportionally from Figma and positioned with their pivots at 200,200.
+    var hour = hand('images/clock-hour-hand.svg', 191.2, 96.7, 16.35, 111.0);
+    var minute = hand('images/clock-minute-hand.svg', 193.0, 24.0, 14.04, 186.0);
     // Keep the dial and hands in the same SVG. The hands above are grouped separately so each
     // can rotate around the centre without turning its open slot or its pivot ring.
     svg.appendChild(ticks);
@@ -200,15 +190,12 @@
     svg.appendChild(numerals);
     svg.appendChild(hour);
     svg.appendChild(minute);
-    svg.appendChild(second);
-    svg.appendChild(pivot);
     function rotate(g, deg) { g.setAttribute('transform', 'rotate(' + deg.toFixed(2) + ' 200 200)'); }
     return function update(now) {
       var p = CT.parts(now);
       var minutes = p.minutes + p.seconds / 60;
       rotate(hour, ((p.hours % 12) + minutes / 60) * 30);
       rotate(minute, minutes * 6);
-      rotate(second, p.seconds * 6);
     };
   };
 
