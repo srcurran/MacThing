@@ -171,8 +171,14 @@
     }
     // The hands are the two exact vector assets authored in Figma (116:2580 and 116:2581).
     // The final rounded end of each asset is its pivot; the short tail runs behind it.
-    function hand(src, x, y, width, height) {
+    function hand(src, x, y, width, height, fill) {
       var g = node('g', {});
+      // The Figma vectors deliberately leave this channel transparent. A matching translucent
+      // shape behind it gives the hand its requested 30% interior fill without softening its edge.
+      g.appendChild(node('rect', {
+        x: fill.x, y: fill.y, width: fill.width, height: fill.height, rx: fill.radius,
+        class: 'c-hand-fill'
+      }));
       g.appendChild(node('image', {
         x: x, y: y, width: width, height: height, preserveAspectRatio: 'none',
         href: src, 'xlink:href': src
@@ -181,8 +187,10 @@
     }
     // The smaller (24×163) outline is the hour hand; the taller (16×212) outline is minute.
     // Both are scaled proportionally from Figma and positioned with their pivots at 200,200.
-    var hour = hand('images/clock-hour-hand.svg', 191.2, 96.7, 16.35, 111.0);
-    var minute = hand('images/clock-minute-hand.svg', 193.0, 24.0, 14.04, 186.0);
+    var hour = hand('images/clock-hour-hand.svg', 191.2, 96.7, 16.35, 111.0,
+      { x: 193.92, y: 119.86, width: 10.90, height: 76.97, radius: 5.45 });
+    var minute = hand('images/clock-minute-hand.svg', 193.0, 24.0, 14.04, 186.0,
+      { x: 196.51, y: 55.58, width: 7.02, height: 139.42, radius: 3.51 });
     // Keep the dial and hands in the same SVG. The hands above are grouped separately so each
     // can rotate around the centre without turning its open slot or its pivot ring.
     svg.appendChild(ticks);
@@ -191,7 +199,7 @@
     svg.appendChild(hour);
     svg.appendChild(minute);
     // A small cap hides the shared SVG rotation origin where both hand tails meet.
-    svg.appendChild(node('circle', { cx: 200, cy: 200, r: 5, class: 'c-centre' }));
+    svg.appendChild(node('circle', { cx: 200, cy: 200, r: 10.25, class: 'c-centre' }));
     function rotate(g, deg) { g.setAttribute('transform', 'rotate(' + deg.toFixed(2) + ' 200 200)'); }
     return function update(now) {
       var p = CT.parts(now);

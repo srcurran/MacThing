@@ -181,11 +181,11 @@ svg { fill: currentColor; }
    the widgets go transparent so it shows through. Settings keeps its own backgrounds. */
 .ambient { position: absolute; left: 0; top: 0; width: 800px; height: 480px; overflow: hidden; display: none; background: var(--panel); }
 .ambient-on .ambient { display: block; }
-/* Figma: background blur 24 (≈ CSS blur 12px). Overscanned so the blur doesn't fade at the edges. */
+/* A stronger art wash keeps the underlying cover atmospheric rather than legible. */
 .ambient-img {
   position: absolute; left: -32px; top: -32px; right: -32px; bottom: -32px;
   background: center / cover no-repeat;
-  -webkit-filter: blur(12px); filter: blur(12px);
+  -webkit-filter: blur(20px); filter: blur(20px);
 }
 .ambient::after { content: ''; position: absolute; left: 0; top: 0; right: 0; bottom: 0; background: var(--ambient-tint); }
 .ambient-on #screen-nowplaying .panel,
