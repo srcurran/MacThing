@@ -145,7 +145,8 @@
       var a = point(176, i / 60);
       var b = point(186, i / 60);
       ticks.appendChild(node('line', {
-        x1: a.x.toFixed(2), y1: a.y.toFixed(2), x2: b.x.toFixed(2), y2: b.y.toFixed(2), class: 'c-tick'
+        x1: a.x.toFixed(2), y1: a.y.toFixed(2), x2: b.x.toFixed(2), y2: b.y.toFixed(2),
+        class: i % 5 === 0 ? 'c-tick hour' : 'c-tick' // the twelve hour ticks at full strength
       }));
     }
 
@@ -153,7 +154,7 @@
     var marks = node('g', { class: 'c-marks' });
     for (var h = 0; h < 12; h++) {
       var shape;
-      if (h === 0) shape = node('polygon', { points: '184.33,43.5 215.67,43.5 200,74.83' }); // apex inwards
+      if (h === 0) shape = node('polygon', { points: '184.33,43.5 215.67,43.5 200,81.08' }); // apex inwards
       else if (h === 3 || h === 6 || h === 9) shape = node('rect', { x: 192.92, y: 44.5, width: 14.17, height: 37.67, rx: 1 });
       else shape = node('circle', { cx: 200, cy: 55, r: 10.25 });
       shape.setAttribute('class', 'c-mark');
@@ -168,17 +169,33 @@
       text.textContent = String(n); // optical centring (no dominant-baseline needed)
       numerals.appendChild(text);
     }
-    var hour = node('g', {});
-    hour.appendChild(node('rect', { x: 191, y: 100, width: 18, height: 112, rx: 3, class: 'c-hand' }));
-    var minute = node('g', {});
-    minute.appendChild(node('rect', { x: 194, y: 36, width: 12, height: 178, rx: 3, class: 'c-hand' }));
+    // Skeleton hands: a pointed tip, a slot down the middle and a ring where they sit on the
+    // post. Drawn pointing at twelve; the caller rotates them.
+    function hand(half, tipY, baseY, slotHalf, slotTopY, slotBaseY, ringR, ringW) {
+      var g = node('g', {});
+      var x0 = 200 - half, x1 = 200 + half;
+      var shoulder = tipY + half * 2; // where the taper to the point begins
+      var sx0 = 200 - slotHalf, sx1 = 200 + slotHalf;
+      g.appendChild(node('path', {
+        'fill-rule': 'evenodd',
+        class: 'c-hand',
+        d: 'M' + x0 + ',' + baseY + ' L' + x0 + ',' + shoulder + ' L200,' + tipY + ' L' + x1 + ',' + shoulder + ' L' + x1 + ',' + baseY + ' Z' +
+           ' M' + sx0 + ',' + slotBaseY + ' L' + sx0 + ',' + slotTopY + ' L200,' + (slotTopY - slotHalf * 2) +
+           ' L' + sx1 + ',' + slotTopY + ' L' + sx1 + ',' + slotBaseY + ' Z'
+      }));
+      g.appendChild(node('circle', { cx: 200, cy: 200, r: ringR, 'stroke-width': ringW, class: 'c-ring' }));
+      return g;
+    }
+    var hour = hand(9, 100, 187, 3.6, 124, 178, 13, 5.5);
+    var minute = hand(6.5, 36, 192, 2.6, 56, 184, 8.5, 4);
+    // Keep the dial and hands in the same SVG. The hands above are grouped separately so each
+    // can rotate around the centre without turning its open slot or its pivot ring.
     svg.appendChild(ticks);
     svg.appendChild(marks);
     svg.appendChild(numerals);
     svg.appendChild(hour);
     svg.appendChild(minute);
-    svg.appendChild(node('circle', { cx: 200, cy: 200, r: 16.67, class: 'c-hand' })); // cap over the hands
-
+    svg.appendChild(node('circle', { cx: 200, cy: 200, r: 3.6, class: 'c-hand' }));
     function rotate(g, deg) { g.setAttribute('transform', 'rotate(' + deg.toFixed(2) + ' 200 200)'); }
     return function update(now) {
       var p = CT.parts(now);

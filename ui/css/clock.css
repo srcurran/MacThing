@@ -11,12 +11,14 @@
 #screen-clock .stage { background: var(--panel); }
 
 .c-face { position: absolute; left: 48px; top: 48px; width: 384px; height: 384px; } /* 48px inset in the square */
-/* A faint minute track, outlined markers, and hands that are the only filled things on the dial. */
+/* A faint minute track with the hour ticks picked out, and solid markers. */
 .c-tick { stroke: var(--hand); stroke-opacity: 0.2; stroke-width: 2; }
-.c-mark { fill: none; stroke: var(--hand); stroke-width: 2.5; stroke-linejoin: round; }
+.c-tick.hour { stroke-opacity: 1; }
+.c-mark { fill: var(--hand); stroke: none; }
 .numbers .c-marks { display: none; }
 .c-numerals { display: none; fill: var(--text); font-size: 34px; font-weight: 600; letter-spacing: -0.02em; }
-.c-hand { fill: var(--lume); stroke: var(--mark-edge); stroke-width: 3; }
+.c-hand { fill: var(--hand); stroke: none; }
+.c-ring { fill: none; stroke: var(--hand); }
 .numbers .c-numerals { display: block; }
 
 
