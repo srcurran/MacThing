@@ -17,11 +17,10 @@
 .c-mark { fill: var(--hand); stroke: none; }
 .numbers .c-marks { display: none; }
 .c-numerals { display: none; fill: var(--text); font-size: 34px; font-weight: 600; letter-spacing: -0.02em; }
-.c-hand { fill: #75e6a1; stroke: none; filter: drop-shadow(0 0 3px rgba(104, 238, 157, 0.55)); }
-.c-ring { fill: none; stroke: #75e6a1; filter: drop-shadow(0 0 3px rgba(104, 238, 157, 0.55)); }
-.c-second { stroke: #75e6a1; stroke-width: 4.5; stroke-linecap: round; filter: drop-shadow(0 0 3px rgba(104, 238, 157, 0.55)); }
-.c-second-cap { fill: #75e6a1; filter: drop-shadow(0 0 3px rgba(104, 238, 157, 0.55)); }
-.c-centre { fill: var(--stage); stroke: #75e6a1; stroke-width: 2.5; }
+.c-hand { fill: var(--hand); stroke: var(--hand); stroke-width: 2; stroke-linejoin: round; }
+.c-second { stroke: var(--hand); stroke-width: 4; stroke-linecap: round; }
+.c-pivot { fill: var(--hand); }
+.c-centre { fill: var(--panel); }
 .numbers .c-numerals { display: block; }
 
 

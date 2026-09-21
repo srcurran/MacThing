@@ -169,9 +169,9 @@
       text.textContent = String(n); // optical centring (no dominant-baseline needed)
       numerals.appendChild(text);
     }
-    // Luminous skeleton hands: a pointed tip, an open centre channel and a circular pivot.
-    // Drawn pointing at twelve; the caller rotates them.
-    function hand(half, tipY, baseY, slotHalf, slotTopY, slotBaseY, ringR, ringW) {
+    // Skeleton hands: a pointed tip and an open centre channel. Both sit beneath one shared
+    // pivot ring, as on the reference hand set, rather than carrying their own concentric rings.
+    function hand(half, tipY, baseY, slotHalf, slotTopY, slotBaseY) {
       var g = node('g', {});
       var x0 = 200 - half, x1 = 200 + half;
       var shoulder = tipY + half * 2; // where the taper to the point begins
@@ -183,16 +183,16 @@
            ' M' + sx0 + ',' + slotBaseY + ' L' + sx0 + ',' + slotTopY + ' L200,' + (slotTopY - slotHalf * 2) +
            ' L' + sx1 + ',' + slotTopY + ' L' + sx1 + ',' + slotBaseY + ' Z'
       }));
-      g.appendChild(node('circle', { cx: 200, cy: 200, r: ringR, 'stroke-width': ringW, class: 'c-ring' }));
       return g;
     }
-    var hour = hand(10, 106, 186, 4.5, 128, 177, 14, 6);
-    var minute = hand(7.5, 38, 191, 3.2, 59, 183, 10, 4.5);
-    // The seconds hand is deliberately spare: a long lollipop pointer with a short tail,
-    // so the glowing primary hands remain the readable part of the face.
+    var hour = hand(11, 104, 187, 5, 127, 179);
+    var minute = hand(8, 38, 191, 3.8, 61, 184);
+    // A long, slim seconds hand with the restrained counterweight from the reference.
     var second = node('g', {});
-    second.appendChild(node('line', { x1: 200, y1: 43, x2: 200, y2: 226, class: 'c-second' }));
-    second.appendChild(node('circle', { cx: 200, cy: 200, r: 10, class: 'c-second-cap' }));
+    second.appendChild(node('line', { x1: 200, y1: 48, x2: 200, y2: 224, class: 'c-second' }));
+    var pivot = node('g', {});
+    pivot.appendChild(node('circle', { cx: 200, cy: 200, r: 15, class: 'c-pivot' }));
+    pivot.appendChild(node('circle', { cx: 200, cy: 200, r: 7, class: 'c-centre' }));
     // Keep the dial and hands in the same SVG. The hands above are grouped separately so each
     // can rotate around the centre without turning its open slot or its pivot ring.
     svg.appendChild(ticks);
@@ -201,7 +201,7 @@
     svg.appendChild(hour);
     svg.appendChild(minute);
     svg.appendChild(second);
-    svg.appendChild(node('circle', { cx: 200, cy: 200, r: 3.4, class: 'c-centre' }));
+    svg.appendChild(pivot);
     function rotate(g, deg) { g.setAttribute('transform', 'rotate(' + deg.toFixed(2) + ' 200 200)'); }
     return function update(now) {
       var p = CT.parts(now);
