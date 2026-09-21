@@ -138,16 +138,28 @@
       return el;
     }
 
-    // 60 marks: the 12 hour ones long and in the hand colour, the rest short and dim.
+    // A dive-watch dial: an even minute track around the rim, then applied markers — a triangle
+    // at 12, batons at 3, 6 and 9, dots on the rest. No date window.
     var ticks = node('g', {});
     for (var i = 0; i < 60; i++) {
-      var isHour = i % 5 === 0;
-      var a = point(isHour ? 170 : 181, i / 60);
-      var b = point(188, i / 60);
+      var a = point(176, i / 60);
+      var b = point(186, i / 60);
       ticks.appendChild(node('line', {
-        x1: a.x.toFixed(2), y1: a.y.toFixed(2), x2: b.x.toFixed(2), y2: b.y.toFixed(2),
-        class: isHour ? 'c-tick-hour' : 'c-tick-minor'
+        x1: a.x.toFixed(2), y1: a.y.toFixed(2), x2: b.x.toFixed(2), y2: b.y.toFixed(2), class: 'c-tick'
       }));
+    }
+
+    // Each marker is drawn at twelve o'clock and rotated into place, so one set of numbers does.
+    var marks = node('g', { class: 'c-marks' });
+    for (var h = 0; h < 12; h++) {
+      var shape;
+      if (h === 0) shape = node('polygon', { points: '188.5,43.5 211.5,43.5 200,66.5' }); // apex inwards
+      else if (h === 3 || h === 6 || h === 9) shape = node('rect', { x: 195, y: 44.5, width: 10, height: 21, rx: 1 });
+      else shape = node('circle', { cx: 200, cy: 55, r: 7.5 });
+      shape.setAttribute('class', 'c-mark');
+      var g = node('g', { transform: 'rotate(' + h * 30 + ' 200 200)' });
+      g.appendChild(shape);
+      marks.appendChild(g);
     }
     var numerals = node('g', { class: 'c-numerals' });
     for (var n = 1; n <= 12; n++) {
@@ -157,10 +169,11 @@
       numerals.appendChild(text);
     }
     var hour = node('g', {});
-    hour.appendChild(node('rect', { x: 194, y: 102, width: 12, height: 104, rx: 6, class: 'c-hand' }));
+    hour.appendChild(node('rect', { x: 191, y: 100, width: 18, height: 112, rx: 3, class: 'c-hand' }));
     var minute = node('g', {});
-    minute.appendChild(node('rect', { x: 196, y: 44, width: 8, height: 162, rx: 4, class: 'c-hand' }));
+    minute.appendChild(node('rect', { x: 194, y: 36, width: 12, height: 178, rx: 3, class: 'c-hand' }));
     svg.appendChild(ticks);
+    svg.appendChild(marks);
     svg.appendChild(numerals);
     svg.appendChild(hour);
     svg.appendChild(minute);

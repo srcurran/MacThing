@@ -31,6 +31,8 @@
   --dial: #1d1d1d;
   --tick: #4a4a4a;
   --hand: #fff;
+  --lume: #fff; /* marker and hand fill */
+  --mark-edge: #b9b9b9; /* the metal surround around each */
   --toast-bg: rgba(255, 255, 255, 0.95);
   --toast-text: #111;
   --offline-bg: #121212;
@@ -57,6 +59,8 @@
   --dial: #fbfbfa;
   --tick: #b9b9b6;
   --hand: #111;
+  --lume: #fff;
+  --mark-edge: #111;
   --toast-bg: rgba(20, 20, 20, 0.92);
   --toast-text: #fff;
   --offline-bg: #f2f2f0;

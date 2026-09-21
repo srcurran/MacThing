@@ -11,12 +11,14 @@
 #screen-clock .stage { background: var(--panel); }
 
 .c-face { position: absolute; left: 48px; top: 48px; width: 384px; height: 384px; } /* 48px inset in the square */
-.c-tick-minor { stroke: var(--tick); stroke-width: 2.3; stroke-linecap: round; }
-.c-tick-hour { stroke: var(--hand); stroke-width: 5.7; stroke-linecap: round; }
+/* Minute track, then applied markers with a lume fill and a bright metal edge. */
+.c-tick { stroke: var(--hand); stroke-width: 2; }
+.c-mark { fill: var(--lume); stroke: var(--mark-edge); stroke-width: 2.5; stroke-linejoin: round; }
+.numbers .c-marks { display: none; }
 .c-numerals { display: none; fill: var(--text); font-size: 34px; font-weight: 600; letter-spacing: -0.02em; }
-.c-hand { fill: var(--hand); }
+.c-hand { fill: var(--lume); stroke: var(--mark-edge); stroke-width: 3; }
 .numbers .c-numerals { display: block; }
-.numbers .c-tick-hour { stroke-width: 3; }
+
 
 .c-digital {
   position: absolute; left: 0; top: 0; width: 480px; height: 480px;
