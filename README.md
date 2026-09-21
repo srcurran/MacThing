@@ -16,7 +16,7 @@ The four screens:
 
 - **Now Playing** follows whatever is playing in Control Center's Now Playing: Apple Music, Spotify, Podcasts, YouTube in a browser, and so on. It shows the artist, title, album, progress and artwork, plus a paused state, an app badge for non-Music sources, and the analog clock face when nothing is playing. Optionally the artwork also fills the screen behind everything, blurred and tinted.
 - **Weather** shows the current conditions, the next few hours and five days. It uses [Open-Meteo](https://open-meteo.com) (free, no account) for your Mac's location or a place you pick.
-- **Clock** shows an analog face (plain or with numbers) or a digital one, plus the next event still to come today, or "No events today".
+- **Clock** shows an analog face (plain or with numbers) or a digital one — pick which on the Mac settings page — plus the next event still to come today, or "No events today".
 - **Calendar** shows today's remaining events and, by default, tomorrow's under their own heading. Choose how many days (1–7) and which calendars on the Mac settings page.
 
 **Sleep:** the Car Thing's screen turns off whenever your Mac's display sleeps, when you hold the settings button, and — this part runs on the device itself — about a minute and a half after the Mac stops talking to it at all: shut down, unplugged from the Mac but still powered, or just the bridge stopped. Press any button or turn the knob to wake it; while the Mac is away it stays lit for 20 seconds, and while the Mac is only asleep, for a minute. That first input only wakes it.
@@ -28,6 +28,20 @@ The backlight is the part that wears out, so "off" means the backlight really is
 **Lock:** while your Mac is locked — the lock screen, or switched to another account — the backlight stays off and no button wakes it. It comes back when you log in.
 
 **Settings** covers appearance (dark, light or match the Mac), °F/°C, 12/24-hour time, the album art background and the weather location. Anything that needs typing or a longer list — a city, and which calendars and how many days the Calendar screen shows — opens a settings page on your Mac at http://127.0.0.1:4747.
+
+### Before you grant anything
+
+Nothing is required for the device to work: Now Playing and the clock need no permissions at all. The other screens say what they need, in place:
+
+| Screen | Without permission | How it's fixed |
+|---|---|---|
+| Now Playing | works; shows the clock face when nothing is playing | — |
+| Clock | works; the event line stays blank until Calendar is allowed | — |
+| Weather | "Location access is off" with the place-picker hint | allow Location, or pick a city on the Mac page |
+| Calendar | "Calendar access is off", naming the System Settings pane | allow Calendars for Car Thing Helper |
+| Back button (favorite) | toast: "Allow musicctl to control Music" | allow Automation for musicctl |
+| Knob on an output with no software volume | "No volume control on <device>" | use an output that has one |
+| Bridge not running | "Waiting for your Mac" | start it, or `npm run install-agent` |
 
 ## What you need
 
