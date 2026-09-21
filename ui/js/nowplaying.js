@@ -8,7 +8,7 @@
   var root = screen.el;
   var el = {
     meta: $('npMeta'), artist: $('npArtist'), title: $('npTitle'), album: $('npAlbum'),
-    elapsed: $('npElapsed'), duration: $('npDuration'), progress: $('npProgress'),
+    duration: $('npDuration'), progress: $('npProgress'),
     artA: $('npArtA'), artB: $('npArtB'), badge: $('npBadge')
   };
   // Nothing playing shows the Clock screen's face in the art area (Figma 9:78).
@@ -88,8 +88,7 @@
   }
 
   function renderProgress() {
-    var e = currentElapsed();
-    setText(el.elapsed, e == null ? '' : fmt(e));
+    var e = currentElapsed(); // still tracked, just not shown: it drives the fill
     var frac = e != null && np.duration ? e / np.duration : 0;
     el.progress.style.transform = 'scaleX(' + frac.toFixed(4) + ')';
   }

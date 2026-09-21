@@ -20,11 +20,12 @@
 .np-artist:empty + .np-title { margin-top: 0; }
 .np-progress { height: 28px; }
 .np-progress .time { font-size: 22px; line-height: 28px; }
+/* Played white whether playing or paused, the rest grey; with no elapsed time the bar starts
+   at the panel's inset. */
+.np-progress .bar { margin-left: 0; background: var(--bar-track); }
 .np-album.is-source { color: var(--muted); }
 .np-artist:empty, .np-album:empty { display: none; }
 
-#npElapsed { font-variant-numeric: tabular-nums; } /* keeps the bar from shifting every second */
-.paused .np-progress .bar { opacity: 0.4; }
 .no-duration .np-progress .bar, .no-duration #npDuration { visibility: hidden; }
 
 /* Artwork: two layers so track changes crossfade. */
