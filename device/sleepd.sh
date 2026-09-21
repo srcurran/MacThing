@@ -27,7 +27,7 @@ POLL=1                      # seconds between checks (also the wake-on-input lat
 POWERSAVE=1                 # also idle the CPU while asleep (governor, or a clock cap)
 HEAL=180                    # seconds of quiet before rebinding a dead USB gadget (0 = never)
 HEAL_PRESS=25               # …or this many, when a button press asks for it (~2 missed heartbeats)
-HEAL_MAX=300                # longest gap between attempts once they stop sticking
+HEAL_MAX=60                 # longest gap between attempts while they keep failing
 
 [ -f "$CONF" ] && . "$CONF"
 
@@ -120,11 +120,13 @@ rebind_udc() {
   [ "$(usb_state)" = configured ]
 }
 
+# Returns 0 when USB is usable afterwards, 1 when it still isn't — the caller uses that to decide
+# how long to wait before trying again.
 heal_usb() {
   [ "$HEAL" -gt 0 ] || return 0
   [ -n "$beat" ] || return 0 # never saw the Mac this run: nothing to win back
   [ "$(usb_state)" = configured ] && return 0
-  [ -w "$GADGET/UDC" ] || { say "no $GADGET/UDC — can't rebind"; return 0; }
+  [ -w "$GADGET/UDC" ] || { say "no $GADGET/UDC — can't rebind"; return 1; }
 
   # One line of kernel log with it: whoever reads this later wants to know what the controller
   # saw when the host went away, not just that we tried something.
@@ -142,8 +144,12 @@ heal_usb() {
   sleep 1
   /usr/bin/adbd &
   sleep 2
-  if rebind_udc; then say "usb configured again"; else say "usb still $(usb_state); next try in ${step}s"; fi
-  return 0
+  if rebind_udc; then
+    say "usb configured again"
+    return 0
+  fi
+  say "usb still $(usb_state); next try in ${step}s"
+  return 1
 }
 
 # Buttons and the knob are evdev devices. Reading one doesn't take the events away from
@@ -272,11 +278,15 @@ while :; do
       cooldown=20
       next_heal=$((idle + step))
     elif [ "$idle" -ge "$next_heal" ]; then
-      heal_usb
+      # Grow the gap only while attempts fail — a failure means the host isn't there. One that
+      # works means it is, so go straight back to the short interval.
+      if heal_usb; then step=$HEAL
+      else
+        step=$((step * 2))
+        [ "$step" -gt "$HEAL_MAX" ] && step=$HEAL_MAX
+      fi
       usb_prev=$(usb_state)
       cooldown=20
-      step=$((step * 2))
-      [ "$step" -gt "$HEAL_MAX" ] && step=$HEAL_MAX
       next_heal=$((idle + step))
     fi
   fi

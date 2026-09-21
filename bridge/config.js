@@ -67,9 +67,10 @@ export const config = {
   deviceSleepSeconds: 90,
   deviceWakeSeconds: 20,
   devicePowersave: true, // also idle the device's CPU while asleep (see device/sleepd.sh)
-  // How long the Car Thing may be missing from `adb devices` before the bridge restarts the adb
-  // server. Its list goes stale across Mac sleep while the device is still on the USB bus.
-  adbRestartMs: 45 * 1000,
+  // Shortest gap between adb server restarts. The bridge only restarts it when ioreg shows the
+  // Car Thing on the USB bus while `adb devices` is empty, which is always wrong and always the
+  // server's fault, so there's no reason to wait long or to give up.
+  adbRestartMs: 20 * 1000,
 
   // This firmware's USB gadget doesn't always survive the Mac suspending the port, and it's only
   // built at boot, so the Mac can wake to no device on the bus until it's fully power-cycled.

@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Volume } from './audio/volume.js';
 import { config, paths } from './config.js';
-import { listCarThings, listDevices, restartServer, trackDevices } from './device/adb.js';
+import { listCarThings, listDevices, onUsbBus, restartServer, trackDevices } from './device/adb.js';
 import { DeviceLink } from './device/link.js';
 import { log } from './log.js';
 import { AppInfo, kindOf } from './nowplaying/apps.js';
@@ -280,10 +280,6 @@ function onDeviceMessage(msg) {
 // treat a device-shaped silence as a stale server rather than an absent device.
 let lastSeen = Date.now();
 let lastServerRestart = 0;
-let restartTries = 0; // per absence; a Car Thing that's simply unplugged must not nag forever
-let wokeAt = 0;
-
-const MAX_RESTART_TRIES = 3;
 
 async function refreshDevices() {
   let all;
@@ -294,29 +290,19 @@ async function refreshDevices() {
   }
   let devices = all.filter((d) => d.carThing).map(({ serial }) => ({ serial }));
 
-  if (!devices.length && !connecting && !all.length && restartTries < MAX_RESTART_TRIES) {
-    // Only when the server lists nothing at all. Anything else on it — an Android phone, another
-    // device — proves the list isn't stale, and kill-server would drop someone else's session.
-    const quiet = Date.now() - lastSeen;
-    const since = Date.now() - lastServerRestart;
-    // Straight after a wake, a missing device is the stale list far more often than a real
-    // absence, so don't sit on it: 8 seconds is enough for USB to re-enumerate.
-    const base = Date.now() - wokeAt < 2 * 60 * 1000 ? 8000 : config.adbRestartMs;
-    const wait = base * 2 ** restartTries;
-    if (quiet > wait && since > wait) {
+  if (!devices.length && !connecting && !all.length && Date.now() - lastServerRestart > config.adbRestartMs) {
+    // Only when the server lists nothing at all AND the hardware is really on the bus. Anything
+    // else on the list means the list isn't stale, and kill-server would drop someone else's
+    // session; nothing on the bus means the device is unplugged and there's nothing to fix.
+    if (await onUsbBus()) {
       lastServerRestart = Date.now();
-      restartTries += 1;
-      log.info(`[adb] no device for ${Math.round(quiet / 1000)}s — restarting the adb server (${restartTries}/${MAX_RESTART_TRIES})`);
+      log.info('[adb] the Car Thing is on the USB bus but adb cannot see it — restarting the adb server');
       await restartServer();
       devices = await listCarThings().catch(() => []);
       if (devices.length) log.info('[adb] the server had gone stale; the device was there all along');
-      else if (restartTries >= MAX_RESTART_TRIES) log.info('[adb] the device really is gone; leaving the server alone until it returns');
     }
   }
-  if (devices.length) {
-    lastSeen = Date.now();
-    restartTries = 0;
-  }
+  if (devices.length) lastSeen = Date.now();
 
   if (link && !devices.some((d) => d.serial === link.serial)) link.close();
   if (!link && !connecting && devices.length) await connect(devices[0].serial);
@@ -384,8 +370,6 @@ power.on('willSleep', async () => {
 });
 power.on('didWake', () => {
   systemAsleep = false;
-  wokeAt = Date.now();
-  restartTries = 0; // a wake is a fresh chance, whatever happened before it
   applyScreen();
   // Waking is exactly when adb's list goes stale, so look now and again once USB has settled,
   // instead of waiting out the timer that exists for ordinary unplugs.

@@ -39,6 +39,19 @@ export async function listCarThings() {
 }
 
 /**
+ * Is a Car Thing on the USB bus at all, whatever adb believes? ioreg reads the hardware, so this
+ * is what separates "adb's list is stale" from "the thing is genuinely unplugged" — and there is
+ * no point restarting a shared adb server for a device that isn't there.
+ */
+export function onUsbBus() {
+  return new Promise((resolve) => {
+    execFile('ioreg', ['-p', 'IOUSB', '-n', 'Superbird', '-w0'], { timeout: 5000 }, (err, stdout) => {
+      resolve(!err && /Superbird/.test(stdout));
+    });
+  });
+}
+
+/**
  * Restart the adb server.
  *
  * Its device list goes stale after the Mac sleeps: the Car Thing is still on the USB bus and
