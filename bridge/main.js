@@ -111,6 +111,7 @@ function pushAll(target) {
     config: {
       buttons: config.buttons,
       knobClicks: config.knobClicks,
+      buttonClicks: config.buttonClicks,
       multiClickMs: config.multiClickMs,
       buttonHolds: config.buttonHolds,
       holdMs: config.holdMs,
@@ -198,7 +199,7 @@ function musicctl(command) {
 
 async function runCommand(action) {
   log.info(`[input] ${action}`);
-  if (action === 'favorite') return toggleFavorite();
+  if (action === 'favorite' || action === 'unfavorite') return setFavorite(action);
   try {
     if (!current.np.active && (action === 'playpause' || action === 'play')) {
       const r = await musicctl('play'); // nothing playing: start Apple Music
@@ -211,12 +212,12 @@ async function runCommand(action) {
   }
 }
 
-async function toggleFavorite() {
+async function setFavorite(command) {
   const { np } = current;
   if (np.bundleId !== 'com.apple.Music') {
     return link?.send({ type: 'toast', text: np.active ? 'Favorites work with Apple Music' : 'Nothing playing' });
   }
-  const r = await musicctl('favorite');
+  const r = await musicctl(command);
   if (r.ok) {
     log.info(`[favorite] ${np.title}: ${r.favorited ? 'added' : 'removed'}`);
     link?.send({ type: 'favorite', favorited: r.favorited });

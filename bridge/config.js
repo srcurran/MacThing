@@ -26,8 +26,8 @@ export const config = {
   // Buttons → action. Keys are what the device reports to the page: top buttons 1–4, the
   // fifth (settings) button at the end of the top row (m) and the back button under the knob
   // (Escape — also closes Settings whatever it's mapped to).
-  // Actions: screen:<nowplaying|weather|clock|calendar> | settings | favorite (toggle the Apple
-  // Music song's favorite) | previous | next | playpause | null
+  // Actions: screen:<nowplaying|weather|clock|calendar> | settings | favorite | unfavorite
+  // (the playing Apple Music song) | previous | next | playpause | null
   buttons: {
     1: 'screen:nowplaying',
     2: 'screen:weather',
@@ -38,6 +38,10 @@ export const config = {
   },
   // Knob press, by number of quick presses. A single press waits multiClickMs to see if more follow.
   knobClicks: { 1: 'playpause', 2: 'next', 3: 'previous' },
+  // Buttons that count presses the same way. The back button favorites the playing song on one
+  // press and unfavorites it on two, so neither is a toggle you have to guess the state of.
+  // A key listed here ignores its `buttons` entry.
+  buttonClicks: { Escape: { 1: 'favorite', 2: 'unfavorite' } },
   multiClickMs: 350,
 
   // Hold a button for holdMs to get a second action out of it; the short press then happens on

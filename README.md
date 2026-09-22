@@ -22,7 +22,7 @@ background turned on, the second doesn't._
 | Press knob once / twice / three times | Play-pause / next track / previous track; starts Apple Music if nothing is playing (in Settings: change the selected option) |
 | Fifth top button (settings)           | Settings (press it again, or the back button, to close)                                                                      |
 | Hold the fifth top button             | Sleep now — screen off until the next button or knob input                                                                   |
-| Back button (under the knob)          | Favorite / unfavorite the playing Apple Music song                                                                           |
+| Back button (under the knob)          | Press once to favorite the playing Apple Music song, twice to unfavorite it |
 
 The four screens:
 
@@ -124,6 +124,7 @@ npm run setup-device  # only if you set the device up before the sleep watchdog 
 
 - `buttons`: what each button does (`screen:<name>`, `settings`, or a media command)
 - `knobClicks` and `multiClickMs`: the single, double and triple press actions, and how long a single press waits for more
+- `buttonClicks`: buttons that count presses the same way — by default the back button, once to favorite and twice to unfavorite
 - `volumeStep`: volume change per knob click
 - `knobDirection`: `1` matches Spotify's own mapping (turning right raises the volume); `-1` flips it
 - `sleepWithMac` and `screenWakeMs`: follow the Mac's display and lock screen, and how long a button or knob wake lasts while the Mac's display is off
@@ -252,7 +253,7 @@ this shows. If Control Center is also empty, `npm run build` self-tests the Medi
 - **Volume depends on the output device.** HDMI, S/PDIF and some USB DACs have no software volume. The screen then says "No volume control on …".
 - **Weather data.** Your location leaves the Mac rounded to about 1 km, and only to Open-Meteo. Hourly and daily labels use the forecast place's own timezone.
 - **Rebuilding the helper can reset its permissions.** `CarThingHelper.app` is ad-hoc signed, so after changing and rebuilding `native/helper/` macOS may ask for Location and Calendars again. `npm run build` skips the helper when its source hasn't changed.
-- **Single press delay.** A single knob press waits `multiClickMs` (350 ms) to see whether a second press follows, so play/pause reacts slightly later than it would without double and triple presses.
+- **Single press delay.** A single knob or back-button press waits `multiClickMs` (350 ms) to see whether a second press follows, so play/pause reacts slightly later than it would without double and triple presses.
 - **No real suspend.** Sleep means backlight off, CPU idled and the UI stopped redrawing. Chromium stays loaded so waking is instant, and the device keeps drawing a little current as long as the cable does.
 - **Waking takes up to a second.** While the Mac is away, `sleepd.sh` notices a button or knob event on its next one-second poll rather than instantly.
 
