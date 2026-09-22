@@ -14,18 +14,42 @@ const fraction = ref(0);
 function updateProgress() { fraction.value = np.value.duration ? elapsed() / np.value.duration : 0; }
 // Measured typography is the only imperative layout here. These inline values
 // deliberately override .np-title's fallback font-size/line-height.
+
+/** Width of the title's widest word at the size currently set on it. */
+function widestWord(t, words) {
+  const probe = document.createElement('span');
+  // Absolute and hidden: it measures inside the title's own font without joining its lines.
+  probe.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;left:0;top:0';
+  t.appendChild(probe);
+  let widest = 0;
+  for (const word of words) {
+    probe.textContent = word;
+    widest = Math.max(widest, probe.offsetWidth);
+  }
+  t.removeChild(probe);
+  return widest;
+}
+
 function fitTitle() {
   const t = rail.value && rail.value.titleElement;
   if (!t || !root.value) return;
   const content = root.value.querySelector('.left-rail-content');
   t.style.webkitLineClamp = '';
+  t.classList.remove('break-word');
   if (!np.value.active) { t.style.fontSize = '32px'; t.style.lineHeight = '40px'; return; }
+  const words = (t.textContent || '').split(/\s+/).filter(Boolean);
   const scale = [[48, 64], [40, 56], [28, 36]];
+  // A title is sized down until it fits the rail's height *and* its longest word fits the
+  // rail's width: splitting a word across lines reads worse than a smaller title.
   for (const [size, line] of scale) {
     t.style.fontSize = size + 'px'; t.style.lineHeight = line + 'px';
     const last = rail.value.subtitleElement || t;
-    if (last.getBoundingClientRect().bottom <= content.getBoundingClientRect().bottom && t.offsetHeight <= line * 5.01) return;
+    if (widestWord(t, words) <= t.clientWidth
+      && last.getBoundingClientRect().bottom <= content.getBoundingClientRect().bottom
+      && t.offsetHeight <= line * 5.01) return;
   }
+  // Nothing fit: keep the smallest size, and only now allow a word to break.
+  if (widestWord(t, words) > t.clientWidth) t.classList.add('break-word');
   const last = rail.value.subtitleElement || t;
   const overflow = Math.max(0, last.getBoundingClientRect().bottom - content.getBoundingClientRect().bottom);
   t.style.webkitLineClamp = String(Math.max(1, Math.min(5, Math.floor((t.offsetHeight - overflow) / 36))));
