@@ -171,7 +171,7 @@
   --toast-text: #fff;
   --offline-bg: #f2f2f0;
   --hud-bg: rgba(255, 255, 255, 0.96);
-  --ambient-tint: rgba(255, 255, 255, 0.75);
+  --ambient-tint: rgba(255, 255, 255, 0.25);
   --sun: #f5b301;
   --moon: #a59c72;
   --cloud: #c3cad3;
@@ -493,6 +493,9 @@ h3 {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+/* Last resort only: a word too long for the rail even at the smallest size. */
+.np-title.break-word {
   word-wrap: break-word;
 }
 .np-progress {

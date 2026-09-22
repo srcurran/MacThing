@@ -1,8 +1,9 @@
 // musicctl — Apple Music actions for the bridge, sent as Apple Events under this tool's own name,
 // so macOS asks once whether "musicctl" may control Music (rather than node or a terminal).
 //
-//   musicctl favorite   toggle "favorited" on the current track → {"ok":true,"favorited":true}
-//   musicctl play       start playback                           → {"ok":true}
+//   musicctl favorite    set "favorited" on the current track   → {"ok":true,"favorited":true}
+//   musicctl unfavorite  clear it                                → {"ok":true,"favorited":false}
+//   musicctl play        start playback                          → {"ok":true}
 // Failures print {"ok":false,"error":"…","code":N} and exit 1.
 
 import Foundation
@@ -34,9 +35,15 @@ let scripts = [
   "favorite": """
     tell application id "com.apple.Music"
       if player state is stopped then error "Nothing is playing in Music" number 1
-      set f to not (favorited of current track)
-      set favorited of current track to f
-      return f
+      set favorited of current track to true
+      return true
+    end tell
+    """,
+  "unfavorite": """
+    tell application id "com.apple.Music"
+      if player state is stopped then error "Nothing is playing in Music" number 1
+      set favorited of current track to false
+      return false
     end tell
     """,
   "play": """
@@ -45,7 +52,7 @@ let scripts = [
 ]
 
 guard let command = CommandLine.arguments.dropFirst().first, let source = scripts[command] else {
-  FileHandle.standardError.write("usage: musicctl favorite|play\n".data(using: .utf8)!)
+  FileHandle.standardError.write("usage: musicctl favorite|unfavorite|play\n".data(using: .utf8)!)
   exit(2)
 }
 
@@ -59,4 +66,4 @@ if let error {
   ])
   exit(1)
 }
-reply(command == "favorite" ? ["ok": true, "favorited": result?.booleanValue ?? false] : ["ok": true])
+reply(command == "play" ? ["ok": true] : ["ok": true, "favorited": result?.booleanValue ?? false])
