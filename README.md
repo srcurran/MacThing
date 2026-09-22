@@ -1,4 +1,4 @@
-# Car Thing → Mac Now Playing
+# MacThing
 
 Turns a Spotify Car Thing into a desk display and volume knob for macOS.
 It has four screens: Now Playing, Weather, Clock and Calendar.
@@ -65,8 +65,8 @@ Nothing is required for the device to work: Now Playing and the clock need no pe
 ## Setup (once)
 
 ```bash
-git clone https://github.com/srcurran/carthing-now-playing.git
-cd carthing-now-playing
+git clone https://github.com/srcurran/MacThing.git
+cd MacThing
 npm ci                 # installs the locked Vue/Vite dependencies
 npm run build          # builds the Vue UI and native helpers, then self-tests the media adapter
 npm run setup-device   # makes the Car Thing boot into this UI (reversible; see "Undo")
