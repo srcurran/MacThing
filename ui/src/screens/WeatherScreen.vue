@@ -74,7 +74,7 @@ CT.screen("weather");
       >
     </LeftRail>
     <ScreenStage class="bg-panel">
-      <div v-if="ok" class="stage-safe-x stage-safe-top flex-col gap-40">
+      <div v-if="ok" class="stage-safe-x stage-safe-top flex-col gap-28">
         <div class="w-hourly grid">
           <WeatherHour
             v-for="(h, i) in hours"
