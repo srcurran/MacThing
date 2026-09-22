@@ -7,15 +7,13 @@ No reflashing: this runs on the community firmware you already have, replaces th
 device shows, and can be undone with one command. Nothing is installed on the device that a
 `npm run restore-device` doesn't put back.
 
-![Now Playing](docs/nowplaying.png)
+![Weather, Calendar, Now Playing, Clock and Settings on the Car Thing](docs/device-hug.png)
 
-| | |
-|---|---|
-| ![Weather](docs/weather-polvo.png) | ![Clock](docs/clock-polvo.png) |
-| ![Calendar](docs/calendar-polvo.png) | ![Settings](docs/settings-polvo.png) |
+![Now Playing on the Car Thing](docs/device-nowplaying.png)
 
-*Captured from the Car Thing itself at 800×480, with fixture data: `npm run mock-screens`.
-Now Playing has the album art background turned on; the other four don't.*
+*The screens are captured from the Car Thing itself at 800×480 with fixture data
+(`npm run mock-screens`), then mounted in the device mockups. The first shot has the album art
+background turned on, the second doesn't.*
 
 | Control | Action |
 |---|---|
