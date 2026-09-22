@@ -7,22 +7,22 @@ No reflashing: this runs on the community firmware you already have, replaces th
 device shows, and can be undone with one command. Nothing is installed on the device that a
 `npm run restore-device` doesn't put back.
 
-![Weather, Calendar, Now Playing, Clock and Settings on the Car Thing](docs/device-hug.png)
+![Now Playing on the Car Thing](docs/deviice-now--hug.png)
 
-![Now Playing on the Car Thing](docs/device-nowplaying.png)
+![Weather, Calendar, Now Playing, Clock and Settings on the Car Thing](docs/device-polvo.png)
 
-*The screens are captured from the Car Thing itself at 800×480 with fixture data
+_The screens are captured from the Car Thing itself at 800×480 with fixture data
 (`npm run mock-screens`), then mounted in the device mockups. The first shot has the album art
-background turned on, the second doesn't.*
+background turned on, the second doesn't._
 
-| Control | Action |
-|---|---|
-| Top buttons 1 · 2 · 3 · 4 | Now Playing · Weather · Clock · Calendar |
-| Turn knob | Mac output volume (in Settings: move the selection) |
+| Control                               | Action                                                                                                                       |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Top buttons 1 · 2 · 3 · 4             | Now Playing · Weather · Clock · Calendar                                                                                     |
+| Turn knob                             | Mac output volume (in Settings: move the selection)                                                                          |
 | Press knob once / twice / three times | Play-pause / next track / previous track; starts Apple Music if nothing is playing (in Settings: change the selected option) |
-| Fifth top button (settings) | Settings (press it again, or the back button, to close) |
-| Hold the fifth top button | Sleep now — screen off until the next button or knob input |
-| Back button (under the knob) | Favorite / unfavorite the playing Apple Music song |
+| Fifth top button (settings)           | Settings (press it again, or the back button, to close)                                                                      |
+| Hold the fifth top button             | Sleep now — screen off until the next button or knob input                                                                   |
+| Back button (under the knob)          | Favorite / unfavorite the playing Apple Music song                                                                           |
 
 The four screens:
 
@@ -45,15 +45,15 @@ The backlight is the part that wears out, so "off" means the backlight really is
 
 Nothing is required for the device to work: Now Playing and the clock need no permissions at all. The other screens say what they need, in place:
 
-| Screen | Without permission | How it's fixed |
-|---|---|---|
-| Now Playing | works; shows the clock face when nothing is playing | — |
-| Clock | works; the event line stays blank until Calendar is allowed | — |
-| Weather | "Location access is off" with the place-picker hint | allow Location, or pick a city on the Mac page |
-| Calendar | "Calendar access is off", naming the System Settings pane | allow Calendars for Car Thing Helper |
-| Back button (favorite) | toast: "Allow musicctl to control Music" | allow Automation for musicctl |
-| Knob on an output with no software volume | "No volume control on <device>" | use an output that has one |
-| Bridge not running | "Waiting for your Mac" | start it, or `npm run install-agent` |
+| Screen                                    | Without permission                                          | How it's fixed                                 |
+| ----------------------------------------- | ----------------------------------------------------------- | ---------------------------------------------- |
+| Now Playing                               | works; shows the clock face when nothing is playing         | —                                              |
+| Clock                                     | works; the event line stays blank until Calendar is allowed | —                                              |
+| Weather                                   | "Location access is off" with the place-picker hint         | allow Location, or pick a city on the Mac page |
+| Calendar                                  | "Calendar access is off", naming the System Settings pane   | allow Calendars for Car Thing Helper           |
+| Back button (favorite)                    | toast: "Allow musicctl to control Music"                    | allow Automation for musicctl                  |
+| Knob on an output with no software volume | "No volume control on <device>"                             | use an output that has one                     |
+| Bridge not running                        | "Waiting for your Mac"                                      | start it, or `npm run install-agent`           |
 
 ## What you need
 
