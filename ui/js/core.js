@@ -2,24 +2,16 @@
  * hardware input and the volume readout. Screens register with CT.screen(name) and listen for
  * bridge messages with CT.on(type, fn).
  *
- * Runs in the device's Chromium 69 — plain ES2017 only (no ?. / ?? / class fields / modules).
+ * Bundled by Vite for Chromium 69. Vue owns rendering; this module owns input and transport.
  * The page never talks to the network; the Mac bridge drives it over Chrome DevTools Protocol:
  *   Mac → page: window.__carthingReceive(msg)
  *   page → Mac: window.__carthingSend(json)  (a CDP binding; console.debug is the fallback)
  */
-(function () {
+export function initializeRuntime(state) {
   'use strict';
 
   var CT = (window.CT = {});
-  var app = document.getElementById('app');
-  CT.app = app;
-  CT.$ = function (id) { return document.getElementById(id); };
-  CT.setText = function (node, text) { if (node.textContent !== text) node.textContent = text; };
-  CT.esc = function (s) {
-    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
-    });
-  };
+  CT.app = null; // assigned after Vue mounts; retained for device diagnostics
 
   // Replaced by the bridge's config/settings on connect; these just let the page render before that.
   CT.config = {
@@ -28,7 +20,7 @@
     buttonHolds: { m: 'sleep' }, holdMs: 1200, offlineSleepMs: 90000,
     multiClickMs: 350, volumeStep: 1 / 64, knobDirection: 1, debug: false
   };
-  CT.settings = { theme: 'dark', units: 'F', clock24h: false, clockFace: 'analog', location: { mode: 'auto' } };
+  Object.defineProperty(CT, 'settings', { get: function () { return state.settings; } });
 
   var listeners = {};
   CT.on = function (type, fn) { (listeners[type] = listeners[type] || []).push(fn); };
@@ -56,7 +48,7 @@
     setConnected(true);
     if (msg.type === 'config') { CT.config = msg.config; gotConfig = true; }
     else if (msg.type === 'tick') { clock.offset = msg.now - Date.now(); clock.tz = msg.tzMinutes || 0; }
-    else if (msg.type === 'settings') CT.settings = msg.settings;
+    else if (msg.type === 'settings') state.settings = msg.settings;
     else if (msg.type === 'appearance') macDark = msg.dark;
     if (msg.type === 'settings' || msg.type === 'appearance') applyTheme();
     emit(msg.type, msg);
@@ -66,7 +58,7 @@
   var macDark = true;
   function applyTheme() {
     var theme = CT.settings.theme || 'dark';
-    app.classList.toggle('light', theme === 'light' || (theme === 'auto' && !macDark));
+    state.light = theme === 'light' || (theme === 'auto' && !macDark);
   }
   CT.applyTheme = applyTheme;
 
@@ -74,7 +66,7 @@
   function setConnected(on) {
     if (on !== connected) offlineSince = on ? 0 : performance.now();
     connected = on;
-    app.classList.toggle('offline', !on);
+    state.offline = !on;
   }
 
   // ---- Time (the device clock is never set, so everything uses the Mac's) -------------
@@ -122,83 +114,6 @@
     setTimeout(secondLoop, 1005 - (now % 1000));
   })();
 
-  // ---- Analog face ---------------------------------------------------------------------
-  // Fills an empty <svg viewBox="0 0 400 400"> with hour marks, optional numerals and hands,
-  // and returns an update(now) function. Used by the Clock screen and by Now Playing when
-  // nothing is playing (Figma: Widgets / Clock and Now Playing / Nothing Playing).
-  var SVG = 'http://www.w3.org/2000/svg';
-  CT.analogFace = function (svg) {
-    function point(r, turns) {
-      var a = turns * 2 * Math.PI;
-      return { x: 200 + r * Math.sin(a), y: 200 - r * Math.cos(a) };
-    }
-    function node(name, attrs) {
-      var el = document.createElementNS(SVG, name);
-      for (var k in attrs) el.setAttribute(k, attrs[k]);
-      return el;
-    }
-
-    // A dive-watch dial: an even minute track around the rim, then applied markers — a triangle
-    // at 12, batons at 3, 6 and 9, dots on the rest. No date window.
-    var ticks = node('g', {});
-    for (var i = 0; i < 60; i++) {
-      var a = point(176, i / 60);
-      var b = point(186, i / 60);
-      ticks.appendChild(node('line', {
-        x1: a.x.toFixed(2), y1: a.y.toFixed(2), x2: b.x.toFixed(2), y2: b.y.toFixed(2),
-        class: i % 5 === 0 ? 'c-tick hour' : 'c-tick' // the twelve hour ticks at full strength
-      }));
-    }
-
-    // Each marker is drawn at twelve o'clock and rotated into place, so one set of numbers does.
-    var marks = node('g', { class: 'c-marks' });
-    for (var h = 0; h < 12; h++) {
-      var shape;
-      if (h === 0) shape = node('polygon', { points: '184.33,43.5 215.67,43.5 200,81.08' }); // apex inwards
-      else if (h === 3 || h === 6 || h === 9) shape = node('rect', { x: 192.92, y: 44.5, width: 14.17, height: 37.67, rx: 1 });
-      else shape = node('circle', { cx: 200, cy: 55, r: 10.25 });
-      shape.setAttribute('class', 'c-mark');
-      var g = node('g', { transform: 'rotate(' + h * 30 + ' 200 200)' });
-      g.appendChild(shape);
-      marks.appendChild(g);
-    }
-    var numerals = node('g', { class: 'c-numerals' });
-    for (var n = 1; n <= 12; n++) {
-      var p = point(144, n / 12);
-      var text = node('text', { x: p.x.toFixed(2), y: (p.y + 12).toFixed(2), 'text-anchor': 'middle' });
-      text.textContent = String(n); // optical centring (no dominant-baseline needed)
-      numerals.appendChild(text);
-    }
-    // The hands are the two exact vector assets authored in Figma (131:2585 and 131:2584).
-    // Their built-in circular ends are the pivots, so no separate centre cap is needed.
-    function hand(src, x, y, width, height) {
-      var g = node('g', {});
-      g.appendChild(node('image', {
-        x: x, y: y, width: width, height: height, preserveAspectRatio: 'none',
-        href: src, 'xlink:href': src
-      }));
-      return g;
-    }
-    // Scale both 25px-wide vectors so the Figma pivot dot matches the applied hour markers.
-    // The dot centres (12.5,170.5) and (12.5,221.5) land precisely at 200,200.
-    var hour = hand('images/clock-hour-hand.svg', 189.75, 60.19, 20.5, 150.06);
-    var minute = hand('images/clock-minute-hand.svg', 189.75, 18.37, 20.5, 191.88);
-    // Keep the dial and hands in the same SVG. The hands above are grouped separately so each
-    // can rotate around the centre without turning its open slot or its pivot ring.
-    svg.appendChild(ticks);
-    svg.appendChild(marks);
-    svg.appendChild(numerals);
-    svg.appendChild(hour);
-    svg.appendChild(minute);
-    function rotate(g, deg) { g.setAttribute('transform', 'rotate(' + deg.toFixed(2) + ' 200 200)'); }
-    return function update(now) {
-      var p = CT.parts(now);
-      var minutes = p.minutes + p.seconds / 60;
-      rotate(hour, ((p.hours % 12) + minutes / 60) * 30);
-      rotate(minute, minutes * 6);
-    };
-  };
-
   // ---- Screens -------------------------------------------------------------------------
 
   CT.screens = {};
@@ -207,7 +122,7 @@
 
   /** Registers a screen. Optional hooks: show(), hide(), turn(steps), press(). */
   CT.screen = function (name) {
-    var def = { name: name, el: CT.$('screen-' + name) };
+    var def = { name: name };
     CT.screens[name] = def;
     return def;
   };
@@ -220,9 +135,7 @@
       if (name === 'settings') beforeSettings = CT.current;
       if (prev.hide) prev.hide();
       CT.current = name;
-      app.setAttribute('data-screen', name);
-      prev.el.classList.remove('active');
-      next.el.classList.add('active');
+      state.current = name;
       if (next.show) next.show();
     }
   };
@@ -238,21 +151,14 @@
   };
 
   CT.flash = function (icon, color) {
-    var f = CT.$('flash');
-    CT.$('flashIcon').setAttribute('href', '#i-' + icon);
-    f.style.color = color || '';
-    f.classList.remove('on');
-    void f.offsetWidth; // restart the animation
-    f.classList.add('on');
+    state.flash = { icon: icon, color: color || '', key: state.flash.key + 1 };
   };
 
   var toastTimer = null;
   CT.toast = function (text) {
-    var t = CT.$('toast');
-    t.textContent = text;
-    t.classList.add('on');
+    state.toast = text;
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { t.classList.remove('on'); }, 1800);
+    toastTimer = setTimeout(function () { state.toast = ''; }, 1800);
   };
   CT.on('toast', function (msg) { CT.toast(msg.text); });
 
@@ -264,7 +170,7 @@
   CT.asleep = false;
   function setAsleep(on) {
     CT.asleep = on;
-    app.classList.toggle('asleep', on);
+    state.asleep = on;
   }
   CT.on('screen', function (msg) { setAsleep(!msg.on); });
 
@@ -416,18 +322,16 @@
 
   function renderVolume(optimistic) {
     if (!vol) return;
-    app.classList.toggle('volume-unsupported', !vol.supported);
-    CT.setText(CT.$('volumeNote'), vol.supported ? '' : 'No volume control on ' + vol.device);
+    state.volumeUnsupported = !vol.supported;
+    state.volumeNote = vol.supported ? '' : 'No volume control on ' + vol.device;
     var v = optimistic != null ? optimistic : vol.muted ? 0 : vol.volume || 0;
-    CT.$('volumeFill').style.transform = 'scaleX(' + v.toFixed(3) + ')';
-    CT.setText(CT.$('volumeText'), String(Math.round(v * 100)));
-    CT.$('volIcon').setAttribute('href', v === 0 ? '#i-muted' : '#i-speaker');
+    state.volume = v;
   }
 
   function showVolume() {
-    app.classList.add('show-volume');
+    state.showVolume = true;
     clearTimeout(hideTimer);
-    hideTimer = setTimeout(function () { app.classList.remove('show-volume'); }, 1600);
+    hideTimer = setTimeout(function () { state.showVolume = false; }, 1600);
   }
 
   function onKnobVolume(steps) {
@@ -464,9 +368,10 @@
   }, 1000);
 
   // Runs after every screen script has registered.
-  document.addEventListener('DOMContentLoaded', function () {
+  CT.ready = function () {
     var screen = CT.screens[CT.current];
     if (screen.show) screen.show();
     CT.send({ type: 'hello' });
-  });
-})();
+  };
+  return CT;
+}

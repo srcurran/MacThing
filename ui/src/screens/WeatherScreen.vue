@@ -1,0 +1,102 @@
+<script setup>
+import { computed } from "vue";
+import { state, CT } from "../state.js";
+import { describe } from "../weather.js";
+import LeftRail from "../components/LeftRail.vue";
+import ScreenStage from "../components/ScreenStage.vue";
+import StageMessage from "../components/StageMessage.vue";
+import WeatherIcon from "../components/WeatherIcon.vue";
+import WeatherHour from "../components/WeatherHour.vue";
+import WeatherDay from "../components/WeatherDay.vue";
+const data = computed(() => state.weather);
+const ok = computed(() => data.value.status === "ok");
+const tz = computed(() => data.value.utcOffset / 60);
+const condition = computed(() =>
+  ok.value
+    ? describe(data.value.current.code, data.value.current.isDay).label
+    : "",
+);
+const message = computed(() => {
+  if (ok.value) return {};
+  if (data.value.status === "noLocation")
+    return {
+      title: ["denied", "restricted"].includes(data.value.reason)
+        ? "Location access is off"
+        : "Can’t find your location",
+      detail:
+        "Press the settings button and choose Weather location to pick a place.",
+    };
+  return data.value.status === "error"
+    ? { title: "Weather unavailable", detail: "Trying again shortly." }
+    : { title: "Getting the weather…" };
+});
+const hours = computed(() =>
+  !ok.value
+    ? []
+    : data.value.hourly.slice(0, 5).map((h, i) =>
+        i === 0 ? { ...h, ...data.value.current } : h,
+      ),
+);
+const days = computed(() => {
+  if (!ok.value) return [];
+  const rows = data.value.daily.slice(0, 4);
+  const min = Math.min(...rows.map((d) => d.lo)),
+    max = Math.max(...rows.map((d) => d.hi));
+  return rows.map((d) => ({
+    ...d,
+    range: {
+      left: ((d.lo - min) / Math.max(1, max - min)) * 100 + "%",
+      right: ((max - d.hi) / Math.max(1, max - min)) * 100 + "%",
+    },
+  }));
+});
+CT.screen("weather");
+</script>
+<template>
+  <section
+    id="screen-weather"
+    class="screen fill flex"
+    :class="{ active: state.current === 'weather' }"
+  >
+    <LeftRail
+      :eyebrow="ok ? data.place : 'Weather'"
+      :title="ok ? data.current.temp + '°' : '--°'"
+      :lower-content="ok ? 'Updated ' + CT.timeText(data.updatedAt) : ''"
+    >
+      <template v-if="ok" #subtitle
+        ><div class="flex items-center gap-10">
+          <WeatherIcon
+            class="w-cond-icon flex-none"
+            :code="data.current.code"
+            :is-day="!!data.current.isDay"
+          /><span>{{ condition }}</span>
+        </div></template
+      >
+    </LeftRail>
+    <ScreenStage class="bg-panel">
+      <div v-if="ok" class="stage-safe-x stage-safe-top flex-col gap-40">
+        <div class="w-hourly grid">
+          <WeatherHour
+            v-for="(h, i) in hours"
+            :key="i"
+            :forecast="h"
+            :current="i === 0"
+            :label="i === 0 ? 'Now' : CT.hourText(h.t, tz)"
+          />
+        </div>
+        <div class="w-daily grid items-center">
+          <WeatherDay
+            v-for="(d, i) in days"
+            :key="d.t"
+            :forecast="d"
+            :current="i === 0"
+            :label="
+              i === 0 ? 'Today' : CT.DAYS[CT.parts(d.t, tz).day].slice(0, 3)
+            "
+          />
+        </div>
+      </div>
+      <StageMessage :title="message.title" :detail="message.detail" />
+    </ScreenStage>
+  </section>
+</template>

@@ -395,9 +395,30 @@ setInterval(heartbeat, config.heartbeatMs);
 setInterval(() => link?.send(nowPlayingMessage()), 15000); // re-anchor the device's progress clock
 
 if (process.argv.includes('--watch')) {
-  log.info(`[dev] watching ${paths.ui}`);
-  const redeploy = debounce(() => link?.redeploy().catch((err) => log.warn('[dev] redeploy failed:', err.message)), 300);
-  fs.watch(paths.ui, { recursive: true }, redeploy);
+  log.info(`[dev] watching Vue source in ${paths.uiSource}`);
+  let building = false;
+  let pending = false;
+  const rebuild = async () => {
+    if (building) { pending = true; return; }
+    building = true;
+    try {
+      do {
+        pending = false;
+        await new Promise((resolve, reject) => {
+          execFile(process.execPath, [path.join(paths.root, 'node_modules/vite/bin/vite.js'), 'build'],
+            { cwd: paths.root }, (err, stdout, stderr) => err ? reject(new Error(stderr || stdout || err.message)) : resolve());
+        });
+      } while (pending);
+      await link?.redeploy();
+    } catch (err) { log.warn('[dev] build/deploy failed:', err.message); }
+    finally {
+      building = false;
+      if (pending) { pending = false; rebuild(); }
+    }
+  };
+  const redeploy = debounce(rebuild, 300);
+  fs.watch(paths.uiSource, { recursive: true }, redeploy);
+  fs.watch(path.join(paths.root, 'vite.config.js'), redeploy);
 }
 
 async function shutdown() {

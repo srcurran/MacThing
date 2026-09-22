@@ -14,7 +14,7 @@ device shows, and can be undone with one command. Nothing is installed on the de
 | ![Weather](docs/weather.png) | ![Clock](docs/clock.png) |
 | ![Calendar](docs/calendar.png) | ![Settings](docs/settings.png) |
 
-*Screens as drawn in Figma; the device renders these pixel for pixel at 800×480.*
+*Captured from the Car Thing itself at 800×480, with fixture data: `npm run mock-screens`.*
 
 | Control | Action |
 |---|---|
@@ -28,7 +28,7 @@ device shows, and can be undone with one command. Nothing is installed on the de
 The four screens:
 
 - **Now Playing** follows whatever is playing in Control Center's Now Playing: Apple Music, Spotify, Podcasts, YouTube in a browser, and so on. It shows the artist, title, album, progress and artwork, plus a paused state, an app badge for non-Music sources, and the analog clock face when nothing is playing. Optionally the artwork also fills the screen behind everything, blurred and tinted.
-- **Weather** shows the current conditions, the next few hours and five days. It uses [Open-Meteo](https://open-meteo.com) (free, no account) for your Mac's location or a place you pick.
+- **Weather** shows the current conditions, the next five hours and four days. It uses [Open-Meteo](https://open-meteo.com) (free, no account) for your Mac's location or a place you pick.
 - **Clock** shows an analog face (plain or with numbers) or a digital one — pick which on the Mac settings page — plus the next event still to come today, or "No events today".
 - **Calendar** shows today's remaining events and, by default, tomorrow's under their own heading. Choose how many days (1–7) and which calendars on the Mac settings page.
 
@@ -68,7 +68,8 @@ Nothing is required for the device to work: Now Playing and the clock need no pe
 ```bash
 git clone https://github.com/srcurran/carthing-now-playing.git
 cd carthing-now-playing
-npm run build          # compiles the Swift helpers and the MediaRemote adapter, then self-tests it
+npm ci                 # installs the locked Vue/Vite dependencies
+npm run build          # builds the Vue UI and native helpers, then self-tests the media adapter
 npm run setup-device   # makes the Car Thing boot into this UI (reversible; see "Undo")
 npm run install-agent  # starts the bridge now and at every login
 ```
@@ -102,7 +103,7 @@ The agent records the absolute path of the `node` you installed it with. If you 
 
 ```bash
 npm start       # runs in the foreground; Ctrl-C to stop
-npm run dev     # same, plus: redeploys ui/ to the device on every save and logs raw knob/button events
+npm run dev     # rebuilds Vue and redeploys on source changes; logs raw knob/button events
 ```
 
 Don't run a manual copy while the agent is running, because both would fight over the device. Run `npm run uninstall-agent` first, and `npm run install-agent` when you're done.
@@ -110,8 +111,9 @@ Don't run a manual copy while the agent is running, because both would fight ove
 ### After pulling updates
 
 ```bash
-npm run build         # only needed if native/ changed
-npm run restart       # the bridge pushes any UI changes to the Car Thing by itself
+npm ci                # install dependency updates from the lockfile
+npm run build         # needed if native/ changed; also builds the Vue UI
+npm run restart       # rebuilds Vue, restarts the bridge, and deploys the compiled UI
 npm run setup-device  # only if you set the device up before the sleep watchdog existed
 ```
 
@@ -160,7 +162,7 @@ bridge/main.js (Node, no npm deps)
  ├─ Now Playing ← /usr/bin/perl + MediaRemoteAdapter        Chromium 69 kiosk
  │               (streams JSON; also sends play/next/…)       file:///…/webapp/index.html
  ├─ Volume     ⇄ native/bin/volumectl (CoreAudio)             → symlink → /var/lib/carthing/ui
- ├─ App badges ← native/bin/appinfo (name + icon)             ui/js/core.js + one file per screen
+ ├─ App badges ← native/bin/appinfo (name + icon)             Vue app (compiled locally)
  ├─ Location, calendar ← native/bin/CarThingHelper.app
  ├─ Sleep/lock  ← native/bin/powerwatch (IOKit + CGSession; holds sleep ≤3 s to kill the backlight)
  ├─ Heartbeat  ── adb shell → /tmp/carthing-heartbeat ───▶     sleepd.sh (backlight off when it stops)
@@ -169,7 +171,7 @@ bridge/main.js (Node, no npm deps)
  └─ Device link ── adb forward tcp:22222 → tcp:2222 ──────▶     (Chromium devtools port)
       Mac → page: Runtime.evaluate(__carthingReceive(msg))
       page → Mac: __carthingSend(json) (Runtime.addBinding)
-      UI sync: adb push ui/ → /var/lib/carthing/ui when its hash changes
+      UI sync: adb push dist/ui/ → /var/lib/carthing/ui when its hash changes
 ```
 
 The page on the device never touches the network. The Mac drives it over the Chrome DevTools Protocol.
@@ -267,11 +269,14 @@ bridge/           Mac-side Node app (config.js: buttons, knob, volume…; settin
   device/         adb, minimal CDP client, UI sync, connection lifecycle
 native/           Swift helpers + build script (output in native/bin, git-ignored)
   helper/         CarThingHelper.app source (location + calendar)
-ui/               everything that runs on the Car Thing (800×480)
-  js/             core.js (channel, input, screens, volume) + one file per screen
-  css/            base.css (layout, dark/light palettes) + one file per screen
+ui/               device UI source (Vue 3, 800×480)
+  src/            App.vue, reactive bridge state, components/, screens/
+  js/             core.js (hardware input, channel, sleep and volume logic)
+  css/app.css     one stylesheet: tokens, components, bespoke controls, then utility classes
+dist/ui/          generated device bundle and local assets (git-ignored)
+vite.config.js    Vue compiler and Chromium 69 classic-script build
 device/           sleepd.sh — the device's own sleep watchdog, installed by setup-device
-scripts/          device setup/restore, screenshot, LaunchAgent
+scripts/          device setup/restore, screenshots, LaunchAgent
 vendor/           mediaremote-adapter source (cloned by native/build.sh, git-ignored)
 ```
 
@@ -281,9 +286,35 @@ Issues and pull requests are welcome, especially from anyone running different C
 the device-side assumptions in `device/sleepd.sh` and `scripts/setup-device.sh` were written against
 one image and one panel, and are the most likely things to differ.
 
-Worth knowing before changing the device UI: it runs in the device's Chromium 69, so plain ES2017
-and no `?.`, `??`, flex `gap`, `inset`, `aspect-ratio` or `clamp()`. `npm run dev` redeploys `ui/` on
-every save.
+The device UI is a Vue 3 app. Repeated layouts live in `ui/src/components/`; screens supply
+props and named slots, and `ui/src/state.js` connects bridge messages to reactive data.
+The existing hardware-input and reconnect protocol lives in `ui/js/core.js`.
+
+Presentation has one owner: `ui/css/app.css` defines shared typography and component
+styles. Layout (display, direction, alignment, gap) comes from a small set of single-purpose
+utility classes at the end of the stylesheet, such as `.flex-col`, `.gap-12` and `.fill`. A class
+named after what something is (`.volume-hud`, `.art-layer`) keeps its own rules when it does
+several things. Components own their wrappers and default classes; screens pass content.
+For example, `<LeftRail :eyebrow="artist" :title="title" :subtitle="album" variant="media" />`
+needs no repeated text classes. Named slots supply inner content, not another styled
+paragraph. The rail defaults to the large widget layout; `media`, `time`, and
+`instructions` variants handle real differences. Forecast and settings rows follow
+the same content-prop pattern. Keep bespoke geometry (clock hands, progress bars)
+in its own section of the shared stylesheet. Measured font-size overrides are documented
+beside both the CSS fallback and the measuring code.
+
+`npm run build:ui` creates `dist/ui/`. Vite targets Chromium 69 and emits a single classic
+script (IIFE), because the kiosk loads via `file://`. No server, CDN, or network access is
+needed on the device. The build copies the existing fonts, SVG hands, and CSS locally.
+CSS must still avoid flex `gap` (the `.gap-*` utilities use margins instead), `inset`, `aspect-ratio`, and `clamp()`; JavaScript syntax
+is transpiled, but new browser APIs still require compatibility checks.
+
+`npm run restart` automatically rebuilds the UI before restarting the bridge.
+`npm run dev` rebuilds source changes and deploys only after a successful build.
+Run `node scripts/verify-device-ui.js` with a connected device for isolated screen/state
+checks. It blocks outgoing commands during fixtures and reloads afterward to restore live data.
+`npm run mock-screens` works the same way and rewrites the README's screenshots in `docs/`, so
+they always show what the device draws. `npm run screenshot` grabs whatever is on screen now.
 
 ## Credits
 

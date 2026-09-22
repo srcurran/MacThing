@@ -5,7 +5,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 export const paths = {
   root,
-  ui: path.join(root, 'ui'),
+  ui: path.join(root, 'dist', 'ui'),
+  uiSource: path.join(root, 'ui'),
   bin: path.join(root, 'native', 'bin'),
   sleepd: path.join(root, 'device', 'sleepd.sh'),
 };
