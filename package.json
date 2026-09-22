@@ -21,6 +21,7 @@
     "predev": "npm run build:ui",
     "dev": "DEBUG=1 node bridge/main.js --watch",
     "screenshot": "node scripts/screenshot.js",
+    "mock-screens": "node scripts/mock-screens.js",
     "setup-device": "./scripts/setup-device.sh",
     "restore-device": "./scripts/restore-device.sh",
     "preinstall-agent": "npm run build:ui",
