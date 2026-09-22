@@ -11,10 +11,11 @@ device shows, and can be undone with one command. Nothing is installed on the de
 
 | | |
 |---|---|
-| ![Weather](docs/weather.png) | ![Clock](docs/clock.png) |
-| ![Calendar](docs/calendar.png) | ![Settings](docs/settings.png) |
+| ![Weather](docs/weather-polvo.png) | ![Clock](docs/clock-polvo.png) |
+| ![Calendar](docs/calendar-polvo.png) | ![Settings](docs/settings-polvo.png) |
 
-*Captured from the Car Thing itself at 800×480, with fixture data: `npm run mock-screens`.*
+*Captured from the Car Thing itself at 800×480, with fixture data: `npm run mock-screens`.
+Now Playing has the album art background turned on; the other four don't.*
 
 | Control | Action |
 |---|---|
@@ -314,7 +315,10 @@ is transpiled, but new browser APIs still require compatibility checks.
 Run `node scripts/verify-device-ui.js` with a connected device for isolated screen/state
 checks. It blocks outgoing commands during fixtures and reloads afterward to restore live data.
 `npm run mock-screens` works the same way and rewrites the README's screenshots in `docs/`, so
-they always show what the device draws. `npm run screenshot` grabs whatever is on screen now.
+they always show what the device draws. It has two presets, because the album art background
+changes every screen: the default writes `docs/<screen>.png` with it on, and
+`npm run mock-screens -- polvo` writes the plain `docs/<screen>-polvo.png` set with it off. `npm run screenshot`
+grabs whatever is on screen now.
 
 ## Credits
 

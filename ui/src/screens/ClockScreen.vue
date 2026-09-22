@@ -12,7 +12,7 @@ CT.screen('clock');
 </script>
 <template>
   <section id="screen-clock" class="screen fill flex" :class="{ active: state.current === 'clock' }">
-    <LeftRail :eyebrow="CT.MONTHS[parts.month]" :title="parts.date" accent :subtitle="CT.DAYS[parts.day]">
+    <LeftRail :eyebrow="CT.MONTHS[parts.month]" :title="parts.date" :subtitle="CT.DAYS[parts.day]">
       <template #lower>
         <template v-if="next">{{ CT.timeText(next.start) }} <b class="primary medium">{{ next.title }}</b></template><template v-else-if="state.calendar.status === 'ok'">No events today</template>
       </template>

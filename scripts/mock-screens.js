@@ -1,16 +1,37 @@
 #!/usr/bin/env node
-// Saves the README's screenshots: npm run mock-screens [out-dir]
+// Saves the README's screenshots: npm run mock-screens -- [preset] [out-dir]
 //
 // Runs on the real device so the pictures are what the Car Thing draws, but feeds it fixture
 // data instead of whatever is playing — one Friday evening, the same on every run. The page is
 // reloaded afterwards, which puts the live bridge data and input handlers back.
+//
+// Two presets, because the album art background changes every screen: `hug` (the default) has it
+// on and writes docs/<screen>.png, `polvo` has it off and writes docs/<screen>-polvo.png.
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { config } from '../bridge/config.js';
 import { adb, listCarThings } from '../bridge/device/adb.js';
 import { CDP, listTargets } from '../bridge/device/cdp.js';
 
-const out = process.argv[2] || 'docs';
+const presets = {
+  hug: {
+    suffix: '', artBackground: true, art: 'mock-art.png',
+    np: { artist: 'HUG', title: 'Cow With Half Moon Parasol', album: 'HUG', duration: 276, elapsed: 69 },
+  },
+  polvo: {
+    suffix: '-polvo', artBackground: false, art: 'mock-art-polvo.png',
+    np: { artist: 'Polvo', title: 'When Will You Die for the Last Time in My Dreams', album: 'Exploded Drawing', duration: 703, elapsed: 176 },
+  },
+};
+
+const args = process.argv.slice(2);
+const name = args.find((a) => !a.includes('/')) || 'hug';
+const preset = presets[name];
+if (!preset) {
+  console.error(`Unknown preset "${name}" — try ${Object.keys(presets).join(' or ')}`);
+  process.exit(1);
+}
+const out = args.find((a) => a.includes('/')) || 'docs';
 const here = path.dirname(new URL(import.meta.url).pathname);
 
 const now = Date.UTC(2026, 8, 18, 18, 5); // Friday 18 September, 6:05 PM
@@ -20,7 +41,7 @@ const midnight = Date.UTC(2026, 8, 18);
 const at = (day, hours) => midnight + day * DAY + hours * HOUR;
 
 const settings = {
-  theme: 'dark', units: 'F', clock24h: false, artBackground: false,
+  theme: 'dark', units: 'F', clock24h: false, artBackground: preset.artBackground,
   clockFace: 'analog', calendarDays: 2, location: { mode: 'auto' },
 };
 
@@ -64,7 +85,7 @@ async function capture(screen) {
   await evaluate(`CT.show(${JSON.stringify(screen)})`);
   await pause(600); // let the screen transition and any font fitting settle
   const { data } = await cdp.send('Page.captureScreenshot', { format: 'png' });
-  const file = path.join(out, `${screen}.png`);
+  const file = path.join(out, `${screen}${preset.suffix}.png`);
   await fs.writeFile(file, Buffer.from(data, 'base64'));
   console.log(file);
 }
@@ -78,8 +99,8 @@ try {
   await send({ type: 'calendar', calendar });
   await send({ type: 'weather', weather });
 
-  const artwork = await fs.readFile(path.join(here, '..', 'docs', 'mock-art.png'));
-  await send({ type: 'nowPlaying', np: { active: true, kind: 'music', artist: 'Polvo', title: 'When Will You Die for the Last Time in My Dreams', album: 'Exploded Drawing', duration: 703, elapsed: 176, rate: 1, playing: true, artworkKey: 'mock' } });
+  const artwork = await fs.readFile(path.join(here, '..', 'docs', preset.art));
+  await send({ type: 'nowPlaying', np: { active: true, kind: 'music', ...preset.np, rate: 1, playing: true, artworkKey: 'mock' } });
   await send({ type: 'artwork', key: 'mock', dataUrl: `data:image/png;base64,${artwork.toString('base64')}` });
 
   await fs.mkdir(out, { recursive: true });
