@@ -172,11 +172,11 @@
   --offline-bg: #f2f2f0;
   --hud-bg: rgba(255, 255, 255, 0.96);
   --ambient-tint: rgba(255, 255, 255, 0.25);
-  --sun: #f5b301;
-  --moon: #a59c72;
+  --sun: #d98a00;
+  --moon: #4d4731;
   --cloud: #c3cad3;
   --cloud-back: #9aa5b1;
-  --rain: #2d8fd5;
+  --rain: #1466a8;
 }
 
 /* With album art behind the UI, accents read as unrelated color noise. Keep the widgets quiet. */
@@ -563,8 +563,9 @@ h3 {
   height: 42px;
 }
 
-/* Hourly on top, the days 40px below. Both are grids: columns grow with their content, but
-   never narrower than the Figma frame's, so ordinary values sit where the design puts them. */
+/* Hourly on top, the days 28px below; with the 22px row gap the last day lines up with the
+   rail's Updated line. Both are grids: columns grow with their content, but never narrower
+   than the Figma frame's, so ordinary values sit where the design puts them. */
 .w-hourly {
   grid-auto-flow: column;
   grid-auto-columns: minmax(64px, auto);
@@ -588,7 +589,7 @@ h3 {
       44px,
       auto
     );
-  grid-gap: 24px 8px;
+  grid-gap: 22px 8px;
 }
 .w-daily .w-pop {
   min-width: 52px;
@@ -875,8 +876,8 @@ h3 {
 .flex-col.gap-12 > * + * {
   margin-top: 12px;
 }
-.flex-col.gap-40 > * + * {
-  margin-top: 40px;
+.flex-col.gap-28 > * + * {
+  margin-top: 28px;
 }
 
 /* Top margin, where one element sits apart from the one above it. */
