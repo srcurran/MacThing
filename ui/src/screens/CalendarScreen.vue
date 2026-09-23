@@ -151,7 +151,11 @@ onMounted(() => {
       <CalendarMonth v-if="view === 'month'" class="stage-safe" :now="state.now" />
       <div v-show="view === 'agenda'" ref="list" class="k-list overflow-hidden stage-safe">
         <template v-for="section in kept" :key="section.label">
-          <div v-if="section.label" class="k-day font-small medium muted">
+          <div
+            v-if="section.label"
+            class="k-day font-small medium"
+            :class="{ muted: section.label !== 'Today' }"
+          >
             {{ section.label }}
           </div>
           <CalendarEvent
