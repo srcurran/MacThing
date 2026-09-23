@@ -28,7 +28,7 @@ screen.press = () => {
 };
 </script>
 <template>
-  <section id="screen-settings" class="screen fill flex" :class="{ active: state.current === 'settings' }">
+  <section id="screen-settings" class="screen fill flex" :class="{ active: state.current === 'settings', leaving: state.leaving === 'settings' }">
     <LeftRail title="Settings" variant="instructions" lower-content="Settings or back button to close">
       <template #subtitle>Turn the knob to choose.<br />Press it to change.</template>
     </LeftRail>

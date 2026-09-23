@@ -144,6 +144,12 @@
   --offline-bg: #121212;
   --hud-bg: rgba(38, 38, 38, 0.94);
   --ambient-tint: rgba(0, 0, 0, 0.3);
+  --notch: rgba(
+    255,
+    255,
+    255,
+    0.3
+  ); /* the active page's mark under its top button */
   /* weather icons */
   --sun: #ffd35c;
   --moon: #f2efd8;
@@ -172,6 +178,7 @@
   --offline-bg: #f2f2f0;
   --hud-bg: rgba(255, 255, 255, 0.96);
   --ambient-tint: rgba(255, 255, 255, 0.25);
+  --notch: rgba(0, 0, 0, 0.25);
   --sun: #d98a00;
   --moon: #4d4731;
   --cloud: #c3cad3;
@@ -227,18 +234,45 @@ h3 {
   color: var(--text);
 }
 
-/* Screens: a 320px text panel on the left, and the stage filling the rest (a 480×480 square). */
-.screen {
-  opacity: 0;
-  visibility: hidden;
-  transition:
-    opacity 0.25s ease,
-    visibility 0s linear 0.25s;
+/* Screens: a 320px text panel on the left, and the stage filling the rest (a 480×480 square).
+   .screens is their own stacking context, so the switch below can layer them without rising
+   over the volume HUD, flash and toast. */
+.screens {
+  z-index: 0;
 }
-.screen.active {
-  opacity: 1;
+.screen {
+  visibility: hidden;
+}
+.screen.active,
+.screen.leaving {
   visibility: visible;
-  transition: opacity 0.25s ease;
+}
+
+/* Switching screens (core.js marks the old screen .leaving until the new one's fade-in ends).
+   The old screen's content fades out first, then the new screen fades in over it; the fade-in's
+   delay is the fade-out's duration. The old screen's panels stay put underneath, so the
+   backgrounds never dip to black in between. The fade-out leaves out its starting end, so each
+   element fades from its own opacity (the hidden pause glyph stays hidden). */
+.screen.active {
+  z-index: 2;
+  animation: fade-in 1.5s ease-out 0.3s backwards;
+}
+.screen.leaving {
+  z-index: 1;
+}
+.screen.leaving .left-rail > *,
+.screen.leaving .screen-stage > * {
+  animation: fade-out 0.5s ease-in forwards;
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
 }
 
 /* LeftRail.vue owns the eyebrow/title/subtitle cluster and optional lower slot. */
@@ -306,6 +340,25 @@ h3 {
 }
 
 /* ---- Global overlays ----------------------------------------------------------------- */
+
+/* Page notch: a short bar on the top edge, under the top button of the page on screen (Figma
+   148:3735). App.vue moves it 201px per button, and it slides there with the page switch.
+   Settings has no button along the top, so there it fades out in place. */
+.page-notch {
+  position: absolute;
+  left: 52px;
+  top: 0;
+  width: 86px;
+  height: 2px;
+  background: var(--notch);
+  opacity: 0;
+  transition:
+    transform 0.6s cubic-bezier(0.34, 1.2, 0.64, 1),
+    opacity 0.3s ease;
+}
+.page-notch.on {
+  opacity: 1;
+}
 
 /* Volume: a pill floating in the middle of the display while the knob turns. */
 .volume-hud {

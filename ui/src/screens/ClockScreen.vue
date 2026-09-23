@@ -11,7 +11,7 @@ const next = computed(() => state.calendar.status === 'ok' ? state.calendar.even
 CT.screen('clock');
 </script>
 <template>
-  <section id="screen-clock" class="screen fill flex" :class="{ active: state.current === 'clock' }">
+  <section id="screen-clock" class="screen fill flex" :class="{ active: state.current === 'clock', leaving: state.leaving === 'clock' }">
     <LeftRail :eyebrow="CT.MONTHS[parts.month]" :title="parts.date" :subtitle="CT.DAYS[parts.day]">
       <template #lower>
         <template v-if="next">{{ CT.timeText(next.start) }} <b class="primary medium">{{ next.title }}</b></template><template v-else-if="state.calendar.status === 'ok'">No events today</template>

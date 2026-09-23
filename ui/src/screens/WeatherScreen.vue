@@ -56,7 +56,7 @@ CT.screen("weather");
   <section
     id="screen-weather"
     class="screen fill flex"
-    :class="{ active: state.current === 'weather' }"
+    :class="{ active: state.current === 'weather', leaving: state.leaving === 'weather' }"
   >
     <LeftRail
       :eyebrow="ok ? data.place : 'Weather'"
