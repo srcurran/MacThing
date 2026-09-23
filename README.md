@@ -31,6 +31,10 @@ The four screens:
 - **Clock** shows an analog face (plain or with numbers) or a digital one — pick which on the Mac settings page — plus the next event still to come today, or "No events today".
 - **Calendar** shows today's remaining events and, by default, tomorrow's under their own heading. Choose how many days (1–7) and which calendars on the Mac settings page.
 
+<img src="docs/weather-today-polvo.png" width="49%" alt="Weather's Today view: the next six hours"> <img src="docs/weather-week-polvo.png" width="49%" alt="Weather's This Week view: the next six days">
+
+_Weather's Today and This Week views, from the same fixture data (rendered in Chromium rather than captured on the device)._
+
 **Sleep:** the Car Thing's screen turns off whenever your Mac's display sleeps, when you hold the settings button, and — this part runs on the device itself — about a minute and a half after the Mac stops talking to it at all: shut down, unplugged from the Mac but still powered, or just the bridge stopped. Press any button or turn the knob to wake it; while the Mac is away it stays lit for 20 seconds, and while the Mac is only asleep, for a minute. That first input only wakes it.
 
 **Lock:** while your Mac is locked — the lock screen, or switched to another account — the screen stays off and no button wakes it. It comes back when you log in.

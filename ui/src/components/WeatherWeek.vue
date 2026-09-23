@@ -2,8 +2,7 @@
 import { computed } from "vue";
 import { CT } from "../state.js";
 import WeatherIcon from "./WeatherIcon.vue";
-// This Week (the weather button a third time): six days as rows under a hairline (Figma
-// 165:1805). Each row: the day, its icon, and its low to high on a bar scaled to the week.
+// This Week (the weather button a third time): six days as rows (Figma 165:1805). Each row: the day, its icon, and its low to high on a bar scaled to the week.
 const props = defineProps({ days: Array, tz: Number });
 const rows = computed(() => {
   const min = Math.min(...props.days.map((d) => d.lo)),

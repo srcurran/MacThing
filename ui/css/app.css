@@ -679,7 +679,7 @@ h3 {
 }
 
 /* Today and This Week (the weather button again, WeatherToday.vue and WeatherWeek.vue; Figma
-   165:1688 and 165:1805): six 24px rows spread down the stage's insets, their 56px icons
+   165:1688 and 165:1805, without the week's hairline): six 24px rows spread down the stage's insets, their 56px icons
    overhanging the rows. */
 .w-row {
   height: 24px;
@@ -701,11 +701,9 @@ h3 {
   flex: none;
   width: 56px;
 }
-/* The week hangs from a hairline, and ends 88px from the stage's right edge. */
+/* The week ends 88px from the stage's right edge. */
 .w-week {
   right: 88px;
-  border-top: 1px solid var(--line);
-  padding-top: 6px;
 }
 .w-week-range {
   position: relative;
