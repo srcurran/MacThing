@@ -774,10 +774,12 @@ h3 {
 .k-week {
   display: flex;
   align-items: flex-start;
+  justify-content: space-between; /* Sunday starts at the left inset, Saturday ends at the right */
   height: 28px; /* one line: the last week's text sits on the rail's bottom line */
 }
 .k-week > span {
-  flex: 1 1 0;
+  flex: none;
+  width: 28px; /* a two-digit date */
 }
 /* Centred on the date (so a two-digit date lines up with its column), overhanging the row. */
 .k-today {
