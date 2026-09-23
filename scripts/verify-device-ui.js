@@ -70,18 +70,21 @@ try {
   await evaluate("CT.show('weather')");
   await capture('weather-denied');
   assert.match(await evaluate('document.querySelector("#screen-weather").textContent'), /Location access is off/);
-  await message({ type: 'weather', weather: { status: 'ok', place: 'Falmouth', utcOffset: 0, updatedAt: now, current: { temp: 68, code: 2, isDay: true }, hourly: Array.from({ length: 6 }, (_, i) => ({ t: now + i * 3600000, temp: 68 - i, code: 2, isDay: true, pop: 30 })), daily: Array.from({ length: 5 }, (_, i) => ({ t: now + i * 86400000, lo: 45 + i, hi: 68 + i, code: 3, pop: 40 })), today: { hi: 68, lo: 45, sunset: Date.UTC(2026, 8, 22, 19), hours: Array.from({ length: 24 }, (_, i) => ({ t: Date.UTC(2026, 8, 22, i), temp: 45 + i, pop: i * 4 })) } } });
+  await message({ type: 'weather', weather: { status: 'ok', place: 'Falmouth', utcOffset: 0, updatedAt: now, current: { temp: 68, code: 2, isDay: true }, hourly: Array.from({ length: 6 }, (_, i) => ({ t: now + i * 3600000, temp: 68 - i, code: 2, isDay: true, pop: 30 })), daily: Array.from({ length: 5 }, (_, i) => ({ t: now + i * 86400000, lo: 45 + i, hi: 68 + i, code: 3, pop: 40 })) } });
   await capture('weather');
   assert.equal(await evaluate('document.querySelectorAll(".w-day").length'), 4);
   assert.equal(await evaluate('document.querySelector(".w-hourly").children.length'), 5);
-  // The weather button on the weather swaps in today at a glance, and back.
-  await evaluate("window.dispatchEvent(new KeyboardEvent('keydown', {key:'2'})); window.dispatchEvent(new KeyboardEvent('keyup', {key:'2'}))");
+  // The weather button on the weather steps through today's hours, the week, and back.
+  const weatherButton = () => evaluate("window.dispatchEvent(new KeyboardEvent('keydown', {key:'2'})); window.dispatchEvent(new KeyboardEvent('keyup', {key:'2'}))");
+  await weatherButton();
   await capture('weather-today');
-  assert.equal(await evaluate('document.querySelectorAll("#screen-weather .w-spark").length'), 2, 'The weather button shows today');
-  assert.match(await evaluate('document.querySelector("#screen-weather .w-today").textContent'), /45° – 68°.*Up to 92%/);
-  assert.equal(await evaluate('(function(){var t=document.querySelector(".w-today");return t.scrollHeight <= t.clientHeight})()'), true, 'Today fits stage');
-  await evaluate("window.dispatchEvent(new KeyboardEvent('keydown', {key:'2'})); window.dispatchEvent(new KeyboardEvent('keyup', {key:'2'}))");
-  assert.equal(await evaluate('!!document.querySelector("#screen-weather .w-today")'), false, 'and back to the forecast');
+  assert.equal(await evaluate('document.querySelectorAll("#screen-weather .w-row").length'), 6, 'The weather button lists the hours');
+  assert.match(await evaluate('document.querySelector("#screen-weather .w-rows").textContent'), /^2PM\s*30%/);
+  await weatherButton();
+  await capture('weather-week');
+  assert.equal(await evaluate('document.querySelectorAll("#screen-weather .w-week .w-row").length'), 5, 'then the days');
+  await weatherButton();
+  assert.equal(await evaluate('!!document.querySelector("#screen-weather .w-rows")'), false, 'and back to the forecast');
   await message({ type: 'calendar', calendar: { status: 'denied' } });
   await evaluate("CT.show('calendar')");
   await capture('calendar-denied');

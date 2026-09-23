@@ -59,11 +59,6 @@ const day = (i, code, pop, lo, hi) => ({ t: midnight + i * DAY, code, pop, lo, h
 const weather = {
   status: 'ok', place: 'Portland', utcOffset: 0, updatedAt: now,
   current: { temp: 69, code: 0, isDay: true },
-  today: {
-    hi: 77, lo: 55, sunrise: at(0, 6.8), sunset: at(0, 19.1),
-    hours: [58, 57, 56, 56, 55, 55, 56, 58, 61, 64, 67, 70, 72, 74, 76, 77, 77, 76, 69, 68, 64, 61, 59, 57]
-      .map((temp, i) => ({ t: at(0, i), temp, pop: [0, 0, 0, 0, 0, 0, 5, 10, 10, 15, 20, 30, 45, 55, 50, 35, 20, 10, 0, 0, 0, 0, 20, 20][i] })),
-  },
   hourly: [hour(0, 69, 0, true, 0), hour(1, 68, 0, true, 0), hour(2, 64, 0, false, 0), hour(3, 61, 0, false, 0), hour(4, 57, 53, false, 20)],
   daily: [day(0, 63, 55, 56, 77), day(1, 3, 0, 56, 77), day(2, 63, 55, 44, 63), day(3, 3, 0, 44, 77)],
 };

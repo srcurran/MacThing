@@ -27,7 +27,7 @@ background turned on, the second doesn't._
 The four screens:
 
 - **Now Playing** follows whatever is playing in Control Center's Now Playing: Apple Music, Spotify, Podcasts, YouTube in a browser, and so on. It shows the artist, title, album, progress and artwork, plus a paused state, an app badge for non-Music sources, and the analog clock face when nothing is playing. Optionally the artwork also fills the screen behind everything, blurred and tinted.
-- **Weather** shows the current conditions, the next five hours and four days. It uses [Open-Meteo](https://open-meteo.com) (free, no account) for your Mac's location or a place you pick. Press the weather button again while it's up to see today at a glance: the day's forecast as a big icon, and sparklines of the temperature and chance of rain from midnight to midnight, with a dot at the current time; press it once more to go back to the forecast.
+- **Weather** shows the current conditions, the next five hours and four days. It uses [Open-Meteo](https://open-meteo.com) (free, no account) for your Mac's location or a place you pick. Press the weather button again while it's up to list the next six hours (Today), once more for the next six days (This Week), and a third time to go back to the forecast.
 - **Clock** shows an analog face (plain or with numbers) or a digital one — pick which on the Mac settings page — plus the next event still to come today, or "No events today".
 - **Calendar** shows today's remaining events and, by default, tomorrow's under their own heading. Choose how many days (1–7) and which calendars on the Mac settings page.
 

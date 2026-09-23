@@ -9,6 +9,7 @@ import WeatherIcon from "../components/WeatherIcon.vue";
 import WeatherHour from "../components/WeatherHour.vue";
 import WeatherDay from "../components/WeatherDay.vue";
 import WeatherToday from "../components/WeatherToday.vue";
+import WeatherWeek from "../components/WeatherWeek.vue";
 const data = computed(() => state.weather);
 const ok = computed(() => data.value.status === "ok");
 const tz = computed(() => data.value.utcOffset / 60);
@@ -51,10 +52,12 @@ const days = computed(() => {
     },
   }));
 });
-// The weather button, pressed on the weather, swaps the forecast for today at a glance and back.
+// The weather button, pressed on the weather, steps from the forecast to today's hours, then the
+// week's days, then back to the forecast.
+const VIEWS = ["forecast", "today", "week"];
 const view = ref("forecast");
 CT.screen("weather").reselect = () => {
-  view.value = view.value === "forecast" ? "today" : "forecast";
+  view.value = VIEWS[(VIEWS.indexOf(view.value) + 1) % VIEWS.length];
 };
 </script>
 <template>
@@ -82,8 +85,14 @@ CT.screen("weather").reselect = () => {
       <WeatherToday
         v-if="ok && view === 'today'"
         class="stage-safe"
-        :weather="data"
-        :now="state.now"
+        :hours="data.hourly.slice(0, 6)"
+        :tz="tz"
+      />
+      <WeatherWeek
+        v-else-if="ok && view === 'week'"
+        class="stage-safe"
+        :days="data.daily.slice(0, 6)"
+        :tz="tz"
       />
       <div v-else-if="ok" class="stage-safe-x stage-safe-top flex-col gap-28">
         <div class="w-hourly grid">

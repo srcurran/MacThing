@@ -678,58 +678,47 @@ h3 {
   background: var(--text);
 }
 
-/* Today (the weather button again, WeatherToday.vue): the day's forecast as a big icon, then
-   its temperature and chance of rain as day-long sparklines, spread down the stage's insets. */
-.w-today-icon {
-  width: 120px;
-  height: 120px;
+/* Today and This Week (the weather button again, WeatherToday.vue and WeatherWeek.vue; Figma
+   165:1688 and 165:1805): six 24px rows spread down the stage's insets, their 56px icons
+   overhanging the rows. */
+.w-row {
+  height: 24px;
 }
-.w-spark {
-  display: block;
-  overflow: visible;
+.w-row svg {
+  width: 56px;
+  height: 56px;
 }
-.w-spark-grid {
-  stroke: var(--line);
-  stroke-width: 2;
+.w-row-pop {
+  flex: none;
+  width: 48px;
+  white-space: nowrap;
 }
-.w-spark-line {
-  fill: none;
-  stroke: var(--text);
-  stroke-width: 2;
-  stroke-linejoin: round;
-  stroke-linecap: round;
+.w-row-temp {
+  flex: none;
+  min-width: 44px;
 }
-.w-spark-rain .w-spark-line {
-  stroke: var(--rain);
+.w-row-day {
+  flex: none;
+  width: 56px;
 }
-.w-spark-fill {
-  fill: var(--rain);
-  fill-opacity: 0.2;
+/* The week hangs from a hairline, and ends 88px from the stage's right edge. */
+.w-week {
+  right: 88px;
+  border-top: 1px solid var(--line);
+  padding-top: 6px;
 }
-.w-spark .past {
-  opacity: 0.4; /* the hours already gone */
-}
-/* The current time: 10px across, ringed in the stage colour so it stands off the line. */
-.w-spark-now {
-  fill: var(--text);
-  stroke: var(--panel);
-  stroke-width: 2;
-}
-.ambient-on .w-spark-now {
-  stroke: none; /* no one colour behind it over the album art */
-}
-.w-spark-rain .w-spark-now {
-  fill: var(--rain);
-}
-.w-axis {
+.w-week-range {
   position: relative;
-  height: 28px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--bar-track);
 }
-.w-axis span {
+.w-week-range i {
   position: absolute;
   top: 0;
-  transform: translateX(-50%);
-  white-space: nowrap;
+  bottom: 0;
+  border-radius: 3px;
+  background: var(--text);
 }
 
 /* ===== clock ===== */
