@@ -678,6 +678,60 @@ h3 {
   background: var(--text);
 }
 
+/* Today (the weather button again, WeatherToday.vue): the day's forecast as a big icon, then
+   its temperature and chance of rain as day-long sparklines, spread down the stage's insets. */
+.w-today-icon {
+  width: 120px;
+  height: 120px;
+}
+.w-spark {
+  display: block;
+  overflow: visible;
+}
+.w-spark-grid {
+  stroke: var(--line);
+  stroke-width: 2;
+}
+.w-spark-line {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.w-spark-rain .w-spark-line {
+  stroke: var(--rain);
+}
+.w-spark-fill {
+  fill: var(--rain);
+  fill-opacity: 0.2;
+}
+.w-spark .past {
+  opacity: 0.4; /* the hours already gone */
+}
+/* The current time: 10px across, ringed in the stage colour so it stands off the line. */
+.w-spark-now {
+  fill: var(--text);
+  stroke: var(--panel);
+  stroke-width: 2;
+}
+.ambient-on .w-spark-now {
+  stroke: none; /* no one colour behind it over the album art */
+}
+.w-spark-rain .w-spark-now {
+  fill: var(--rain);
+}
+.w-axis {
+  position: relative;
+  height: 28px;
+}
+.w-axis span {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
 /* ===== clock ===== */
 /* Clock. The face (analog, numbers or digital) is a setting; ClockScreen.vue picks the markup. */
 
@@ -929,6 +983,9 @@ h3 {
 }
 .flex.gap-16 > * + * {
   margin-left: 16px;
+}
+.flex.gap-24 > * + * {
+  margin-left: 24px;
 }
 .flex-col.gap-8 > * + * {
   margin-top: 8px;

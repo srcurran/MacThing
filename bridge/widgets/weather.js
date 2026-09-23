@@ -11,6 +11,7 @@ const RELOCATE_MS = 30 * 60 * 1000;
  *
  * `state` is one of:
  *   { status: 'ok', place, source, units, utcOffset, current, today, hourly[], daily[], updatedAt }
+ *   (today: { hi, lo, sunrise, sunset, hours[] } — hours is every hour of the place's today)
  *   { status: 'noLocation', reason }   location permission denied/unavailable and no manual place
  *   { status: 'error', message }       and no earlier data to fall back on
  *   { status: 'loading' }
@@ -104,6 +105,12 @@ function toState(d, place, units) {
     pop: h.precipitation_probability[start + i] ?? 0,
   }));
   const dd = d.daily;
+  // Every hour of the place's today (midnight to midnight), for the Today view's sparklines.
+  const hours = h.time.flatMap((t, i) => (t >= dd.time[0] && t < dd.time[1] ? [{
+    t: t * 1000,
+    temp: r(h.temperature_2m[i]),
+    pop: h.precipitation_probability[i] ?? 0,
+  }] : []));
   const daily = dd.time.slice(0, 6).map((t, i) => ({
     t: t * 1000,
     code: dd.weather_code[i],
@@ -126,7 +133,7 @@ function toState(d, place, units) {
       humidity: c.relative_humidity_2m,
       wind: r(c.wind_speed_10m),
     },
-    today: { hi: daily[0].hi, lo: daily[0].lo, sunrise: dd.sunrise[0] * 1000, sunset: dd.sunset[0] * 1000 },
+    today: { hi: daily[0].hi, lo: daily[0].lo, sunrise: dd.sunrise[0] * 1000, sunset: dd.sunset[0] * 1000, hours },
     hourly,
     daily,
     updatedAt: Date.now(),

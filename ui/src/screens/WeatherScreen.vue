@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { state, CT } from "../state.js";
 import { describe } from "../weather.js";
 import LeftRail from "../components/LeftRail.vue";
@@ -8,6 +8,7 @@ import StageMessage from "../components/StageMessage.vue";
 import WeatherIcon from "../components/WeatherIcon.vue";
 import WeatherHour from "../components/WeatherHour.vue";
 import WeatherDay from "../components/WeatherDay.vue";
+import WeatherToday from "../components/WeatherToday.vue";
 const data = computed(() => state.weather);
 const ok = computed(() => data.value.status === "ok");
 const tz = computed(() => data.value.utcOffset / 60);
@@ -50,7 +51,11 @@ const days = computed(() => {
     },
   }));
 });
-CT.screen("weather");
+// The weather button, pressed on the weather, swaps the forecast for today at a glance and back.
+const view = ref("forecast");
+CT.screen("weather").reselect = () => {
+  view.value = view.value === "forecast" ? "today" : "forecast";
+};
 </script>
 <template>
   <section
@@ -74,7 +79,13 @@ CT.screen("weather");
       >
     </LeftRail>
     <ScreenStage class="bg-panel">
-      <div v-if="ok" class="stage-safe-x stage-safe-top flex-col gap-28">
+      <WeatherToday
+        v-if="ok && view === 'today'"
+        class="stage-safe"
+        :weather="data"
+        :now="state.now"
+      />
+      <div v-else-if="ok" class="stage-safe-x stage-safe-top flex-col gap-28">
         <div class="w-hourly grid">
           <WeatherHour
             v-for="(h, i) in hours"
