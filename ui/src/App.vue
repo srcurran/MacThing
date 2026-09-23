@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { state, artworkUrl } from './state.js';
+import Artwork from './components/Artwork.vue';
 import IconSymbols from './components/IconSymbols.vue';
 import UiProgress from './components/UiProgress.vue';
 import NowPlayingScreen from './screens/NowPlayingScreen.vue';
@@ -13,7 +14,7 @@ const ambient = computed(() => !!(state.settings.artBackground && artworkUrl.val
 <template>
   <IconSymbols />
   <div id="app" :data-screen="state.current" :class="{ offline: state.offline, asleep: state.asleep, light: state.light, 'ambient-on': ambient, 'show-volume': state.showVolume, 'volume-unsupported': state.volumeUnsupported }">
-    <div v-if="ambient" class="ambient fill"><div class="ambient-img" :style="{ backgroundImage: 'url(' + JSON.stringify(artworkUrl) + ')' }" /></div>
+    <div v-if="ambient" class="ambient fill"><Artwork :url="artworkUrl" /></div>
     <NowPlayingScreen /><WeatherScreen /><ClockScreen /><CalendarScreen /><SettingsScreen />
     <div class="volume-hud fill flex items-center gap-16">
       <svg class="vol-icon flex-none"><use :href="state.volume === 0 ? '#i-muted' : '#i-speaker'" /></svg>

@@ -406,8 +406,7 @@ h3 {
   background: var(--panel);
 }
 /* A stronger art wash keeps the underlying cover atmospheric rather than legible. */
-.ambient-img {
-  position: absolute;
+.ambient .art-img {
   left: -32px;
   top: -32px;
   right: -32px;
@@ -506,7 +505,11 @@ h3 {
   visibility: hidden;
 }
 
-/* Artwork: two layers so track changes crossfade. */
+/* Artwork: two layers so track changes crossfade. .art is its own stacking context, so the
+   incoming layer can sit on top without covering the pause glyph and app badge. */
+.art {
+  z-index: 0;
+}
 .art-layer {
   opacity: 0;
   transition:
@@ -514,6 +517,10 @@ h3 {
     filter 0.3s ease;
 }
 .art-layer.front {
+  opacity: 1;
+  z-index: 1;
+}
+.art-layer.under {
   opacity: 1;
 }
 /* Every source fills the square. A 16:9 video thumbnail is cropped to its middle rather than

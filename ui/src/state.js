@@ -10,10 +10,29 @@ export const state = reactive({
   flash: { icon: 'play', color: '', key: 0 }, toast: ''
 });
 export const CT = initializeRuntime(state);
+// The art on screen only changes once its replacement is decoded, and a track that arrives
+// without art keeps the old art for a moment: players often send the new title first and its art
+// a beat later, and dropping to nothing in between flashes the stage and the ambient background.
+const ART_GRACE_MS = 1500;
 const shownArt = ref('');
+let artClear, artLoad = 0;
+function showArt(url) {
+  const seq = ++artLoad;
+  const img = new Image();
+  const done = () => { if (seq === artLoad) shownArt.value = url; };
+  // decode() can stay pending while the page is hidden, so it only gets a moment to finish.
+  img.onload = () => Promise.race([img.decode && img.decode().catch(() => {}), new Promise(r => setTimeout(r, 250))]).then(done);
+  img.onerror = done;
+  img.src = url;
+}
 watch(() => [state.np.artworkKey, state.artwork], () => {
-  if (!state.np.artworkKey) shownArt.value = '';
-  else if (state.artwork && state.artwork.key === state.np.artworkKey) shownArt.value = state.artwork.dataUrl;
+  clearTimeout(artClear);
+  if (!state.np.artworkKey) {
+    artLoad++;
+    artClear = setTimeout(() => { shownArt.value = ''; }, shownArt.value ? ART_GRACE_MS : 0);
+  } else if (state.artwork && state.artwork.key === state.np.artworkKey && state.artwork.dataUrl !== shownArt.value) {
+    showArt(state.artwork.dataUrl);
+  }
 });
 export const artworkUrl = computed(() => state.np.active ? shownArt.value : '');
 CT.onSecond(now => { state.now = now; });
