@@ -113,7 +113,7 @@ onMounted(() => {
   <section
     id="screen-calendar"
     class="screen fill flex"
-    :class="{ active: state.current === 'calendar' }"
+    :class="{ active: state.current === 'calendar', leaving: state.leaving === 'calendar' }"
   >
     <LeftRail
       ref="rail"

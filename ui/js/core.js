@@ -128,6 +128,12 @@ export function initializeRuntime(state) {
     return def;
   };
 
+  // The old screen stays on under the new one until the new one has faded in (see "Switching
+  // screens" in app.css), however long the fades are set to.
+  document.addEventListener('animationend', function (e) {
+    if (e.animationName === 'fade-in' && e.target.classList.contains('screen')) state.leaving = '';
+  });
+
   CT.show = function (name) {
     var next = CT.screens[name];
     if (!next) return;
@@ -135,6 +141,7 @@ export function initializeRuntime(state) {
       var prev = CT.screens[CT.current];
       if (name === 'settings') beforeSettings = CT.current;
       if (prev.hide) prev.hide();
+      state.leaving = CT.current;
       CT.current = name;
       state.current = name;
       if (next.show) next.show();

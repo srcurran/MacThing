@@ -8,8 +8,12 @@ function point(r, turns) {
 }
 const ticks = Array.from({ length: 60 }, (_, i) => ({ a: point(176, i / 60), b: point(186, i / 60) }));
 const numerals = Array.from({ length: 12 }, (_, i) => ({ n: i + 1, ...point(144, (i + 1) / 12) }));
+// Screens pass now = 0 while they're not on screen, so the clock stops redrawing. It holds its
+// last time instead of drawing 0, so the hands stay put while the screen fades out.
+let shown = 0;
 const angles = computed(() => {
-  const p = CT.parts(props.now);
+  if (props.now) shown = props.now;
+  const p = CT.parts(shown);
   const minutes = p.minutes + p.seconds / 60;
   return { hour: ((p.hours % 12) + minutes / 60) * 30, minute: minutes * 6 };
 });
