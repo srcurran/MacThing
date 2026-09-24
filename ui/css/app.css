@@ -262,14 +262,14 @@ h3 {
    element fades from its own opacity (the hidden pause glyph stays hidden). */
 .screen.active {
   z-index: 2;
-  animation: fade-in 1.5s ease-out 0.3s backwards;
+  animation: fade-in 0.5s ease-out 0.3s backwards;
 }
 .screen.leaving {
   z-index: 1;
 }
 .screen.leaving .left-rail > *,
 .screen.leaving .screen-stage > * {
-  animation: fade-out 0.5s ease-in forwards;
+  animation: fade-out 0.3s ease-in forwards;
 }
 @keyframes fade-in {
   from {
