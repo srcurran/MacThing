@@ -28,7 +28,7 @@ const angles = computed(() => {
         <circle v-else class="c-mark" cx="200" cy="55" r="10.25" />
       </g>
     </g>
-    <g v-else class="c-numerals"><text v-for="n in numerals" :key="n.n" :x="n.x" :y="n.y + 12" text-anchor="middle">{{ n.n }}</text></g>
+    <g v-else class="c-numerals"><text v-for="n in numerals" :key="n.n" :x="n.x" :y="n.y + 11" text-anchor="middle">{{ n.n }}</text></g>
     <!-- Preserve the Figma vectors and their built-in pivot alignment. -->
     <g :transform="'rotate(' + angles.hour + ' 200 200)'"><image href="images/clock-hour-hand.svg" x="189.75" y="60.19" width="20.5" height="150.06" preserveAspectRatio="none" /></g>
     <g :transform="'rotate(' + angles.minute + ' 200 200)'"><image href="images/clock-minute-hand.svg" x="189.75" y="18.37" width="20.5" height="191.88" preserveAspectRatio="none" /></g>

@@ -6,9 +6,9 @@ import ScreenStage from '../components/ScreenStage.vue';
 import SettingsRow from '../components/SettingsRow.vue';
 const rows = [
   { key: 'theme', label: 'Appearance', options: [['dark', 'Dark'], ['light', 'Light'], ['auto', 'Match Mac']] },
+  { key: 'artBackground', label: 'Album art background', options: [[false, 'Off'], [true, 'On']] },
   { key: 'units', label: 'Temperature', options: [['F', '°F'], ['C', '°C']] },
   { key: 'clock24h', label: 'Time format', options: [[false, '12-hour'], [true, '24-hour']] },
-  { key: 'artBackground', label: 'Album art background', options: [[false, 'Off'], [true, 'On']] },
   { label: 'Weather location', page: 'location', value: s => s.location && s.location.mode === 'manual' ? s.location.name : 'Current location' },
   { label: 'More settings on Mac', page: '', value: () => '' }
 ];
@@ -29,10 +29,10 @@ screen.press = () => {
 </script>
 <template>
   <section id="screen-settings" class="screen fill flex" :class="{ active: state.current === 'settings', leaving: state.leaving === 'settings' }">
-    <LeftRail title="Settings" variant="instructions" lower-content="Settings or back button to close">
+    <LeftRail title="Settings" variant="instructions">
       <template #subtitle>Turn the knob to choose.<br />Press it to change.</template>
     </LeftRail>
-    <ScreenStage><div class="s-list">
+    <ScreenStage class="bg-panel"><div class="s-list">
       <SettingsRow v-for="(row, i) in rows" :key="row.label" :label="row.label" :value="value(row)" :selected="selected === i" :link="row.page != null" />
     </div></ScreenStage>
   </section>
