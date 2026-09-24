@@ -85,11 +85,15 @@ const send = (msg) => evaluate(`window.__mockReceive(${JSON.stringify(msg)})`);
 const views = { today: '.w-today', week: '.w-week' };
 async function capture(screen) {
   const [base, view] = screen.split('-');
+  await send({ type: 'tick', now, tzMinutes: 0 }); // the page shows "Waiting for your Mac" after 6.5s without a message
   await evaluate(`CT.show(${JSON.stringify(base)})`);
   for (let i = 0; view && i < 3 && !(await evaluate(`!!document.querySelector(${JSON.stringify(views[view])})`)); i++) {
     await evaluate(`CT.screens.${base}.reselect()`);
   }
-  await pause(600); // let the screen transition and any font fitting settle
+  // Let the switch finish (core.js clears .leaving when the new screen's fade-in ends), then any
+  // font fitting settle.
+  for (let i = 0; i < 30 && (await evaluate(`!!document.querySelector('.screen.leaving')`)); i++) await pause(100);
+  await pause(400);
   const { data } = await cdp.send('Page.captureScreenshot', { format: 'png' });
   const file = path.join(out, `${screen}${preset.suffix}.png`);
   await fs.writeFile(file, Buffer.from(data, 'base64'));
