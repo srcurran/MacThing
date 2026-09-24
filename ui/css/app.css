@@ -757,7 +757,7 @@ h3 {
 }
 /* Once the timer starts, the drawn hand fades in where the cut-out one was. */
 .t-hand-in {
-  animation: fade-in 0.6s ease-out;
+  animation: fade-in 1.5s ease-out;
 }
 
 /* Even-width digits keep the countdown from shuffling each second; at 112px they'd run past the
@@ -793,7 +793,9 @@ h3 {
   width: 56px;
   height: 56px;
   margin: -14px 0 0 -15px;
-  fill: var(--timer-hand); /* the timer's hand colour: orange, or black over album art */
+  fill: var(
+    --timer-hand
+  ); /* the timer's hand colour: orange, or black over album art */
 }
 .k-today text {
   font-size: 22px;

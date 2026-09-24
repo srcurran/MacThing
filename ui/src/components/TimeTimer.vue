@@ -3,8 +3,9 @@ import { computed } from "vue";
 // The timer's dial, drawn across the 480×480 stage (Figma 154:4300). A full turn is the timer's
 // length: the white wedge is the time left, clockwise from 12, with a hand on its moving edge,
 // and a ring of one dot per minute that go dark as the minutes pass. remaining and total are ms.
-// Before it starts (idle), the hand and hub are cut out of a full disc instead of drawn on it
-// (Figma 202:1439), so the background shows through them.
+// The hand and hub are always cut out of the wedge, so the background shows through them
+// (Figma 202:1439). Before it starts (idle) that's all there is; once it's running, the drawn
+// hand fades in over its own cut-out and the two move together.
 const props = defineProps({ remaining: Number, total: Number, idle: Boolean });
 function point(r, degrees) {
   const angle = (degrees * Math.PI) / 180;
@@ -28,6 +29,7 @@ const wedge = computed(() => {
   );
 });
 const hand = computed(() => point(145, degrees.value));
+const cut = computed(() => point(151, degrees.value)); // through the disc's edge, as in Figma
 const minutes = computed(() => {
   const n = Math.round(props.total / 60000),
     left = Math.ceil(props.remaining / 60000);
@@ -39,30 +41,33 @@ const minutes = computed(() => {
 </script>
 <template>
   <svg class="t-face" viewBox="0 0 480 480" aria-label="Timer">
-    <template v-if="idle">
-      <mask id="t-idle-cut">
-        <rect width="480" height="480" fill="#fff" />
-        <line
-          x1="240"
-          y1="240"
-          x2="240"
-          y2="89"
-          stroke="#000"
-          stroke-width="8"
-          stroke-linecap="round"
-        />
-        <circle cx="240" cy="240" r="17" fill="#000" />
-      </mask>
-      <circle
-        class="t-left"
-        cx="240"
-        cy="240"
-        r="145"
-        mask="url(#t-idle-cut)"
+    <mask id="t-hand-cut">
+      <rect width="480" height="480" fill="#fff" />
+      <line
+        x1="240"
+        y1="240"
+        :x2="cut.x"
+        :y2="cut.y"
+        stroke="#000"
+        stroke-width="8"
+        stroke-linecap="round"
       />
-    </template>
-    <circle v-else-if="degrees >= 360" class="t-left" cx="240" cy="240" r="145" />
-    <path v-else-if="degrees > 0" class="t-left" :d="wedge" />
+      <circle cx="240" cy="240" r="17" fill="#000" />
+    </mask>
+    <circle
+      v-if="degrees >= 360"
+      class="t-left"
+      cx="240"
+      cy="240"
+      r="145"
+      mask="url(#t-hand-cut)"
+    />
+    <path
+      v-else-if="degrees > 0"
+      class="t-left"
+      :d="wedge"
+      mask="url(#t-hand-cut)"
+    />
     <circle
       v-for="(m, i) in minutes"
       :key="i"
