@@ -137,6 +137,9 @@
   --dial: #1d1d1d;
   --tick: #4a4a4a;
   --hand: #fff;
+  --timer-used: rgba(255, 255, 255, 0.2); /* the timer's spent minutes */
+  --timer-hand: #ff8b00;
+  --timer-hand-ink: #000; /* text on the hand colour, e.g. today in the month */
   --lume: #fff; /* marker and hand fill */
   --mark-edge: #b9b9b9; /* the metal surround around each */
   --toast-bg: rgba(255, 255, 255, 0.95);
@@ -171,6 +174,7 @@
   --dial: #fbfbfa;
   --tick: #b9b9b6;
   --hand: #111;
+  --timer-used: rgba(0, 0, 0, 0.12);
   --lume: #fff;
   --mark-edge: #111;
   --toast-bg: rgba(20, 20, 20, 0.92);
@@ -190,6 +194,9 @@
 #app.ambient-on {
   --red: var(--text);
   --orange: var(--text);
+  --timer-used: rgba(0, 0, 0, 0.3);
+  --timer-hand: #000;
+  --timer-hand-ink: #fff;
 }
 
 * {
@@ -255,14 +262,14 @@ h3 {
    element fades from its own opacity (the hidden pause glyph stays hidden). */
 .screen.active {
   z-index: 2;
-  animation: fade-in 1.5s ease-out 0.3s backwards;
+  animation: fade-in 0.5s ease-out 0.3s backwards;
 }
 .screen.leaving {
   z-index: 1;
 }
 .screen.leaving .left-rail > *,
 .screen.leaving .screen-stage > * {
-  animation: fade-out 0.5s ease-in forwards;
+  animation: fade-out 0.3s ease-in forwards;
 }
 @keyframes fade-in {
   from {
@@ -723,15 +730,86 @@ h3 {
   letter-spacing: -0.02em;
 }
 
+/* ===== timer ===== */
+/* The clock button on the clock swaps in a timer (Figma 154:4300). TimeTimer.vue draws its dial
+   across the whole stage: the time left in white, the minutes gone dimmed, a hand on the edge. */
+
+.t-face {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 480px;
+  height: 480px;
+}
+.t-minute {
+  fill: var(--timer-used);
+}
+.t-left,
+.t-minute.left {
+  fill: var(--hand);
+}
+.t-hand {
+  stroke: var(--timer-hand);
+  stroke-width: 8;
+  stroke-linecap: round;
+}
+.t-hub {
+  fill: var(--timer-hand);
+}
+/* Once the timer starts, the drawn hand fades in where the cut-out one was. */
+.t-hand-in {
+  animation: fade-in 1.5s ease-out;
+}
+
+/* Even-width digits keep the countdown from shuffling each second; at 112px they'd run past the
+   rail's inset for 60:00, so the timer's time is set a little smaller. */
+#screen-clock.timer .font-huge {
+  font-size: 100px;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ===== calendar ===== */
 /* Calendar: today's and tomorrow's agenda on the right, a big clock on the left.
    CalendarScreen.vue shrinks the clock and drops events until everything fits. */
+
+/* Month view (the calendar button again): this month on the stage, today circled (Figma 154:4958).
+   Every label sits at the top left of its cell; fixed rows are spread over the stage's insets, so
+   the last week ends at the bottom inset. */
+.k-month {
+  justify-content: space-between;
+}
+.k-week {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between; /* Sunday starts at the left inset, Saturday ends at the right */
+  height: 28px; /* one line: the last week's text sits on the rail's bottom line */
+}
+.k-week > span {
+  flex: none;
+  width: 28px; /* a two-digit date */
+}
+/* Centred on the date (so a two-digit date lines up with its column), overhanging the row. */
+.k-today {
+  display: block;
+  width: 56px;
+  height: 56px;
+  margin: -14px 0 0 -15px;
+  fill: var(
+    --timer-hand
+  ); /* the timer's hand colour: orange, or black over album art */
+}
+.k-today text {
+  font-size: 22px;
+  font-weight: 700;
+  fill: var(--timer-hand-ink);
+}
 
 .k-event + .k-event {
   margin-top: 16px;
 }
 .k-bar {
   width: 4px;
+  background: var(--text);
   margin-right: 14px;
   border-radius: 2px;
 }
@@ -750,6 +828,10 @@ h3 {
 .k-day {
   margin-top: 20px;
   padding-top: 16px;
+}
+.k-day:first-child {
+  margin-top: 0;
+  padding-top: 0; /* the agenda starts at the stage's top inset, like the month */
 }
 .k-day + .k-event {
   margin-top: 12px;

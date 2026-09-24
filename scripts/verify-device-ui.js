@@ -82,9 +82,36 @@ try {
   await capture('calendar-full');
   assert.equal(await evaluate('(function(){var l=document.querySelector(".k-list");return l.scrollHeight <= l.clientHeight})()'), true, 'Agenda fits stage');
   assert.equal(await evaluate('document.querySelector(".calendar-time").textContent'), '2:35', 'Calendar shows current time');
+  await evaluate("window.dispatchEvent(new KeyboardEvent('keydown', {key:'2'})); window.dispatchEvent(new KeyboardEvent('keyup', {key:'2'}))");
+  await capture('calendar-month');
+  assert.match(await evaluate('document.querySelector("#screen-calendar .k-month").textContent'), /September.*22.*30/, 'The calendar button shows the month');
+  assert.equal(await evaluate('document.querySelector("#screen-calendar .k-today").textContent.trim()'), '22');
+  await evaluate("window.dispatchEvent(new KeyboardEvent('keydown', {key:'2'})); window.dispatchEvent(new KeyboardEvent('keyup', {key:'2'}))");
+  assert.equal(await evaluate('!!document.querySelector("#screen-calendar .k-month")'), false, 'and back to the agenda');
   await evaluate("CT.show('clock')");
   await capture('clock');
   assert.match(await evaluate('document.querySelector("#screen-clock .left-rail").textContent'), /3:35 PM.*Example event 1/);
+  // The clock button on the clock swaps in the timer; the knob sets, runs and resets it.
+  const press = key => evaluate(`window.dispatchEvent(new KeyboardEvent('keydown', {key:'${key}'})); window.dispatchEvent(new KeyboardEvent('keyup', {key:'${key}'}))`);
+  const rail = () => evaluate('document.querySelector("#screen-clock .left-rail-content").textContent');
+  while (await evaluate('!!document.querySelector("#screen-clock .t-face")')) await press('4'); // start from the clock
+  await press('4');
+  await evaluate("window.dispatchEvent(new WheelEvent('wheel', {deltaX:53, cancelable:true}))");
+  await pause(100);
+  assert.match(await rail(), /30 minute timer30:00/, 'Wheel picks the timer length');
+  await press('Enter');
+  await message({ type: 'tick', now: now + 754000, tzMinutes: 0 });
+  await pause(1100);
+  assert.match(await rail(), /30 minute timer1[67]:\d\d/, 'Timer counts down');
+  await capture('timer');
+  await press('4');
+  assert.equal(await evaluate('!!document.querySelector("#screen-clock .t-face")'), false, 'The clock button goes back to the clock');
+  await press('4');
+  await press('Enter'); await press('Enter');
+  await pause(100);
+  assert.match(await rail(), /30 minute timer30:00/, 'Double press resets');
+  await press('4');
+  await message({ type: 'tick', now, tzMinutes: 0 });
   await evaluate("CT.show('settings'); CT.screens.settings.turn(3); CT.screens.settings.press()");
   await pause(100);
   assert.equal(await evaluate('window.fixtureSent.some(m => m.type === "setting" && m.key === "clock24h" && m.value === true)'), true);
