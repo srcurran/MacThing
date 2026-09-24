@@ -1,11 +1,11 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { state, CT } from '../state.js';
 import LeftRail from '../components/LeftRail.vue';
 import ScreenStage from '../components/ScreenStage.vue';
 import AnalogClock from '../components/AnalogClock.vue';
 import TimeTimer from '../components/TimeTimer.vue';
-import { PRESETS, timer, remaining, timerLabel, timerText, stepPreset, toggleTimer, resetTimer } from '../timer.js';
+import { PRESETS, timer, remaining, timerLabel, timerTitle, stepPreset, toggleTimer, resetTimer } from '../timer.js';
 const parts = computed(() => CT.parts(state.now));
 const face = computed(() => state.settings.clockFace);
 const time = computed(() => CT.clockText(parts.value));
@@ -15,6 +15,8 @@ const next = computed(() => state.calendar.status === 'ok' ? state.calendar.even
 const mode = ref('clock');
 const screen = CT.screen('clock');
 screen.reselect = () => { mode.value = mode.value === 'clock' ? 'timer' : 'clock'; };
+// A finished timer counts up past its time until you leave it, then goes back to its preset.
+watch(() => mode.value === 'timer' && state.current === 'clock', up => { if (!up && timer.status === 'done') resetTimer(); });
 screen.turn = steps => {
   if (mode.value === 'clock' || timer.status === 'running' || timer.status === 'paused') return false;
   stepPreset(steps);
@@ -27,8 +29,8 @@ screen.press = () => {
 };
 </script>
 <template>
-  <section id="screen-clock" class="screen fill flex" :class="{ active: state.current === 'clock', leaving: state.leaving === 'clock' }">
-    <LeftRail :view="mode" v-bind="mode === 'timer' ? { eyebrow: timerLabel, title: timerText(remaining), subtitle: time.time } : { eyebrow: CT.MONTHS[parts.month], title: parts.date, subtitle: CT.DAYS[parts.day] }">
+  <section id="screen-clock" class="screen fill flex" :class="{ active: state.current === 'clock', leaving: state.leaving === 'clock', timer: mode === 'timer' }">
+    <LeftRail :view="mode" v-bind="mode === 'timer' ? { eyebrow: timerLabel, title: timerTitle, subtitle: time.time } : { eyebrow: CT.MONTHS[parts.month], title: parts.date, subtitle: CT.DAYS[parts.day] }">
       <template #lower>
         <template v-if="next">{{ CT.timeText(next.start) }} <b class="primary medium">{{ next.title }}</b></template><template v-else-if="state.calendar.status === 'ok'">No events today</template>
       </template>

@@ -48,7 +48,7 @@ export function initializeRuntime(state) {
     if (msg.type === 'bye') return setConnected(false);
     setConnected(true);
     if (msg.type === 'config') { CT.config = msg.config; gotConfig = true; restoreDevScreen(); }
-    else if (msg.type === 'tick') { clock.offset = msg.now - Date.now(); clock.tz = msg.tzMinutes || 0; }
+    else if (msg.type === 'tick') { syncClock(msg.now - Date.now()); clock.tz = msg.tzMinutes || 0; }
     else if (msg.type === 'settings') state.settings = msg.settings;
     else if (msg.type === 'appearance') macDark = msg.dark;
     if (msg.type === 'settings' || msg.type === 'appearance') applyTheme();
@@ -74,6 +74,17 @@ export function initializeRuntime(state) {
 
   var clock = { offset: 0, tz: 0 };
   CT.now = function () { return Date.now() + clock.offset; };
+  // Each tick reaches the device a little late, and by a different amount each time, so taking
+  // every one as-is makes the clock jump back and forth by that much every two seconds — enough
+  // for a countdown to show some seconds twice. A late tick only ever makes the Mac look behind,
+  // so keep the least-delayed reading of the last fifteen (half a minute, which still follows
+  // the Mac if its clock is changed).
+  var offsets = [];
+  function syncClock(offset) {
+    offsets.push(offset);
+    if (offsets.length > 15) offsets.shift();
+    clock.offset = Math.max.apply(null, offsets);
+  }
   CT.DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   CT.MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
