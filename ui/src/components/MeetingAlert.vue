@@ -16,15 +16,19 @@ function save() {
   Object.keys(dismissed).forEach(key => { if (dismissed[key] < state.now) delete dismissed[key]; });
   try { localStorage.setItem(STORE, JSON.stringify(dismissed)); } catch (e) {}
 }
-const event = computed(() => {
+// Every timed event whose alert window is open now; the window never outlasts the meeting.
+const due = computed(() => {
   const lead = state.settings.meetingAlert;
-  if (!lead || state.calendar.status !== 'ok') return null;
-  return state.calendar.events.find(e => !e.allDay && !dismissed[keyOf(e)] &&
-    e.start - lead * 60000 <= state.now && state.now < Math.min(e.end, e.start + AFTER_START_MS)) || null;
+  if (!lead || state.calendar.status !== 'ok') return [];
+  return state.calendar.events.filter(e => !e.allDay && !dismissed[keyOf(e)] &&
+    e.start - lead * 60000 <= state.now && state.now < Math.min(e.end, e.start + AFTER_START_MS));
 });
+// One meeting at a time: the card shows the first, and a press dismisses all of them, so
+// overlapping meetings don't bring up another card straight after.
+const event = computed(() => due.value[0] || null);
 CT.dismissModal = () => {
   if (!event.value) return false;
-  dismissed[keyOf(event.value)] = event.value.start + AFTER_START_MS;
+  due.value.forEach(e => { dismissed[keyOf(e)] = e.start + AFTER_START_MS; });
   save();
   return true;
 };

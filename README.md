@@ -37,7 +37,7 @@ The four screens:
 
 _Weather's Today and This Week views, from the same fixture data (rendered in Chromium rather than captured on the device)._
 
-**Meeting alerts** (off by default; turn them on in Settings): 1, 5 or 10 minutes before a timed event, a card with its title, start and end time and location covers whatever screen is up. It stays until you press any button or the knob — that press only dismisses it — or until five minutes after the meeting starts. Turning the knob still sets the volume.
+**Meeting alerts** (off by default; turn them on in Settings): 1, 5 or 10 minutes before a timed event, a card with its title, start and end time and location covers whatever screen is up. It stays until you press any button or the knob — that press only dismisses it — or until five minutes after the meeting starts (sooner if the meeting ends first). It shows one meeting at a time: when meetings overlap, the card shows the first, and one press dismisses them all. Turning the knob still sets the volume.
 
 **Sleep:** the Car Thing's screen turns off whenever your Mac's display sleeps, when you hold the settings button, and — this part runs on the device itself — about a minute and a half after the Mac stops talking to it at all: shut down, unplugged from the Mac but still powered, or just the bridge stopped. Press any button or turn the knob to wake it; while the Mac is away it stays lit for 20 seconds, and while the Mac is only asleep, for a minute. That first input only wakes it.
 
