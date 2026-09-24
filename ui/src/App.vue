@@ -9,6 +9,7 @@ import CalendarScreen from './screens/CalendarScreen.vue';
 import WeatherScreen from './screens/WeatherScreen.vue';
 import ClockScreen from './screens/ClockScreen.vue';
 import SettingsScreen from './screens/SettingsScreen.vue';
+import MeetingAlert from './components/MeetingAlert.vue';
 const ambient = computed(() => !!(state.settings.artBackground && artworkUrl.value));
 const NOTCHED = ['nowplaying', 'calendar', 'weather', 'clock']; // left to right, as the top buttons run
 // Settings has no top button, so the notch stays under the last page's while it fades out.
@@ -21,6 +22,7 @@ watch(() => state.current, current => { if (NOTCHED.includes(current)) notchAt.v
     <div v-if="ambient" class="ambient fill"><Artwork :url="artworkUrl" /></div>
     <div class="screens fill"><NowPlayingScreen /><CalendarScreen /><WeatherScreen /><ClockScreen /><SettingsScreen /></div>
     <div class="page-notch" :class="{ on: NOTCHED.includes(state.current) }" :style="{ transform: 'translateX(' + notchAt * 201 + 'px)' }" />
+    <MeetingAlert />
     <div class="volume-hud fill flex items-center gap-16">
       <svg class="vol-icon flex-none"><use :href="state.volume === 0 ? '#i-muted' : '#i-speaker'" /></svg>
       <UiProgress v-show="!state.volumeUnsupported" :value="state.volume" /><span v-show="!state.volumeUnsupported" class="vol-value flex-none text-right tabular font-small semibold">{{ Math.round(state.volume * 100) }}</span><span v-show="state.volumeUnsupported" class="font-small weight-light truncate">{{ state.volumeNote }}</span>

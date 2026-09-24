@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { state, CT } from '../state.js';
 import LeftRail from '../components/LeftRail.vue';
 import ScreenStage from '../components/ScreenStage.vue';
@@ -9,10 +9,14 @@ const rows = [
   { key: 'artBackground', label: 'Album art background', options: [[false, 'Off'], [true, 'On']] },
   { key: 'units', label: 'Temperature', options: [['F', '°F'], ['C', '°C']] },
   { key: 'clock24h', label: 'Time format', options: [[false, '12-hour'], [true, '24-hour']] },
+  { key: 'meetingAlert', label: 'Meeting alerts', options: [[0, 'Off'], [1, '1 min before'], [5, '5 min before'], [10, '10 min before']] },
   { label: 'Weather location', page: 'location', value: s => s.location && s.location.mode === 'manual' ? s.location.name : 'Current location' },
   { label: 'More settings on Mac', page: '', value: () => '' }
 ];
 const selected = ref(0);
+// Six rows fit the stage; past that the list scrolls to keep the selection in view.
+const VISIBLE = 6;
+const scrolled = computed(() => Math.max(0, selected.value - (VISIBLE - 1)));
 const index = row => Math.max(0, row.options.findIndex(option => option[0] === state.settings[row.key]));
 const value = row => row.value ? row.value(state.settings) : row.options[index(row)][1];
 const screen = CT.screen('settings');
@@ -32,8 +36,8 @@ screen.press = () => {
     <LeftRail title="Settings" variant="instructions">
       <template #subtitle>Turn the knob to choose.<br />Press it to change.</template>
     </LeftRail>
-    <ScreenStage class="bg-panel"><div class="s-list">
+    <ScreenStage class="bg-panel"><div class="s-list"><div class="s-rows" :style="{ transform: 'translateY(' + -scrolled * 64 + 'px)' }">
       <SettingsRow v-for="(row, i) in rows" :key="row.label" :label="row.label" :value="value(row)" :selected="selected === i" :link="row.page != null" />
-    </div></ScreenStage>
+    </div></div></ScreenStage>
   </section>
 </template>

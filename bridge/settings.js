@@ -17,6 +17,7 @@ export const DEFAULTS = {
   location: { mode: 'auto' }, // or { mode: 'manual', name, lat, lon }
   calendars: null, // null = every calendar in the Mac's Calendar app; else an array of calendar ids
   calendarDays: 2, // days of events on the Calendar screen: today plus the next (n − 1)
+  meetingAlert: 0, // minutes before a timed event to put its alert over the screen; 0 = off
 };
 
 const VALID = {
@@ -30,6 +31,7 @@ const VALID = {
     (v?.mode === 'manual' && typeof v.name === 'string' && Number.isFinite(v.lat) && Number.isFinite(v.lon)),
   calendars: (v) => v === null || (Array.isArray(v) && v.every((id) => typeof id === 'string')),
   calendarDays: (v) => Number.isInteger(v) && v >= 1 && v <= 7,
+  meetingAlert: (v) => [0, 1, 5, 10].includes(v),
 };
 
 class Settings extends EventEmitter {

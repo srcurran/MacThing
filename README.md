@@ -37,6 +37,8 @@ The four screens:
 
 _Weather's Today and This Week views, from the same fixture data (rendered in Chromium rather than captured on the device)._
 
+**Meeting alerts** (off by default; turn them on in Settings): 1, 5 or 10 minutes before a timed event, a card with its title, start and end time and location covers whatever screen is up. It stays until you press any button or the knob — that press only dismisses it — or until five minutes after the meeting starts. Turning the knob still sets the volume.
+
 **Sleep:** the Car Thing's screen turns off whenever your Mac's display sleeps, when you hold the settings button, and — this part runs on the device itself — about a minute and a half after the Mac stops talking to it at all: shut down, unplugged from the Mac but still powered, or just the bridge stopped. Press any button or turn the knob to wake it; while the Mac is away it stays lit for 20 seconds, and while the Mac is only asleep, for a minute. That first input only wakes it.
 
 **Lock:** while your Mac is locked — the lock screen, or switched to another account — the screen stays off and no button wakes it. It comes back when you log in.
@@ -45,7 +47,7 @@ The backlight is the part that wears out, so "off" means the backlight really is
 
 **Lock:** while your Mac is locked — the lock screen, or switched to another account — the backlight stays off and no button wakes it. It comes back when you log in.
 
-**Settings** covers appearance (dark, light or match the Mac), the album art background, °F/°C, 12/24-hour time and the weather location. Anything that needs typing or a longer list — a city, and which calendars and how many days the Calendar screen shows — opens a settings page on your Mac at http://127.0.0.1:4747.
+**Settings** covers appearance (dark, light or match the Mac), the album art background, °F/°C, 12/24-hour time, meeting alerts and the weather location. Anything that needs typing or a longer list — a city, and which calendars and how many days the Calendar screen shows — opens a settings page on your Mac at http://127.0.0.1:4747.
 
 ### Before you grant anything
 

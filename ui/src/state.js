@@ -3,7 +3,7 @@ import { initializeRuntime } from '../js/core.js';
 
 export const state = reactive({
   current: 'nowplaying', leaving: '', offline: true, asleep: false, light: false,
-  settings: { theme: 'dark', units: 'F', clock24h: false, clockFace: 'analog', location: { mode: 'auto' } },
+  settings: { theme: 'dark', units: 'F', clock24h: false, clockFace: 'analog', meetingAlert: 0, location: { mode: 'auto' } },
   now: Date.now(), np: { active: false }, npAt: 0, artwork: null,
   weather: { status: 'loading' }, calendar: { status: 'loading' },
   volume: 0, volumeUnsupported: false, volumeNote: '', showVolume: false,

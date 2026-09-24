@@ -340,6 +340,11 @@ export function initializeRuntime(state) {
       holds[key] = { start: performance.now(), done: true }; // the wake was the whole press
       return;
     }
+    // An alert over the screen (the meeting alert) takes the whole press to dismiss it.
+    if (CT.dismissModal && CT.dismissModal()) {
+      holds[key] = { start: performance.now(), done: true };
+      return;
+    }
     press = holds[key] = { start: performance.now(), done: false, timer: null };
     if (!holdAction(key)) {
       press.done = true; // nothing to hold for: act now, as every button always has
