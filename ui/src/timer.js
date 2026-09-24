@@ -17,11 +17,18 @@ export const timerLabel = computed(() => {
   const name = minutes === 60 ? '1 hour timer' : minutes + ' minute timer';
   return timer.status === 'paused' ? name + ' · Paused' : timer.status === 'done' ? "Time's up" : name;
 });
-/** 35:23 — the running second rounds up, so it reads 0:00 only once the time is up. */
+/** 35:23 — whole seconds, rounded down. */
 export function timerText(ms) {
-  const s = Math.ceil(ms / 1000);
+  const s = Math.floor(Math.max(0, ms) / 1000);
   return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
 }
+/** Set, it shows the full length, 5:00. Started, it drops to 4:59 straight away so you can see
+ *  it going, and reads 0:00 through its last second. Once the time is up it counts on past it,
+ *  1:23+, until the timer's put away. */
+export const timerTitle = computed(() =>
+  timer.status === 'set' ? timerText(remaining.value)
+    : timer.status === 'done' ? timerText(state.now - timer.endsAt) + '+'
+    : timerText(Math.ceil(remaining.value / 1000) * 1000 - 1000));
 
 export function stepPreset(steps) {
   timer.preset = Math.max(0, Math.min(PRESETS.length - 1, timer.preset + steps));
