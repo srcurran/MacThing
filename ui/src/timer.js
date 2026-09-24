@@ -41,9 +41,16 @@ export function toggleTimer() {
     timer.status = 'paused';
   } else if (timer.status === 'done') resetTimer();
   else {
-    timer.endsAt = state.now + (timer.status === 'paused' ? timer.left : presetMs());
+    timer.endsAt = endOnHalfSecond(state.now + (timer.status === 'paused' ? timer.left : presetMs()));
     timer.status = 'running';
   }
+}
+// The display only redraws on the shared tick, just after each of the Mac's whole seconds. If the
+// timer's own seconds rolled over near that moment, the tick's jitter would decide which side it
+// read — some seconds would show twice and others not at all. So the end is pulled back (never
+// forward, so it still reads 4:59 the moment it starts) to half a second off the tick.
+function endOnHalfSecond(ms) {
+  return ms - ((ms - 505) % 1000 + 1000) % 1000;
 }
 export function resetTimer() { timer.status = 'set'; }
 
