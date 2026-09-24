@@ -85,7 +85,7 @@ try {
   await evaluate("CT.show('clock')");
   await capture('clock');
   assert.match(await evaluate('document.querySelector("#screen-clock .left-rail").textContent'), /3:35 PM.*Example event 1/);
-  await evaluate("CT.show('settings'); CT.screens.settings.turn(2); CT.screens.settings.press()");
+  await evaluate("CT.show('settings'); CT.screens.settings.turn(3); CT.screens.settings.press()");
   await pause(100);
   assert.equal(await evaluate('window.fixtureSent.some(m => m.type === "setting" && m.key === "clock24h" && m.value === true)'), true);
   await capture('settings');

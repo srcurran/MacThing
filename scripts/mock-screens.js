@@ -104,7 +104,7 @@ try {
   await send({ type: 'artwork', key: 'mock', dataUrl: `data:image/png;base64,${artwork.toString('base64')}` });
 
   await fs.mkdir(out, { recursive: true });
-  for (const screen of ['nowplaying', 'weather', 'clock', 'calendar', 'settings']) await capture(screen);
+  for (const screen of ['nowplaying', 'calendar', 'weather', 'clock', 'settings']) await capture(screen);
 } finally {
   await cdp.send('Page.reload', { ignoreCache: true });
   cdp.close();

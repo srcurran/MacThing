@@ -5,12 +5,12 @@ import Artwork from './components/Artwork.vue';
 import IconSymbols from './components/IconSymbols.vue';
 import UiProgress from './components/UiProgress.vue';
 import NowPlayingScreen from './screens/NowPlayingScreen.vue';
+import CalendarScreen from './screens/CalendarScreen.vue';
 import WeatherScreen from './screens/WeatherScreen.vue';
 import ClockScreen from './screens/ClockScreen.vue';
-import CalendarScreen from './screens/CalendarScreen.vue';
 import SettingsScreen from './screens/SettingsScreen.vue';
 const ambient = computed(() => !!(state.settings.artBackground && artworkUrl.value));
-const NOTCHED = ['nowplaying', 'weather', 'clock', 'calendar']; // left to right, as the top buttons run
+const NOTCHED = ['nowplaying', 'calendar', 'weather', 'clock']; // left to right, as the top buttons run
 // Settings has no top button, so the notch stays under the last page's while it fades out.
 const notchAt = ref(Math.max(0, NOTCHED.indexOf(state.current)));
 watch(() => state.current, current => { if (NOTCHED.includes(current)) notchAt.value = NOTCHED.indexOf(current); });
@@ -19,7 +19,7 @@ watch(() => state.current, current => { if (NOTCHED.includes(current)) notchAt.v
   <IconSymbols />
   <div id="app" :data-screen="state.current" :class="{ offline: state.offline, asleep: state.asleep, light: state.light, 'ambient-on': ambient, 'show-volume': state.showVolume, 'volume-unsupported': state.volumeUnsupported }">
     <div v-if="ambient" class="ambient fill"><Artwork :url="artworkUrl" /></div>
-    <div class="screens fill"><NowPlayingScreen /><WeatherScreen /><ClockScreen /><CalendarScreen /><SettingsScreen /></div>
+    <div class="screens fill"><NowPlayingScreen /><CalendarScreen /><WeatherScreen /><ClockScreen /><SettingsScreen /></div>
     <div class="page-notch" :class="{ on: NOTCHED.includes(state.current) }" :style="{ transform: 'translateX(' + notchAt * 201 + 'px)' }" />
     <div class="volume-hud fill flex items-center gap-16">
       <svg class="vol-icon flex-none"><use :href="state.volume === 0 ? '#i-muted' : '#i-speaker'" /></svg>
