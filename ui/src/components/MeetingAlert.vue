@@ -54,7 +54,6 @@ const where = computed(() => (event.value.location || '').split('\n')[0]);
         <div class="m-title mt-12 font-medium semibold clamp-2">{{ event.title || 'Untitled' }}</div>
         <div class="mt-12 font-small medium secondary tabular">{{ range }}</div>
         <div v-if="where" class="mt-4 font-small weight-light muted truncate">{{ where }}</div>
-        <div class="m-hint mt-28 font-small weight-light muted">Press any button to dismiss</div>
       </div>
     </div>
   </div>

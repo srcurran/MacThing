@@ -128,7 +128,7 @@ try {
   await message({ type: 'settings', settings: { ...settings, meetingAlert: 5 } });
   await message({ type: 'calendar', calendar: { status: 'ok', events: [{ start: now + 180000, end: now + 1980000, title: 'Example meeting', location: 'Room 4\n1 Example St', color: '#2d9cdb', allDay: false, calendarId: 'fixture' }] } });
   await capture('meeting-alert');
-  assert.match(await evaluate('document.querySelector(".m-card").textContent'), /In 3 min.*Example meeting.*2:38 – 3:08 PM.*Room 4Press/, 'Meeting alert shows the meeting');
+  assert.match(await evaluate('document.querySelector(".m-card").textContent'), /In 3 min.*Example meeting.*2:38 – 3:08 PM.*Room 4$/, 'Meeting alert shows the meeting');
   await press('1');
   await pause(400);
   assert.equal(await evaluate('document.querySelector(".meeting-alert").classList.contains("on")'), false, 'A button dismisses the alert');
