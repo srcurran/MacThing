@@ -74,6 +74,17 @@ try {
   await capture('weather');
   assert.equal(await evaluate('document.querySelectorAll(".w-day").length'), 4);
   assert.equal(await evaluate('document.querySelector(".w-hourly").children.length'), 5);
+  // The weather button on the weather steps through today's hours, the week, and back.
+  const weatherButton = () => evaluate("window.dispatchEvent(new KeyboardEvent('keydown', {key:'3'})); window.dispatchEvent(new KeyboardEvent('keyup', {key:'3'}))");
+  await weatherButton();
+  await capture('weather-today');
+  assert.equal(await evaluate('document.querySelectorAll("#screen-weather .w-row").length'), 5, 'The weather button lists the hours');
+  assert.match(await evaluate('document.querySelector("#screen-weather .w-rows").textContent'), /^2PM\s*30%/);
+  await weatherButton();
+  await capture('weather-week');
+  assert.equal(await evaluate('document.querySelectorAll("#screen-weather .w-week .w-row").length'), 5, 'then the days');
+  await weatherButton();
+  assert.equal(await evaluate('!!document.querySelector("#screen-weather .w-rows")'), false, 'and back to the forecast');
   await message({ type: 'calendar', calendar: { status: 'denied' } });
   await evaluate("CT.show('calendar')");
   await capture('calendar-denied');
@@ -125,8 +136,10 @@ try {
   await capture('volume');
   assert.equal(await evaluate('document.querySelector(".vol-value").textContent'), '60');
   await evaluate("window.dispatchEvent(new WheelEvent('wheel', {deltaX:53, cancelable:true}))");
-  await pause(100);
-  assert.equal(await evaluate('window.fixtureSent.some(m => m.type === "volume" && m.delta > 0)'), true, 'Knob rotation sends volume');
+  // The page batches knob turns for 40ms; on the device that can take a few hundred.
+  const sentVolume = 'window.fixtureSent.some(m => m.type === "volume" && m.delta > 0)';
+  for (let i = 0; i < 10 && !(await evaluate(sentVolume)); i++) await pause(100);
+  assert.equal(await evaluate(sentVolume), true, 'Knob rotation sends volume');
   await message({ type: 'volume', volume: { supported: false, device: 'Digital output', volume: 0.6 } });
   await capture('volume-unsupported');
   assert.equal(await evaluate('getComputedStyle(document.querySelector(".vol-value")).display'), 'none');

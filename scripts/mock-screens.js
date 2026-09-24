@@ -59,8 +59,8 @@ const day = (i, code, pop, lo, hi) => ({ t: midnight + i * DAY, code, pop, lo, h
 const weather = {
   status: 'ok', place: 'Portland', utcOffset: 0, updatedAt: now,
   current: { temp: 69, code: 0, isDay: true },
-  hourly: [hour(0, 69, 0, true, 0), hour(1, 68, 0, true, 0), hour(2, 64, 0, false, 0), hour(3, 61, 0, false, 0), hour(4, 57, 53, false, 20)],
-  daily: [day(0, 63, 55, 56, 77), day(1, 3, 0, 56, 77), day(2, 63, 55, 44, 63), day(3, 3, 0, 44, 77)],
+  hourly: [hour(0, 69, 0, true, 0), hour(1, 68, 0, true, 0), hour(2, 64, 0, false, 0), hour(3, 61, 0, false, 0), hour(4, 57, 53, false, 20), hour(5, 56, 3, false, 20)],
+  daily: [day(0, 63, 55, 56, 77), day(1, 3, 0, 56, 77), day(2, 63, 55, 44, 63), day(3, 3, 0, 44, 77), day(4, 2, 10, 50, 72), day(5, 61, 40, 52, 68)],
 };
 
 const [device] = await listCarThings();
@@ -81,9 +81,19 @@ async function evaluate(expression) {
 }
 const send = (msg) => evaluate(`window.__mockReceive(${JSON.stringify(msg)})`);
 
+// weather-today and weather-week: the weather screen's button pressed until that view is up.
+const views = { today: '.w-today', week: '.w-week' };
 async function capture(screen) {
-  await evaluate(`CT.show(${JSON.stringify(screen)})`);
-  await pause(600); // let the screen transition and any font fitting settle
+  const [base, view] = screen.split('-');
+  await send({ type: 'tick', now, tzMinutes: 0 }); // the page shows "Waiting for your Mac" after 6.5s without a message
+  await evaluate(`CT.show(${JSON.stringify(base)})`);
+  for (let i = 0; view && i < 3 && !(await evaluate(`!!document.querySelector(${JSON.stringify(views[view])})`)); i++) {
+    await evaluate(`CT.screens.${base}.reselect()`);
+  }
+  // Let the switch finish (core.js clears .leaving when the new screen's fade-in ends), then any
+  // font fitting settle.
+  for (let i = 0; i < 30 && (await evaluate(`!!document.querySelector('.screen.leaving')`)); i++) await pause(100);
+  await pause(400);
   const { data } = await cdp.send('Page.captureScreenshot', { format: 'png' });
   const file = path.join(out, `${screen}${preset.suffix}.png`);
   await fs.writeFile(file, Buffer.from(data, 'base64'));
@@ -104,7 +114,7 @@ try {
   await send({ type: 'artwork', key: 'mock', dataUrl: `data:image/png;base64,${artwork.toString('base64')}` });
 
   await fs.mkdir(out, { recursive: true });
-  for (const screen of ['nowplaying', 'calendar', 'weather', 'clock', 'settings']) await capture(screen);
+  for (const screen of ['nowplaying', 'calendar', 'weather', 'weather-today', 'weather-week', 'clock', 'settings']) await capture(screen);
 } finally {
   await cdp.send('Page.reload', { ignoreCache: true });
   cdp.close();
