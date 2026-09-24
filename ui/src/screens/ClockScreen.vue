@@ -34,7 +34,7 @@ screen.press = () => {
       </template>
     </LeftRail>
     <ScreenStage class="bg-panel">
-      <TimeTimer v-if="mode === 'timer'" :remaining="remaining" :total="PRESETS[timer.preset] * 60000" />
+      <TimeTimer v-if="mode === 'timer'" :remaining="remaining" :total="PRESETS[timer.preset] * 60000" :idle="timer.status === 'set'" />
       <AnalogClock v-else-if="face !== 'digital'" :numbers="face === 'numbers'" :now="state.current === 'clock' ? state.now : 0" />
       <div v-else class="c-digital fill flex tabular semibold"><span>{{ time.time }}</span><span class="c-digital-sec accent">{{ String(parts.seconds).padStart(2, '0') }}</span></div>
     </ScreenStage>

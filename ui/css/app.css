@@ -139,6 +139,7 @@
   --hand: #fff;
   --timer-used: rgba(255, 255, 255, 0.2); /* the timer's spent minutes */
   --timer-hand: #ff8b00;
+  --timer-hand-ink: #000; /* text on the hand colour, e.g. today in the month */
   --lume: #fff; /* marker and hand fill */
   --mark-edge: #b9b9b9; /* the metal surround around each */
   --toast-bg: rgba(255, 255, 255, 0.95);
@@ -195,6 +196,7 @@
   --orange: var(--text);
   --timer-used: rgba(0, 0, 0, 0.3);
   --timer-hand: #000;
+  --timer-hand-ink: #fff;
 }
 
 * {
@@ -753,6 +755,10 @@ h3 {
 .t-hub {
   fill: var(--timer-hand);
 }
+/* Once the timer starts, the drawn hand fades in where the cut-out one was. */
+.t-hand-in {
+  animation: fade-in 0.6s ease-out;
+}
 
 /* Even-width digits keep the countdown from shuffling each second; at 112px they'd run past the
    rail's inset for 60:00, so the timer's time is set a little smaller. */
@@ -784,14 +790,15 @@ h3 {
 /* Centred on the date (so a two-digit date lines up with its column), overhanging the row. */
 .k-today {
   display: block;
-  width: 40px;
-  height: 40px;
-  margin: -6px 0 0 -7px;
+  width: 56px;
+  height: 56px;
+  margin: -14px 0 0 -15px;
   fill: var(--timer-hand); /* the timer's hand colour: orange, or black over album art */
 }
 .k-today text {
   font-size: 22px;
   font-weight: 700;
+  fill: var(--timer-hand-ink);
 }
 
 .k-event + .k-event {
@@ -799,6 +806,7 @@ h3 {
 }
 .k-bar {
   width: 4px;
+  background: var(--text);
   margin-right: 14px;
   border-radius: 2px;
 }

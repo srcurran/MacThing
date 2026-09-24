@@ -31,13 +31,9 @@ const month = computed(() => {
         v-for="(date, i) in week"
         :key="i"
         :class="{ muted: i === 0 || i === 6 }"
-        ><svg v-if="date === month.today" class="k-today" viewBox="0 0 40 40">
-          <!-- The date is cut out of the circle, so whatever is behind shows through it. -->
-          <mask id="k-today-cut">
-            <rect width="40" height="40" fill="#fff" />
-            <text x="20" y="28" text-anchor="middle" fill="#000">{{ date }}</text>
-          </mask>
-          <circle cx="20" cy="20" r="20" mask="url(#k-today-cut)" /></svg
+        ><svg v-if="date === month.today" class="k-today" viewBox="0 0 56 56">
+          <circle cx="28" cy="28" r="28" />
+          <text x="28" y="36" text-anchor="middle">{{ date }}</text></svg
         ><template v-else>{{ date }}</template></span
       >
     </div>

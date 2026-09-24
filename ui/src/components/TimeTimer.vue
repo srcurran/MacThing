@@ -3,7 +3,9 @@ import { computed } from "vue";
 // The timer's dial, drawn across the 480×480 stage (Figma 154:4300). A full turn is the timer's
 // length: the white wedge is the time left, clockwise from 12, with a hand on its moving edge,
 // and a ring of one dot per minute that go dark as the minutes pass. remaining and total are ms.
-const props = defineProps({ remaining: Number, total: Number });
+// Before it starts (idle), the hand and hub are cut out of a full disc instead of drawn on it
+// (Figma 202:1439), so the background shows through them.
+const props = defineProps({ remaining: Number, total: Number, idle: Boolean });
 function point(r, degrees) {
   const angle = (degrees * Math.PI) / 180;
   return { x: 240 + r * Math.sin(angle), y: 240 - r * Math.cos(angle) };
@@ -37,7 +39,29 @@ const minutes = computed(() => {
 </script>
 <template>
   <svg class="t-face" viewBox="0 0 480 480" aria-label="Timer">
-    <circle v-if="degrees >= 360" class="t-left" cx="240" cy="240" r="145" />
+    <template v-if="idle">
+      <mask id="t-idle-cut">
+        <rect width="480" height="480" fill="#fff" />
+        <line
+          x1="240"
+          y1="240"
+          x2="240"
+          y2="89"
+          stroke="#000"
+          stroke-width="8"
+          stroke-linecap="round"
+        />
+        <circle cx="240" cy="240" r="17" fill="#000" />
+      </mask>
+      <circle
+        class="t-left"
+        cx="240"
+        cy="240"
+        r="145"
+        mask="url(#t-idle-cut)"
+      />
+    </template>
+    <circle v-else-if="degrees >= 360" class="t-left" cx="240" cy="240" r="145" />
     <path v-else-if="degrees > 0" class="t-left" :d="wedge" />
     <circle
       v-for="(m, i) in minutes"
@@ -48,7 +72,9 @@ const minutes = computed(() => {
       class="t-minute"
       :class="{ left: m.left }"
     />
-    <line class="t-hand" x1="240" y1="240" :x2="hand.x" :y2="hand.y" />
-    <circle class="t-hub" cx="240" cy="240" r="17" />
+    <g v-if="!idle" class="t-hand-in">
+      <line class="t-hand" x1="240" y1="240" :x2="hand.x" :y2="hand.y" />
+      <circle class="t-hub" cx="240" cy="240" r="17" />
+    </g>
   </svg>
 </template>
