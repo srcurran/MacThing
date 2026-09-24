@@ -121,7 +121,8 @@ export function initializeRuntime(state) {
   CT.current = 'nowplaying';
   var beforeSettings = 'nowplaying';
 
-  /** Registers a screen. Optional hooks: show(), hide(), turn(steps), press(). */
+  /** Registers a screen. Optional hooks: show(), hide(), turn(steps), press(), and reselect()
+   * for its own button pressed while it's already showing. */
   CT.screen = function (name) {
     var def = { name: name };
     CT.screens[name] = def;
@@ -213,7 +214,11 @@ export function initializeRuntime(state) {
 
   function runButton(action) {
     if (!action) return;
-    if (action.indexOf('screen:') === 0) return CT.show(action.slice(7));
+    if (action.indexOf('screen:') === 0) {
+      var name = action.slice(7), screen = CT.screens[name];
+      if (name === CT.current && screen && screen.reselect) return screen.reselect();
+      return CT.show(name);
+    }
     if (action === 'settings') return CT.current === 'settings' ? CT.closeSettings() : CT.show('settings');
     CT.command(action);
   }

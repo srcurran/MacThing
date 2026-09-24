@@ -678,6 +678,47 @@ h3 {
   background: var(--text);
 }
 
+/* Today and This Week (the weather button again, WeatherToday.vue and WeatherWeek.vue; Figma
+   165:1688 and 165:1805, without the week's hairline): six 24px rows spread down the stage's insets, their 56px icons
+   overhanging the rows. */
+.w-row {
+  height: 24px;
+}
+.w-row svg {
+  width: 56px;
+  height: 56px;
+}
+.w-row-pop {
+  flex: none;
+  width: 48px;
+  white-space: nowrap;
+}
+.w-row-temp {
+  flex: none;
+  min-width: 44px;
+}
+.w-row-day {
+  flex: none;
+  width: 56px;
+}
+/* The week ends 88px from the stage's right edge. */
+.w-week {
+  right: 88px;
+}
+.w-week-range {
+  position: relative;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--bar-track);
+}
+.w-week-range i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 3px;
+  background: var(--text);
+}
+
 /* ===== clock ===== */
 /* Clock. The face (analog, numbers or digital) is a setting; ClockScreen.vue picks the markup. */
 
@@ -930,6 +971,9 @@ h3 {
 }
 .flex.gap-16 > * + * {
   margin-left: 16px;
+}
+.flex.gap-24 > * + * {
+  margin-left: 24px;
 }
 .flex-col.gap-8 > * + * {
   margin-top: 8px;

@@ -74,6 +74,17 @@ try {
   await capture('weather');
   assert.equal(await evaluate('document.querySelectorAll(".w-day").length'), 4);
   assert.equal(await evaluate('document.querySelector(".w-hourly").children.length'), 5);
+  // The weather button on the weather steps through today's hours, the week, and back.
+  const weatherButton = () => evaluate("window.dispatchEvent(new KeyboardEvent('keydown', {key:'2'})); window.dispatchEvent(new KeyboardEvent('keyup', {key:'2'}))");
+  await weatherButton();
+  await capture('weather-today');
+  assert.equal(await evaluate('document.querySelectorAll("#screen-weather .w-row").length'), 6, 'The weather button lists the hours');
+  assert.match(await evaluate('document.querySelector("#screen-weather .w-rows").textContent'), /^2PM\s*30%/);
+  await weatherButton();
+  await capture('weather-week');
+  assert.equal(await evaluate('document.querySelectorAll("#screen-weather .w-week .w-row").length'), 5, 'then the days');
+  await weatherButton();
+  assert.equal(await evaluate('!!document.querySelector("#screen-weather .w-rows")'), false, 'and back to the forecast');
   await message({ type: 'calendar', calendar: { status: 'denied' } });
   await evaluate("CT.show('calendar')");
   await capture('calendar-denied');
