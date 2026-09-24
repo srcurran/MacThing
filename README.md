@@ -7,6 +7,8 @@ No reflashing: this runs on the community firmware you already have, replaces th
 device shows, and can be undone with one command. Nothing is installed on the device that a
 `npm run restore-device` doesn't put back.
 
+https://github.com/user-attachments/assets/f47f9c9d-7ae7-4c24-92b9-900ebb423bcd
+
 ![Now Playing on the Car Thing](docs/deviice-now--hug.png)
 
 ![Weather, Calendar, Now Playing, Clock and Settings on the Car Thing](docs/device-polvo.png)
