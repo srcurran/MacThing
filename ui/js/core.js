@@ -47,7 +47,7 @@ export function initializeRuntime(state) {
     lastMsgAt = performance.now();
     if (msg.type === 'bye') return setConnected(false);
     setConnected(true);
-    if (msg.type === 'config') { CT.config = msg.config; gotConfig = true; }
+    if (msg.type === 'config') { CT.config = msg.config; gotConfig = true; restoreDevScreen(); }
     else if (msg.type === 'tick') { clock.offset = msg.now - Date.now(); clock.tz = msg.tzMinutes || 0; }
     else if (msg.type === 'settings') state.settings = msg.settings;
     else if (msg.type === 'appearance') macDark = msg.dark;
@@ -147,9 +147,33 @@ export function initializeRuntime(state) {
       CT.current = name;
       state.current = name;
       if (next.show) next.show();
+      saveDevScreen();
     }
   };
   CT.closeSettings = function () { CT.show(beforeSettings); };
+
+  // Dev only (npm run dev): the watcher reloads the page on every change, so remember the screen
+  // and how many times each screen's button was pressed again (weather Today/This Week, the
+  // calendar's month, the clock's timer — they keep their view when you leave) and put them back.
+  var reselects = {}, restoredDevScreen = false;
+  function saveDevScreen() {
+    if (!CT.config.debug) return;
+    try { sessionStorage.setItem('ct-dev-screen', JSON.stringify({ name: CT.current, reselects: reselects })); } catch (e) {}
+  }
+  function restoreDevScreen() {
+    if (!CT.config.debug || restoredDevScreen) return;
+    restoredDevScreen = true;
+    var saved;
+    try { saved = JSON.parse(sessionStorage.getItem('ct-dev-screen')); } catch (e) {}
+    if (!saved || !CT.screens[saved.name]) return;
+    Object.keys(saved.reselects || {}).forEach(function (name) {
+      var screen = CT.screens[name];
+      for (var i = 0; screen && screen.reselect && i < saved.reselects[name]; i++) screen.reselect();
+      if (screen && screen.reselect) reselects[name] = saved.reselects[name];
+    });
+    CT.show(saved.name);
+    saveDevScreen();
+  }
 
   // ---- Commands and feedback ------------------------------------------------------------
 
@@ -217,7 +241,11 @@ export function initializeRuntime(state) {
     if (!action) return;
     if (action.indexOf('screen:') === 0) {
       var name = action.slice(7), screen = CT.screens[name];
-      if (name === CT.current && screen && screen.reselect) return screen.reselect();
+      if (name === CT.current && screen && screen.reselect) {
+        reselects[name] = (reselects[name] || 0) + 1;
+        saveDevScreen();
+        return screen.reselect();
+      }
       return CT.show(name);
     }
     if (action === 'settings') return CT.current === 'settings' ? CT.closeSettings() : CT.show('settings');
