@@ -78,7 +78,7 @@ try {
   const weatherButton = () => evaluate("window.dispatchEvent(new KeyboardEvent('keydown', {key:'3'})); window.dispatchEvent(new KeyboardEvent('keyup', {key:'3'}))");
   await weatherButton();
   await capture('weather-today');
-  assert.equal(await evaluate('document.querySelectorAll("#screen-weather .w-row").length'), 5, 'The weather button lists the hours');
+  assert.equal(await evaluate('document.querySelectorAll("#screen-weather .w-row").length'), 6, 'The weather button lists the hours');
   assert.match(await evaluate('document.querySelector("#screen-weather .w-rows").textContent'), /^2PM\s*30%/);
   await weatherButton();
   await capture('weather-week');

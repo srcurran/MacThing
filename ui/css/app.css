@@ -282,8 +282,30 @@ h3 {
   }
 }
 
+/* Switching views within a screen (its button pressed again: the weather's Today and This Week,
+   the calendar's month, the clock's timer) uses the same fades: the old view out, then the new
+   one in (<Transition name="view">). Views are placed absolutely, so the two overlap while one
+   leaves; the rail's text is taken out of the flow to leave. */
+.view-leave-active {
+  transition: opacity 0.3s ease-in;
+}
+.view-enter-active {
+  transition: opacity 0.5s ease-out 0.3s;
+}
+.view-enter-from,
+.view-leave-to {
+  opacity: 0;
+}
+.left-rail-content.view-leave-active {
+  position: absolute;
+  top: var(--panel-inset-y);
+  left: var(--panel-inset-x);
+  right: var(--panel-inset-x);
+}
+
 /* LeftRail.vue owns the eyebrow/title/subtitle cluster and optional lower slot. */
 .left-rail {
+  position: relative;
   width: 320px;
   padding: var(--panel-inset-y) var(--panel-inset-x);
   background: var(--panel);
@@ -661,7 +683,7 @@ h3 {
   content: "\00a0";
 }
 
-/* Day, forecast (icon and chance), low, range, high. 17px separates the day, the forecast and
+/* Day, forecast (icon and chance), low, range, high. 16–18px separates the day, the forecast and
    the temperatures, 8px the parts within. */
 .w-daily {
   grid-template-columns: minmax(76px, auto) auto minmax(44px, auto) 1fr minmax(
@@ -673,9 +695,13 @@ h3 {
 .w-daily .w-pop {
   min-width: 52px;
 }
+/* A fixed 92px (icon, gap, chance of rain) whether or not any day shows a chance, so the lows
+   always start 546px in, where This Week's do. Its icon centres 108px into the stage, on Today's
+   and This Week's bigger ones. */
 .w-forecast {
-  margin: 0 9px;
-} /* 17px each side: the 8px column gap plus 9 */
+  width: 92px;
+  margin: 0 10px 0 8px;
+}
 .w-day {
   display: contents;
 } /* its cells sit in the .w-daily grid, so they line up across days */
@@ -698,10 +724,19 @@ h3 {
 }
 
 /* Today and This Week (the weather button again, WeatherToday.vue and WeatherWeek.vue; Figma
-   202:1565 and 165:1805, without the week's hairline): five or six 24px rows spread down the stage's insets, their 56px icons
-   overhanging the rows. */
+   202:1565 and 165:1805, without the week's hairline): six rows, each one line of text tall,
+   filling the stage's insets, their 56px icons overhanging the rows. The first and last rows'
+   text sits where the rail's first and last lines do, and the forecast's hours and last day.
+   The 356px between them doesn't split into five whole pixels, so one gap is a pixel longer,
+   which keeps the text and bars sharp. */
 .w-row {
-  height: 24px;
+  height: 28px;
+}
+.w-rows > .w-row + .w-row {
+  margin-top: 43px;
+}
+.w-rows > .w-row:nth-child(4) {
+  margin-top: 44px;
 }
 .w-row svg {
   width: 56px;
@@ -742,10 +777,10 @@ h3 {
 .w-today-temp + .w-today-line {
   margin-left: 8px;
 }
-/* Today and the week end 88px from the stage's right edge. */
-.w-today,
-.w-week {
-  right: 88px;
+/* The week's lows, bars and highs line up with the forecast's below the hours: the lows start
+   546px in, 42px past the icon's 24px gap. */
+.w-week-temps {
+  padding-left: 42px;
 }
 .w-week-range {
   position: relative;
@@ -839,7 +874,7 @@ h3 {
 
 /* Even-width digits keep the countdown from shuffling each second; at 112px they'd run past the
    rail's inset for 60:00, so the timer's time is set a little smaller. */
-#screen-clock.timer .font-huge {
+#screen-clock [data-view="timer"] .font-huge {
   font-size: 100px;
   font-variant-numeric: tabular-nums;
 }

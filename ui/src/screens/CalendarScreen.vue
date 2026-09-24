@@ -138,18 +138,24 @@ onMounted(() => {
       :eyebrow="CT.DAYS[parts.day] + ' ' + (parts.month + 1) + '/' + parts.date"
       :title="time"
     >
-      <template v-if="view === 'month'" #lower>
-        <template v-if="next"
-          >{{ CT.timeText(next.start) }}
-          <b class="primary medium">{{ next.title }}</b></template
-        ><template v-else-if="state.calendar.status === 'ok'"
-          >No events today</template
+      <template #lower>
+        <Transition name="view"
+          ><span v-if="view === 'month'"
+            ><template v-if="next"
+              >{{ CT.timeText(next.start) }}
+              <b class="primary medium">{{ next.title }}</b></template
+            ><template v-else-if="state.calendar.status === 'ok'"
+              >No events today</template
+            ></span
+          ></Transition
         >
       </template>
     </LeftRail>
     <ScreenStage class="bg-panel">
-      <CalendarMonth v-if="view === 'month'" class="stage-safe" :now="state.now" />
-      <div v-show="view === 'agenda'" ref="list" class="k-list overflow-hidden stage-safe">
+      <Transition name="view"
+        ><CalendarMonth v-if="view === 'month'" class="stage-safe" :now="state.now"
+      /></Transition>
+      <Transition name="view"><div v-show="view === 'agenda'" ref="list" class="k-list overflow-hidden stage-safe">
         <template v-for="section in kept" :key="section.label">
           <div
             v-if="section.label"
@@ -176,12 +182,13 @@ onMounted(() => {
             }}
           </div>
         </template>
-      </div>
-      <StageMessage
-        v-if="view === 'agenda'"
-        :title="message.title"
-        :detail="message.detail"
-      />
+      </div></Transition>
+      <Transition name="view"
+        ><StageMessage
+          v-if="view === 'agenda'"
+          :title="message.title"
+          :detail="message.detail"
+      /></Transition>
     </ScreenStage>
   </section>
 </template>

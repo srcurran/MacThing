@@ -2,10 +2,10 @@
 import { computed } from "vue";
 import { CT } from "../state.js";
 import WeatherIcon from "./WeatherIcon.vue";
-// Today (the weather button again): the next five hours as rows, spread down the stage's insets
-// (Figma 202:1565). Each row: the hour, its icon and chance of rain when it's worth mentioning,
-// and its temperature riding a bar scaled to the whole day's low to high (stretched if an hour
-// past midnight goes beyond it).
+// Today (the weather button again): the next six hours as rows, matching the week's six days,
+// spread down the stage's insets (Figma 202:1565). Each row: the hour, its icon and chance of rain
+// when it's worth mentioning, and its temperature riding a bar scaled to the whole day's low to
+// high (stretched if an hour past midnight goes beyond it).
 const props = defineProps({ hours: Array, day: Object, tz: Number });
 const rows = computed(() => {
   const temps = props.hours.map((h) => h.temp),
@@ -15,7 +15,7 @@ const rows = computed(() => {
 });
 </script>
 <template>
-  <div class="w-rows w-today flex-col justify-between">
+  <div class="w-rows w-today flex-col">
     <div
       v-for="h in rows"
       :key="h.t"
