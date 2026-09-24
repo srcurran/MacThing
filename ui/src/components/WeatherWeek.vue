@@ -18,7 +18,7 @@ const rows = computed(() => {
 });
 </script>
 <template>
-  <div class="w-rows w-week flex-col justify-between">
+  <div class="w-rows w-week flex-col">
     <div
       v-for="d in rows"
       :key="d.t"
@@ -26,7 +26,7 @@ const rows = computed(() => {
     >
       <div class="w-row-day">{{ CT.DAYS[CT.parts(d.t, tz).day].slice(0, 3) }}</div>
       <WeatherIcon class="flex-none" :code="d.code" />
-      <div class="flex-1 flex items-center gap-8">
+      <div class="w-week-temps flex-1 flex items-center gap-8">
         <div class="w-row-temp text-right tabular regular muted">{{ d.lo }}°</div>
         <div class="w-week-range flex-1"><i :style="d.range" /></div>
         <div class="w-row-temp text-right tabular">{{ d.hi }}°</div>

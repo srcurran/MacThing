@@ -82,10 +82,11 @@ CT.screen("weather").reselect = () => {
       >
     </LeftRail>
     <ScreenStage class="bg-panel">
+      <Transition name="view">
       <WeatherToday
         v-if="ok && view === 'today'"
         class="stage-safe"
-        :hours="data.hourly.slice(0, 5)"
+        :hours="data.hourly.slice(0, 6)"
         :day="data.daily[0]"
         :tz="tz"
       />
@@ -117,6 +118,7 @@ CT.screen("weather").reselect = () => {
           />
         </div>
       </div>
+      </Transition>
       <StageMessage :title="message.title" :detail="message.detail" />
     </ScreenStage>
   </section>
