@@ -460,7 +460,7 @@ h3 {
 }
 
 /* Album art background: blurred art under a 75% tint; the panels and stages of Now Playing and
-   the widgets go transparent so it shows through. Settings keeps its own backgrounds. */
+   the widgets and Settings go transparent so it shows through. */
 .ambient {
   overflow: hidden;
   background: var(--panel);
@@ -484,7 +484,7 @@ h3 {
   bottom: 0;
   background: var(--ambient-tint);
 }
-.ambient-on .screen:not(#screen-settings) .left-rail,
+.ambient-on .left-rail,
 .ambient-on .bg-panel {
   background: transparent;
 }
@@ -710,8 +710,9 @@ h3 {
 }
 .c-numerals {
   fill: var(--text);
-  font-size: 34px;
-  font-weight: 600;
+  font-family: Merriweather, Georgia, serif;
+  font-size: 30px;
+  font-weight: 400;
   letter-spacing: -0.02em;
 }
 

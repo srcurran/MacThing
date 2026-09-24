@@ -214,6 +214,7 @@ async function runCommand(action) {
 
 async function setFavorite(command) {
   const { np } = current;
+  if (np.active && !np.playing) return; // paused: the back button does nothing
   if (np.bundleId !== 'com.apple.Music') {
     return link?.send({ type: 'toast', text: np.active ? 'Favorites work with Apple Music' : 'Nothing playing' });
   }

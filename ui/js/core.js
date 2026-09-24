@@ -15,7 +15,7 @@ export function initializeRuntime(state) {
 
   // Replaced by the bridge's config/settings on connect; these just let the page render before that.
   CT.config = {
-    buttons: { 1: 'screen:nowplaying', 2: 'screen:weather', 3: 'screen:clock', 4: 'screen:calendar', m: 'settings', Escape: 'favorite' },
+    buttons: { 1: 'screen:nowplaying', 2: 'screen:calendar', 3: 'screen:weather', 4: 'screen:clock', m: 'settings', Escape: 'favorite' },
     buttonClicks: { Escape: { 1: 'favorite', 2: 'unfavorite' } },
     knobClicks: { 1: 'playpause', 2: 'next', 3: 'previous' },
     buttonHolds: { m: 'sleep' }, holdMs: 1200, offlineSleepMs: 90000,
