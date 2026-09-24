@@ -5,12 +5,23 @@ import LeftRail from "../components/LeftRail.vue";
 import ScreenStage from "../components/ScreenStage.vue";
 import StageMessage from "../components/StageMessage.vue";
 import CalendarEvent from "../components/CalendarEvent.vue";
+import CalendarMonth from "../components/CalendarMonth.vue";
 const rail = ref(null),
   list = ref(null),
   kept = ref([]);
 const parts = computed(() => CT.parts(state.now));
 const time = computed(() => CT.clockText(parts.value).time);
 const days = computed(() => state.settings.calendarDays || 2);
+const next = computed(() =>
+  state.calendar.status === "ok"
+    ? state.calendar.events.find(
+        (e) =>
+          !e.allDay &&
+          e.start > state.now &&
+          CT.dayNumber(e.start) === CT.dayNumber(state.now),
+      )
+    : null,
+);
 const sections = computed(() => {
   if (state.calendar.status !== "ok") return [];
   const today = CT.dayNumber(state.now);
@@ -67,18 +78,18 @@ async function fitEvents() {
   const run = ++generation;
   kept.value = sections.value.map((s) => ({ ...s, shown: s.events.length }));
   await nextTick();
+  // Today comes first: the last day gives up events until it's just its heading and a count,
+  // then goes, and only once it's down to today do today's own events start to go.
   while (
     run === generation &&
     list.value &&
     list.value.scrollHeight > list.value.clientHeight
   ) {
-    let largest = -1;
-    kept.value.forEach((s, i) => {
-      if (s.shown > 1 && (largest < 0 || s.shown >= kept.value[largest].shown))
-        largest = i;
-    });
-    if (largest >= 0) kept.value[largest].shown--;
-    else if (kept.value.length > 1) kept.value.pop();
+    const last = kept.value[kept.value.length - 1];
+    if (kept.value.length > 1) {
+      if (last.shown > 0) last.shown--;
+      else kept.value.pop();
+    } else if (last.shown > 1) last.shown--;
     else break;
     await nextTick();
   }
@@ -95,9 +106,15 @@ watch(
     fitEvents();
   },
 );
-CT.screen("calendar").show = () => {
+// The calendar button, pressed on the calendar, swaps the agenda for the month and back.
+const view = ref("agenda");
+const screen = CT.screen("calendar");
+screen.show = () => {
   nextTick(fitClock);
   fitEvents();
+};
+screen.reselect = () => {
+  view.value = view.value === "agenda" ? "month" : "agenda";
 };
 onMounted(() => {
   fitClock();
@@ -120,11 +137,25 @@ onMounted(() => {
       variant="time"
       :eyebrow="CT.DAYS[parts.day] + ' ' + (parts.month + 1) + '/' + parts.date"
       :title="time"
-    />
+    >
+      <template v-if="view === 'month'" #lower>
+        <template v-if="next"
+          >{{ CT.timeText(next.start) }}
+          <b class="primary medium">{{ next.title }}</b></template
+        ><template v-else-if="state.calendar.status === 'ok'"
+          >No events today</template
+        >
+      </template>
+    </LeftRail>
     <ScreenStage class="bg-panel">
-      <div ref="list" class="k-list overflow-hidden stage-safe">
+      <CalendarMonth v-if="view === 'month'" class="stage-safe" :now="state.now" />
+      <div v-show="view === 'agenda'" ref="list" class="k-list overflow-hidden stage-safe">
         <template v-for="section in kept" :key="section.label">
-          <div v-if="section.label" class="k-day font-small medium muted">
+          <div
+            v-if="section.label"
+            class="k-day font-small medium"
+            :class="{ muted: section.label !== 'Today' }"
+          >
             {{ section.label }}
           </div>
           <CalendarEvent
@@ -137,11 +168,20 @@ onMounted(() => {
             v-if="section.events.length > section.shown"
             class="mt-16 font-small medium muted"
           >
-            +{{ section.events.length - section.shown }} more
+            {{
+              section.shown
+                ? "+" + (section.events.length - section.shown) + " more"
+                : section.events.length +
+                  (section.events.length === 1 ? " event" : " events")
+            }}
           </div>
         </template>
       </div>
-      <StageMessage :title="message.title" :detail="message.detail" />
+      <StageMessage
+        v-if="view === 'agenda'"
+        :title="message.title"
+        :detail="message.detail"
+      />
     </ScreenStage>
   </section>
 </template>
