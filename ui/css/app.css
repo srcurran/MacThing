@@ -631,12 +631,24 @@ h3 {
 }
 
 /* Hourly on top, the days 28px below; with the 22px row gap the last day lines up with the
-   rail's Updated line. Both are grids: columns grow with their content, but never narrower
-   than the Figma frame's, so ordinary values sit where the design puts them. */
+   rail's Updated line. Both are grids. The days' columns grow with their content, but never
+   narrower than the Figma frame's, so ordinary values sit where the design puts them. */
 .w-hourly {
   grid-auto-flow: column;
-  grid-auto-columns: minmax(64px, auto);
+  grid-auto-columns: auto;
   justify-content: space-between;
+}
+/* Each hour hugs its text, left-aligned (Figma 202:1788), and the hours spread edge to edge: the
+   first lines up with the day names below, the last ends at the right edge. The icon takes no
+   width of its own (its negative margins cancel its 56px) and centres on the hour: inset in a
+   wide one, hanging out both sides of a narrow one. */
+.w-hourly.grid > * {
+  align-items: flex-start;
+}
+.w-hourly.grid > * svg {
+  align-self: center;
+  margin-left: -28px;
+  margin-right: -28px;
 }
 .w-hourly svg {
   width: 56px;
@@ -686,7 +698,7 @@ h3 {
 }
 
 /* Today and This Week (the weather button again, WeatherToday.vue and WeatherWeek.vue; Figma
-   165:1688 and 165:1805, without the week's hairline): six 24px rows spread down the stage's insets, their 56px icons
+   202:1565 and 165:1805, without the week's hairline): five or six 24px rows spread down the stage's insets, their 56px icons
    overhanging the rows. */
 .w-row {
   height: 24px;
@@ -708,7 +720,30 @@ h3 {
   flex: none;
   width: 56px;
 }
-/* The week ends 88px from the stage's right edge. */
+/* Today's forecast column is a 56px icon and a 48px chance of rain, 112px wide either way. The
+   temperature breaks a bare track, 8px clear each side: the day's low puts it at the start, the
+   high at the end. */
+.w-today-forecast {
+  width: 112px;
+}
+.w-today-line {
+  flex: 1 1 0;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--bar-track);
+}
+.w-today-temp {
+  flex: none;
+  min-width: 44px;
+}
+.w-today-line + .w-today-temp {
+  margin-left: 8px;
+}
+.w-today-temp + .w-today-line {
+  margin-left: 8px;
+}
+/* Today and the week end 88px from the stage's right edge. */
+.w-today,
 .w-week {
   right: 88px;
 }

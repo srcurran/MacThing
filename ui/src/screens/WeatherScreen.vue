@@ -85,7 +85,8 @@ CT.screen("weather").reselect = () => {
       <WeatherToday
         v-if="ok && view === 'today'"
         class="stage-safe"
-        :hours="data.hourly.slice(0, 6)"
+        :hours="data.hourly.slice(0, 5)"
+        :day="data.daily[0]"
         :tz="tz"
       />
       <WeatherWeek

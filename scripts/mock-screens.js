@@ -82,7 +82,7 @@ async function evaluate(expression) {
 const send = (msg) => evaluate(`window.__mockReceive(${JSON.stringify(msg)})`);
 
 // weather-today and weather-week: the weather screen's button pressed until that view is up.
-const views = { today: '.w-rows:not(.w-week)', week: '.w-week' };
+const views = { today: '.w-today', week: '.w-week' };
 async function capture(screen) {
   const [base, view] = screen.split('-');
   await evaluate(`CT.show(${JSON.stringify(base)})`);
