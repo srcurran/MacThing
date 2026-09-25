@@ -269,9 +269,17 @@ function onDeviceMessage(msg) {
       return settings.update({ [msg.key]: msg.value });
     case 'openSettingsPage':
       return openSettingsPage(msg.section);
+    case 'retryWeather':
+      return retryWeather(msg.quiet);
     case 'log':
       return log.info('[device]', msg.message);
   }
+}
+
+/** The weather button on an unavailable forecast: try again, or say how long until it can. */
+async function retryWeather(quiet) {
+  const r = await weather.retry();
+  if (typeof r === 'number' && !quiet) link?.send({ type: 'toast', text: `Try again in ${r}s` });
 }
 
 // ---- Device lifecycle -----------------------------------------------------

@@ -3,6 +3,10 @@ import { log } from '../log.js';
 
 const REFRESH_MS = 15 * 60 * 1000;
 const RELOCATE_MS = 30 * 60 * 1000;
+// Asking again from the device (the weather button while the weather is unavailable): each try
+// that fails doubles the wait before the next is allowed, 4 s, 8 s, 16 s… up to 5 minutes.
+const RETRY_FIRST_MS = 4000;
+const RETRY_MAX_MS = 5 * 60 * 1000;
 
 /**
  * Weather for the device's Weather screen, from Open-Meteo (free, no API key).
@@ -23,6 +27,8 @@ export class Weather extends EventEmitter {
     this.state = { status: 'loading' };
     this.auto = null; // last Mac-located position
     this.inflight = null;
+    this.retryWait = RETRY_FIRST_MS;
+    this.retryAt = 0; // no asking again before this
   }
 
   start() {
@@ -38,6 +44,25 @@ export class Weather extends EventEmitter {
     return this.inflight;
   }
 
+  /**
+   * Tries again now if the weather is unavailable and the last try's wait is over. Returns
+   * 'started', 'busy', 'notNeeded', or the seconds left to wait.
+   */
+  async retry() {
+    if (this.state.status !== 'error') return 'notNeeded';
+    if (this.inflight) return 'busy';
+    const left = this.retryAt - Date.now();
+    if (left > 0) return Math.ceil(left / 1000);
+    this.#set({ status: 'loading' });
+    await this.refresh();
+    if (this.state.status === 'loading') this.#set({ status: 'error', message: 'Weather unavailable' });
+    if (this.state.status === 'error') {
+      this.retryAt = Date.now() + this.retryWait;
+      this.retryWait = Math.min(this.retryWait * 2, RETRY_MAX_MS);
+    }
+    return 'started';
+  }
+
   async #refresh() {
     const place = await this.#location();
     if (!place) return;
@@ -45,6 +70,8 @@ export class Weather extends EventEmitter {
     try {
       const data = await fetchForecast(place, units);
       this.#set(toState(data, place, units));
+      this.retryWait = RETRY_FIRST_MS;
+      this.retryAt = 0;
     } catch (err) {
       log.warn('[weather]', err.message);
       if (this.state.status !== 'ok') this.#set({ status: 'error', message: 'Weather unavailable' });

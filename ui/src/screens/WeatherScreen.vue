@@ -29,7 +29,7 @@ const message = computed(() => {
         "Press the settings button and choose Weather location to pick a place.",
     };
   return data.value.status === "error"
-    ? { title: "Weather unavailable", detail: "Trying again shortly." }
+    ? { title: "Weather unavailable", detail: "Press the weather button to try again." }
     : { title: "Getting the weather…" };
 });
 const hours = computed(() =>
@@ -53,10 +53,17 @@ const days = computed(() => {
   }));
 });
 // The weather button, pressed on the weather, steps from the forecast to today's hours, then the
-// week's days, then back to the forecast.
+// week's days, then back to the forecast. While the weather is unavailable it asks the Mac to try
+// again instead (the Mac makes each failed try wait longer before the next: 4 s, 8 s, …); coming
+// to the screen asks too, without the "try again in" toast.
 const VIEWS = ["forecast", "today", "week"];
 const view = ref("forecast");
-CT.screen("weather").reselect = () => {
+const screen = CT.screen("weather");
+screen.show = () => {
+  if (data.value.status === "error") CT.send({ type: "retryWeather", quiet: true });
+};
+screen.reselect = () => {
+  if (data.value.status === "error") return CT.send({ type: "retryWeather" });
   view.value = VIEWS[(VIEWS.indexOf(view.value) + 1) % VIEWS.length];
 };
 </script>
