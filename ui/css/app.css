@@ -1005,6 +1005,13 @@ h3 {
   font-weight: 700;
   fill: var(--timer-hand-ink);
 }
+/* Dark theme over album art: black would sink into the dark art, so a white circle instead. */
+#app.ambient-on:not(.light) .k-today {
+  fill: #fff;
+}
+#app.ambient-on:not(.light) .k-today text {
+  fill: #000;
+}
 
 .k-event + .k-event {
   margin-top: 16px;
