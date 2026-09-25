@@ -123,6 +123,17 @@ try {
   assert.match(await rail(), /30 minute timer30:00/, 'Double press resets');
   await press('4');
   await message({ type: 'tick', now, tzMinutes: 0 });
+  // Meeting alerts: a card over the screen before a meeting; any press only dismisses it.
+  await evaluate("localStorage.removeItem('ct-dismissed-meetings')");
+  await message({ type: 'settings', settings: { ...settings, meetingAlert: 5 } });
+  await message({ type: 'calendar', calendar: { status: 'ok', events: [{ start: now + 180000, end: now + 1980000, title: 'Example meeting', location: 'Room 4\n1 Example St', color: '#2d9cdb', allDay: false, calendarId: 'fixture' }] } });
+  await capture('meeting-alert');
+  assert.match(await evaluate('document.querySelector(".m-card").textContent'), /In 3 min.*Example meeting.*2:38 – 3:08 PM.*Room 4$/, 'Meeting alert shows the meeting');
+  await press('1');
+  await pause(400);
+  assert.equal(await evaluate('document.querySelector(".meeting-alert").classList.contains("on")'), false, 'A button dismisses the alert');
+  assert.equal(await evaluate('CT.current'), 'clock', 'without also acting');
+  await message({ type: 'settings', settings });
   await evaluate("CT.show('settings'); CT.screens.settings.turn(3); CT.screens.settings.press()");
   await pause(100);
   assert.equal(await evaluate('window.fixtureSent.some(m => m.type === "setting" && m.key === "clock24h" && m.value === true)'), true);
