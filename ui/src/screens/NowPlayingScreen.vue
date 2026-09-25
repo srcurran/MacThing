@@ -70,7 +70,7 @@ onUnmounted(() => clearInterval(timer));
   <section ref="root" id="screen-nowplaying" class="screen fill flex" :class="{ active: state.current === 'nowplaying', leaving: state.leaving === 'nowplaying', idle: !np.active, paused: np.active && !np.playing, 'no-duration': !np.duration }">
     <LeftRail ref="rail" variant="media" :eyebrow="np.active ? np.artist : ''" :title="np.active ? np.title : 'Nothing playing'" :subtitle="album" :muted-subtitle="!np.album">
       <template #lower>
-        <div class="np-progress flex items-center gap-8 primary"><UiProgress :value="fraction" tone="neutral" /><span class="np-duration flex-none regular">{{ np.duration ? durationText(np.duration) : '' }}</span></div>
+        <div class="np-progress flex items-center gap-8 primary"><UiProgress :value="fraction" /><span class="np-duration flex-none regular">{{ np.duration ? durationText(np.duration) : '' }}</span></div>
       </template>
     </LeftRail>
     <ScreenStage :class="{ 'bg-panel': !np.active || artworkUrl }"><!-- idle, or behind art: one continuous background, so nothing is left as a square when the art fades -->
