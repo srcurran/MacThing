@@ -31,10 +31,21 @@ async function message(msg) {
   await evaluate('window.fixtureReceive(' + JSON.stringify(msg) + ')');
   await pause(100);
 }
+// The page keeps the least-delayed of the last 15 ticks, so set the time with all 15.
+async function tick(ms) {
+  for (let i = 0; i < 15; i++) await evaluate('window.fixtureReceive(' + JSON.stringify({ type: 'tick', now: ms, tzMinutes: 0 }) + ')');
+  await pause(100);
+}
+// npm run dev puts back the screen and view you were on (the weather's Today, the calendar's
+// month…). Start from a fresh page with the default views, and put yours back afterwards.
+const devScreen = await evaluate('sessionStorage.getItem("ct-dev-screen")');
+await evaluate('sessionStorage.removeItem("ct-dev-screen")');
+await cdp.send('Page.reload', { ignoreCache: true });
+await pause(500);
 try {
   let mounted = false;
   for (let attempt = 0; attempt < 30 && !mounted; attempt++) {
-    mounted = await evaluate('!!window.CT && !!document.querySelector("#mount") && !!document.querySelector("#mount").__vue_app__');
+    mounted = await evaluate('!!window.CT && !!document.querySelector("#mount") && !!document.querySelector("#mount").__vue_app__').catch(() => false);
     if (!mounted) await pause(500);
   }
   assert.equal(mounted, true, 'Vue mounted');
@@ -42,7 +53,7 @@ try {
   const settings = { theme: 'dark', clock24h: false, artBackground: false, clockFace: 'analog', calendarDays: 2, location: { mode: 'auto' } };
   await message({ type: 'settings', settings });
   await message({ type: 'screen', on: true });
-  await message({ type: 'tick', now: Date.UTC(2026, 8, 22, 14, 35), tzMinutes: 0 });
+  await tick(Date.UTC(2026, 8, 22, 14, 35));
   const now = Date.UTC(2026, 8, 22, 14, 35);
   await message({ type: 'nowPlaying', np: { active: true, title: 'A very long title that needs to fit within the available left rail without hiding the album or the progress bar', artist: 'Example artist', album: 'Example album', duration: 300, elapsed: 100, playing: true, rate: 1, artworkKey: null } });
   await evaluate("CT.show('nowplaying')");
@@ -84,6 +95,7 @@ try {
   await capture('weather-week');
   assert.equal(await evaluate('document.querySelectorAll("#screen-weather .w-week .w-row").length'), 5, 'then the days');
   await weatherButton();
+  await pause(400); // the week fades out (0.3 s) before it leaves the page
   assert.equal(await evaluate('!!document.querySelector("#screen-weather .w-rows")'), false, 'and back to the forecast');
   await message({ type: 'calendar', calendar: { status: 'denied' } });
   await evaluate("CT.show('calendar')");
@@ -98,6 +110,7 @@ try {
   assert.match(await evaluate('document.querySelector("#screen-calendar .k-month").textContent'), /September.*22.*30/, 'The calendar button shows the month');
   assert.equal(await evaluate('document.querySelector("#screen-calendar .k-today").textContent.trim()'), '22');
   await evaluate("window.dispatchEvent(new KeyboardEvent('keydown', {key:'2'})); window.dispatchEvent(new KeyboardEvent('keyup', {key:'2'}))");
+  await pause(400); // the month fades out (0.3 s) before it leaves the page
   assert.equal(await evaluate('!!document.querySelector("#screen-calendar .k-month")'), false, 'and back to the agenda');
   await evaluate("CT.show('clock')");
   await capture('clock');
@@ -107,22 +120,25 @@ try {
   const rail = () => evaluate('document.querySelector("#screen-clock .left-rail-content").textContent');
   while (await evaluate('!!document.querySelector("#screen-clock .t-face")')) await press('4'); // start from the clock
   await press('4');
+  await pause(400); // the clock's text fades out (0.3 s) before the timer's is the only one
   await evaluate("window.dispatchEvent(new WheelEvent('wheel', {deltaX:53, cancelable:true}))");
   await pause(100);
   assert.match(await rail(), /30 minute timer30:00/, 'Wheel picks the timer length');
   await press('Enter');
-  await message({ type: 'tick', now: now + 754000, tzMinutes: 0 });
+  await tick(now + 754000);
   await pause(1100);
   assert.match(await rail(), /30 minute timer1[67]:\d\d/, 'Timer counts down');
   await capture('timer');
   await press('4');
+  await pause(400); // the timer fades out (0.3 s) before it leaves the page
   assert.equal(await evaluate('!!document.querySelector("#screen-clock .t-face")'), false, 'The clock button goes back to the clock');
   await press('4');
+  await pause(400);
   await press('Enter'); await press('Enter');
   await pause(100);
   assert.match(await rail(), /30 minute timer30:00/, 'Double press resets');
   await press('4');
-  await message({ type: 'tick', now, tzMinutes: 0 });
+  await tick(now);
   // Meeting alerts: a card over the screen before a meeting; any press only dismisses it.
   await evaluate("localStorage.removeItem('ct-dismissed-meetings')");
   await message({ type: 'settings', settings: { ...settings, meetingAlert: 5 } });
@@ -164,6 +180,7 @@ try {
   assert.deepEqual(errors, [], 'No runtime exceptions');
   console.log('Device checks passed. Screenshots: ' + output);
 } finally {
+  await evaluate(devScreen ? 'sessionStorage.setItem("ct-dev-screen", ' + JSON.stringify(devScreen) + ')' : 'sessionStorage.removeItem("ct-dev-screen")');
   await cdp.send('Page.reload', { ignoreCache: true });
   cdp.close();
 }
