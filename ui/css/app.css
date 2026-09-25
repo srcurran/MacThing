@@ -489,12 +489,14 @@ h3 {
   overflow: hidden;
   background: var(--panel);
 }
-/* A stronger art wash keeps the underlying cover atmospheric rather than legible. */
+/* A stronger art wash keeps the underlying cover atmospheric rather than legible. The art runs
+   180px (three times the blur) past every edge: blur mixes in the empty space beyond the art, and
+   a smaller overhang lets the black panel darken the edges into a vignette. */
 .ambient .art-img {
-  left: -32px;
-  top: -32px;
-  right: -32px;
-  bottom: -32px;
+  left: -180px;
+  top: -180px;
+  right: -180px;
+  bottom: -180px;
   background: center / cover no-repeat;
   -webkit-filter: blur(60px);
   filter: blur(60px);
