@@ -524,9 +524,9 @@ h3 {
   --line: rgba(0, 0, 0, 0.1);
   --red: #ff3b30;
   color: var(--text);
-  width: 560px;
-  padding: 32px 36px 32px 28px;
-  border-radius: 28px;
+  width: 680px; /* 85% of the 800×480 screen's width; as tall as its content */
+  padding: 40px 44px 40px 34px;
+  border-radius: 34px;
   background: var(--card);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   transform: scale(0.94);
@@ -543,13 +543,48 @@ h3 {
 #app.ambient-on .m-card {
   --red: var(--text);
 }
+#app.ambient-on .m-when {
+  color: var(--card); /* the pill is the text colour here */
+}
 .meeting-alert.on .m-card {
   transform: scale(1);
 }
+/* The time until the meeting sits apart from the rest as a filled pill below the calendar
+   colour bar, with its text lined up with the text above (bar 8 + 26 gap − its own 16
+   padding). The title is the serif. */
+.m-when {
+  align-self: flex-start;
+  margin: 28px 0 0 18px;
+  padding: 6px 16px;
+  border-radius: 99px;
+  background: var(--red);
+  color: #fff;
+  font-size: 28px;
+  line-height: 34px;
+  font-weight: 700;
+}
+.m-title {
+  font-family: Merriweather, Georgia, serif;
+  font-size: 46px;
+  line-height: 58px;
+  font-weight: 700;
+}
+/* Time and place share one size and weight; only their colour tells them apart. */
+.m-detail {
+  font-size: 30px;
+  line-height: 38px;
+  font-weight: 500;
+}
+.m-range {
+  margin-top: 16px;
+}
+.m-where {
+  margin-top: 4px;
+}
 .m-bar {
-  width: 6px;
-  margin-right: 22px;
-  border-radius: 3px;
+  width: 8px;
+  margin-right: 26px;
+  border-radius: 4px;
   background: var(--text);
 }
 
