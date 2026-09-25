@@ -18,6 +18,10 @@ const presets = {
     suffix: '', artBackground: true, art: 'mock-art.png',
     np: { artist: 'HUG', title: 'Cow With Half Moon Parasol', album: 'HUG', duration: 276, elapsed: 69 },
   },
+  deafheaven: {
+    suffix: '-deafheaven', artBackground: true, art: 'mock-art-deafheaven.png',
+    np: { artist: 'Deafheaven', title: 'Dream House', album: 'Sunbather', duration: 554, elapsed: 139 },
+  },
   polvo: {
     suffix: '-polvo', artBackground: false, art: 'mock-art-polvo.png',
     np: { artist: 'Polvo', title: 'When Will You Die for the Last Time in My Dreams', album: 'Exploded Drawing', duration: 703, elapsed: 176 },
@@ -34,7 +38,7 @@ if (!preset) {
 const out = args.find((a) => a.includes('/')) || 'docs';
 const here = path.dirname(new URL(import.meta.url).pathname);
 
-const now = Date.UTC(2026, 8, 18, 18, 5); // Friday 18 September, 6:05 PM
+const now = Date.UTC(2026, 8, 18, 13, 14); // Friday 18 September, 1:14 PM
 const HOUR = 3600000;
 const DAY = 86400000;
 const midnight = Date.UTC(2026, 8, 18);
@@ -54,12 +58,12 @@ const calendar = {
   ],
 };
 
-const hour = (i, temp, code, isDay, pop) => ({ t: at(0, 18 + i), temp, code, isDay, pop });
+const hour = (i, temp, code, isDay, pop) => ({ t: at(0, 13 + i), temp, code, isDay, pop });
 const day = (i, code, pop, lo, hi) => ({ t: midnight + i * DAY, code, pop, lo, hi });
 const weather = {
   status: 'ok', place: 'Portland', utcOffset: 0, updatedAt: now,
-  current: { temp: 69, code: 0, isDay: true },
-  hourly: [hour(0, 69, 0, true, 0), hour(1, 68, 0, true, 0), hour(2, 64, 0, false, 0), hour(3, 61, 0, false, 0), hour(4, 57, 53, false, 20), hour(5, 56, 3, false, 20)],
+  current: { temp: 72, code: 0, isDay: true },
+  hourly: [hour(0, 72, 0, true, 0), hour(1, 74, 0, true, 0), hour(2, 75, 1, true, 0), hour(3, 75, 2, true, 10), hour(4, 73, 2, true, 10), hour(5, 71, 3, true, 20)],
   daily: [day(0, 63, 55, 56, 77), day(1, 3, 0, 56, 77), day(2, 63, 55, 44, 63), day(3, 3, 0, 44, 77), day(4, 2, 10, 50, 72), day(5, 61, 40, 52, 68)],
 };
 
@@ -80,24 +84,65 @@ async function evaluate(expression) {
   return result.result.value;
 }
 const send = (msg) => evaluate(`window.__mockReceive(${JSON.stringify(msg)})`);
+// The page keeps the least-delayed of the last 15 ticks, so set the time with all 15.
+async function tick(ms = now) {
+  for (let i = 0; i < 15; i++) await send({ type: 'tick', now: ms, tzMinutes: 0 });
+}
 
-// weather-today and weather-week: the weather screen's button pressed until that view is up.
-const views = { today: '.w-today', week: '.w-week' };
-async function capture(screen) {
-  const [base, view] = screen.split('-');
-  await send({ type: 'tick', now, tzMinutes: 0 }); // the page shows "Waiting for your Mac" after 6.5s without a message
-  await evaluate(`CT.show(${JSON.stringify(base)})`);
-  for (let i = 0; view && i < 3 && !(await evaluate(`!!document.querySelector(${JSON.stringify(views[view])})`)); i++) {
-    await evaluate(`CT.screens.${base}.reselect()`);
-  }
-  // Let the switch finish (core.js clears .leaving when the new screen's fade-in ends), then any
-  // font fitting settle.
-  for (let i = 0; i < 30 && (await evaluate(`!!document.querySelector('.screen.leaving')`)); i++) await pause(100);
+const press = (key) => evaluate(`window.dispatchEvent(new KeyboardEvent('keydown', {key:${JSON.stringify(key)}})); window.dispatchEvent(new KeyboardEvent('keyup', {key:${JSON.stringify(key)}}))`);
+
+// Each shot: the screen, and how many more times its button is pressed for the next view (the
+// weather's Today and This Week, the calendar's month, the clock's timer; screens keep their view
+// between shots). `before` sets up anything else first.
+const shots = [
+  { name: 'nowplaying' },
+  { name: 'calendar' },
+  { name: 'calendar-month', screen: 'calendar', reselect: 1 },
+  { name: 'weather' },
+  { name: 'weather-today', screen: 'weather', reselect: 1 },
+  { name: 'weather-week', screen: 'weather', reselect: 1 },
+  { name: 'clock' },
+  // The knob sets the timer (a click is five minutes), a press starts it; 12 minutes then pass.
+  { name: 'clock-timer', screen: 'clock', reselect: 1, before: () => evaluate("window.dispatchEvent(new WheelEvent('wheel', {deltaX:53, cancelable:true}))") },
+  { name: 'clock-timer-running', screen: 'clock', before: async () => { await press('Enter'); await pause(500); await tick(now + 12 * 60000); } },
+  { name: 'settings' },
+  // A meeting alert: the card over whatever is on screen a few minutes before a meeting (a 2 PM
+  // one, so the clock is set back to 1:57 for this shot).
+  { name: 'meeting-alert', screen: 'nowplaying', before: async () => {
+    await tick(at(0, 14) - 3 * 60000);
+    await evaluate("localStorage.removeItem('ct-dismissed-meetings')");
+    await send({ type: 'settings', settings: { ...settings, meetingAlert: 5 } });
+    await send({ type: 'calendar', calendar: { status: 'ok', events: [
+      { start: at(0, 14), end: at(0, 14.5), title: 'Design sync', call: 'https://zoom.us/j/1234567890', color: '#30d158', calendarId: 'mock' },
+      ...calendar.events,
+    ] } });
+  } },
+];
+
+async function capture({ name, screen = name, reselect = 0, before }) {
+  await tick(); // the page shows "Waiting for your Mac" after 6.5s without a message
+  await evaluate(`CT.show(${JSON.stringify(screen)})`);
+  for (let i = 0; i < reselect; i++) await evaluate(`CT.screens.${screen}.reselect()`);
+  if (before) await before();
+  // Let screen switches (core.js clears .leaving when the new screen's fade-in ends) and view
+  // fades (0.3 s out, then 0.5 s in) finish, then any font fitting settle.
+  const busy = `!!document.querySelector('.screen.leaving, .view-enter-active, .view-leave-active')`;
+  await pause(100);
+  for (let i = 0; i < 30 && (await evaluate(busy)); i++) await pause(100);
   await pause(400);
   const { data } = await cdp.send('Page.captureScreenshot', { format: 'png' });
-  const file = path.join(out, `${screen}${preset.suffix}.png`);
+  const file = path.join(out, `${name}${preset.suffix}.png`);
   await fs.writeFile(file, Buffer.from(data, 'base64'));
   console.log(file);
+}
+
+// Screens keep the view they were left on (the calendar's month, the clock's timer), so start
+// from a fresh page with the default views.
+await cdp.send('Page.reload', { ignoreCache: true });
+let mounted = false;
+for (let i = 0; i < 30 && !mounted; i++) {
+  await pause(500);
+  mounted = await evaluate('!!window.CT && !!document.querySelector("#mount") && !!document.querySelector("#mount").__vue_app__').catch(() => false);
 }
 
 try {
@@ -105,16 +150,17 @@ try {
   await evaluate('window.__mockReceive = window.__carthingReceive; window.__carthingReceive = function () {}; CT.send = function () {}');
   await send({ type: 'settings', settings });
   await send({ type: 'screen', on: true });
-  await send({ type: 'tick', now, tzMinutes: 0 });
+  await tick();
   await send({ type: 'calendar', calendar });
   await send({ type: 'weather', weather });
 
   const artwork = await fs.readFile(path.join(here, '..', 'docs', preset.art));
   await send({ type: 'nowPlaying', np: { active: true, kind: 'music', ...preset.np, rate: 1, playing: true, artworkKey: 'mock' } });
   await send({ type: 'artwork', key: 'mock', dataUrl: `data:image/png;base64,${artwork.toString('base64')}` });
+  await pause(1000); // the art decodes and fades in (0.3 s); on the device that can take longer
 
   await fs.mkdir(out, { recursive: true });
-  for (const screen of ['nowplaying', 'calendar', 'weather', 'weather-today', 'weather-week', 'clock', 'settings']) await capture(screen);
+  for (const shot of shots) await capture(shot);
 } finally {
   await cdp.send('Page.reload', { ignoreCache: true });
   cdp.close();
