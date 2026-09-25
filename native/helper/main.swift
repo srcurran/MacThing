@@ -44,6 +44,21 @@ func hex(_ color: NSColor?) -> String {
   return String(format: "#%02x%02x%02x", Int(c.redComponent * 255), Int(c.greenComponent * 255), Int(c.blueComponent * 255))
 }
 
+/// A video-call link from the event's location, URL or notes, for events whose location doesn't
+/// say where the meeting is (the link is often only in the invite's notes).
+let callPattern = try! NSRegularExpression(
+  pattern: #"https?://([a-z0-9-]+\.)*(zoom\.us|meet\.google\.com|teams\.microsoft\.com|teams\.live\.com|webex\.com|facetime\.apple\.com)(/[^\s<>"')]*)?"#,
+  options: [.caseInsensitive])
+func callLink(_ ev: EKEvent) -> String? {
+  for text in [ev.location, ev.url?.absoluteString, ev.notes].compactMap({ $0 }) {
+    let range = NSRange(text.startIndex..., in: text)
+    if let match = callPattern.firstMatch(in: text, range: range), let r = Range(match.range, in: text) {
+      return String(text[r])
+    }
+  }
+  return nil
+}
+
 final class Helper: NSObject, CLLocationManagerDelegate {
   let store = EKEventStore()
   let locationManager = CLLocationManager()
@@ -175,6 +190,13 @@ final class Helper: NSObject, CLLocationManagerDelegate {
           "start": ev.startDate.timeIntervalSince1970 * 1000, "end": ev.endDate.timeIntervalSince1970 * 1000,
           "allDay": ev.isAllDay, "calendar": ev.calendar.title, "color": hex(ev.calendar.color),
           "calendarId": ev.calendar.calendarIdentifier,
+          "call": callLink(ev) ?? "",
+          // The event's alerts, as ms before its start (negative = after). Location-based
+          // ("when I leave") alerts have no time, so they're left out.
+          "alerts": (ev.alarms ?? []).filter { $0.proximity == .none }.map { alarm -> Double in
+            if let date = alarm.absoluteDate { return (ev.startDate.timeIntervalSince(date)) * 1000 }
+            return -alarm.relativeOffset * 1000
+          },
         ]
       }
     send(["id": id, "ok": true, "status": "authorized", "events": Array(events)])
