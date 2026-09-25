@@ -124,7 +124,7 @@
   --muted: rgba(255, 255, 255, 0.5);
   --line: rgba(255, 255, 255, 0.07);
   --selected: rgba(255, 255, 255, 0.07);
-  --accent: #2d9cdb; /* volume track, selection */
+  --accent: #2d9cdb; /* selection, pulse dot */
   --bar-fill: #fff; /* played part of a bar */
   --bar-track: rgba(
     255,
@@ -339,9 +339,6 @@ h3 {
   height: 8px;
   border-radius: 8px;
   overflow: hidden;
-  background: var(--accent);
-}
-.ui-progress[tone="neutral"] {
   background: var(--bar-track);
 }
 .progress-fill {
