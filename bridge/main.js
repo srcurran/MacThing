@@ -14,6 +14,7 @@ import { DeviceLink } from './device/link.js';
 import { log } from './log.js';
 import { AppInfo, kindOf } from './nowplaying/apps.js';
 import { ArtworkCache } from './nowplaying/artwork.js';
+import { largerBrowserArt } from './nowplaying/browser-art.js';
 import { MediaRemoteSource } from './nowplaying/mediaremote.js';
 import { MacAppearance } from './mac/appearance.js';
 import { MacHelper } from './mac/helper.js';
@@ -43,6 +44,7 @@ let connecting = false;
 let current = { np: source.snapshot, art: null, app: null };
 let resolveSeq = 0;
 let lastLogged = '';
+const largerArt = new Map(); // MediaRemote artwork key -> art from the playing tab (null: none found)
 
 async function onNowPlaying(snapshot) {
   const seq = ++resolveSeq;
@@ -51,13 +53,29 @@ async function onNowPlaying(snapshot) {
     snapshot.bundleId ? apps.get(snapshot.bundleId) : null,
   ]);
   if (seq !== resolveSeq) return; // superseded by a newer update
-  current = { np: snapshot, art, app };
+  const key = snapshot.artwork?.key;
+  current = { np: snapshot, art: (key && largerArt.get(key)) || art, app };
 
   const summary = snapshot.active
     ? `${snapshot.playing ? '▶' : '❚❚'} ${snapshot.artist || '—'} · ${snapshot.title} [${app?.name || snapshot.bundleId}]`
     : 'nothing playing';
   if (summary !== lastLogged) log.info(`[now playing] ${(lastLogged = summary)}`);
 
+  if (link) pushNowPlaying(link);
+
+  // Browser video art is often a small thumbnail. Look for a bigger one once per cover.
+  if (!art || largerArt.has(key) || Math.min(art.width, art.height) >= 360) return;
+  if (largerArt.size > 20) largerArt.delete(largerArt.keys().next().value);
+  largerArt.set(key, null);
+  const bigger = await largerBrowserArt(snapshot.bundleId, snapshot.title).catch(() => null);
+  if (!bigger) return;
+  const mime = bigger.buf[0] === 0x89 ? 'image/png' : 'image/jpeg';
+  const hi = await artwork.get({ key: `${key}-hi`, mime, base64: bigger.buf.toString('base64') });
+  if (Math.min(hi.width, hi.height) < 360) return;
+  largerArt.set(key, hi);
+  log.info(`[artwork] ${hi.width}×${hi.height} from the playing tab`);
+  if (current.np.artwork?.key !== key) return; // moved on to another cover meanwhile
+  current = { ...current, art: hi };
   if (link) pushNowPlaying(link);
 }
 
