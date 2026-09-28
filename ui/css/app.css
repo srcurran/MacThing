@@ -140,8 +140,11 @@
   --timer-used: rgba(255, 255, 255, 0.2); /* the timer's spent minutes */
   --timer-hand: #ff8b00;
   --timer-hand-ink: #000; /* text on the hand colour, e.g. today in the month */
-  --c-mark-fill: rgba(0,0,0,.1); /* marker and hand fill */
+  --c-mark-fill: rgba(255,255,255,.1); /* marker and hand fill */
   --c-mark-edge: #fff; /* the metal surround around each */
+  --c-hand: #fff; /* clock hands: the outline, pin and tail */
+  --c-hand-fill: rgba(255, 255, 255, 0.01); /* inside the outline */
+  --c-hand-shadow: rgba(255, 255, 255, 0.3); /* the blur behind each hand */
   --toast-bg: rgba(255, 255, 255, 0.95);
   --toast-text: #111;
   --offline-bg: #121212;
@@ -176,8 +179,11 @@
   --tick: #b9b9b6;
   --hand: #111;
   --timer-used: rgba(0, 0, 0, 0.12);
-  --c-mark-fill: rgba(255, 255, 255, 0.1);
+  --c-mark-fill: rgba(0, 0, 0, 0.1);
   --c-mark-edge: #000;
+  --c-hand: #000;
+  --c-hand-fill: rgba(0, 0, 0, 0.01);
+  --c-hand-shadow: rgba(0, 0, 0, 0.2);
   --toast-bg: rgba(20, 20, 20, 0.92);
   --toast-text: #fff;
   --offline-bg: #f2f2f0;
@@ -899,15 +905,26 @@ h3 {
 /* A faint minute track with the hour ticks picked out, and solid markers. */
 .c-tick {
   stroke: var(--hand);
-  stroke-opacity: 0.2;
+  stroke-opacity: 0.3;
   stroke-width: 2;
 }
 .c-tick.hour {
   stroke-opacity: 1;
+  stroke-width: 4;
 }
 .c-mark {
   fill: var(--c-mark-fill);
   stroke: var(--c-mark-edge);
+  stroke-width: 2;
+}
+.c-hand {
+  fill: var(--c-hand);
+}
+.c-hand rect {
+  fill: var(--c-hand-fill);
+}
+.c-hand-shadow {
+  fill: var(--c-hand-shadow);
 }
 .c-numerals {
   fill: var(--text);
