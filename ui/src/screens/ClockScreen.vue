@@ -5,7 +5,7 @@ import LeftRail from '../components/LeftRail.vue';
 import ScreenStage from '../components/ScreenStage.vue';
 import AnalogClock from '../components/AnalogClock.vue';
 import TimeTimer from '../components/TimeTimer.vue';
-import { timer, total, remaining, timerLabel, timerTitle, stepPreset, pickMeeting, toggleTimer, resetTimer } from '../timer.js';
+import { timer, total, remaining, timerLabel, timerTitle, stepPreset, currentMeetingKey, pickMeeting, toggleTimer, resetTimer } from '../timer.js';
 const parts = computed(() => CT.parts(state.now));
 const face = computed(() => state.settings.clockFace);
 const time = computed(() => CT.clockText(parts.value));
@@ -19,6 +19,9 @@ screen.reselect = () => {
   mode.value = mode.value === 'clock' ? 'timer' : 'clock';
   if (mode.value === 'timer') pickMeeting();
 };
+// While it's up and not started, a meeting that starts sets it too, as does one that turns up
+// when the calendar first loads (after a reload that reopened the timer).
+watch(currentMeetingKey, key => { if (key && mode.value === 'timer') pickMeeting(); });
 // A finished timer counts up past its time until you leave it, then goes back to its preset.
 watch(() => mode.value === 'timer' && state.current === 'clock', up => { if (!up && timer.status === 'done') resetTimer(); });
 screen.turn = steps => {
@@ -41,7 +44,7 @@ screen.press = () => {
     </LeftRail>
     <ScreenStage class="bg-panel">
       <Transition name="view">
-      <TimeTimer v-if="mode === 'timer'" :remaining="remaining" :total="total" :idle="timer.status === 'set'" />
+      <TimeTimer v-if="mode === 'timer'" :remaining="remaining" :total="total" :idle="timer.status === 'set' && !timer.meeting" />
       <AnalogClock v-else-if="face !== 'digital'" :numbers="face === 'numbers'" :now="state.current === 'clock' ? state.now : 0" />
       <div v-else class="c-digital fill flex tabular semibold"><span>{{ time.time }}</span><span class="c-digital-sec accent">{{ String(parts.seconds).padStart(2, '0') }}</span></div>
       </Transition>

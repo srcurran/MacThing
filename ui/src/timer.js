@@ -14,6 +14,8 @@ export const currentMeeting = computed(() => {
   const on = state.calendar.events.filter(e => !e.allDay && e.start <= state.now && state.now < e.end);
   return on.length ? on.reduce((a, b) => (b.end < a.end ? b : a)) : null;
 });
+/** Which meeting is on, as a key: it changes only when a different one starts (or none is on). */
+export const currentMeetingKey = computed(() => currentMeeting.value ? keyOf(currentMeeting.value) : '');
 const meetingOf = e => ({ key: keyOf(e), title: e.title || '', start: e.start, end: e.end });
 
 const presetMs = () => PRESETS[timer.preset] * 60000;
