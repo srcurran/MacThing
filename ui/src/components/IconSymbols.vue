@@ -58,6 +58,13 @@
           stroke-linecap="round"
         />
       </symbol>
+      <!-- Opens on the Mac: an arrow out of a bracket (after Font Awesome's arrow-right-from-bracket). -->
+      <symbol id="i-open-on-mac" viewBox="0 0 24 24">
+        <g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3" />
+          <path d="M10 12h10M15.5 7.5 20 12l-4.5 4.5" />
+        </g>
+      </symbol>
 
       <!-- Weather icons (64×64, full colour) -->
       <symbol id="w-cloud-shape" viewBox="0 0 64 64">

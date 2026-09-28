@@ -117,8 +117,8 @@ try {
   assert.match(await evaluate('document.querySelector("#screen-clock .left-rail").textContent'), /3:35 PM.*Example event 1/);
   // The clock button on the clock swaps in the timer; the knob sets, runs and resets it.
   const press = key => evaluate(`window.dispatchEvent(new KeyboardEvent('keydown', {key:'${key}'})); window.dispatchEvent(new KeyboardEvent('keyup', {key:'${key}'}))`);
-  const rail = () => evaluate('document.querySelector("#screen-clock .left-rail-content").textContent');
-  while (await evaluate('!!document.querySelector("#screen-clock .t-face")')) await press('4'); // start from the clock
+  const rail = () => evaluate('document.querySelector("#screen-clock .left-rail-view.on").textContent');
+  while (await evaluate('!!document.querySelector("#screen-clock .c-view-timer.on")')) await press('4'); // start from the clock
   await press('4');
   await pause(400); // the clock's text fades out (0.3 s) before the timer's is the only one
   await evaluate("window.dispatchEvent(new WheelEvent('wheel', {deltaX:53, cancelable:true}))");
@@ -130,8 +130,8 @@ try {
   assert.match(await rail(), /30 minute timer1[67]:\d\d/, 'Timer counts down');
   await capture('timer');
   await press('4');
-  await pause(400); // the timer fades out (0.3 s) before it leaves the page
-  assert.equal(await evaluate('!!document.querySelector("#screen-clock .t-face")'), false, 'The clock button goes back to the clock');
+  await pause(400); // the timer fades out (0.3 s)
+  assert.equal(await evaluate('!!document.querySelector("#screen-clock .c-view-timer.on")'), false, 'The clock button goes back to the clock');
   await press('4');
   await pause(400);
   await press('Enter'); await press('Enter');
@@ -183,7 +183,7 @@ try {
   await message({ type: 'settings', settings });
   await evaluate("CT.show('settings'); CT.screens.settings.turn(3); CT.screens.settings.press()");
   await pause(100);
-  assert.equal(await evaluate('window.fixtureSent.some(m => m.type === "setting" && m.key === "clock24h" && m.value === true)'), true);
+  assert.equal(await evaluate('window.fixtureSent.some(m => m.type === "setting" && m.key === "meetingTimer" && m.value === true)'), true);
   await capture('settings');
   await message({ type: 'settings', settings: { ...settings, theme: 'light' } });
   await evaluate("CT.show('clock')");

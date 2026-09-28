@@ -66,6 +66,6 @@ CT.on('command', action => {
   } else if (action === 'next' || action === 'previous') CT.flash(action);
 });
 CT.on('favorite', msg => {
-  CT.flash(msg.favorited ? 'heart' : 'heart-off', msg.favorited ? '#ff453a' : '');
+  CT.flash(msg.favorited ? 'heart' : 'heart-off', msg.favorited ? 'var(--orange-500)' : '');
   CT.toast(msg.favorited ? 'Added to Favorites' : 'Removed from Favorites');
 });
