@@ -2,7 +2,8 @@
 import { computed } from "vue";
 // The timer's dial, drawn across the 480×480 stage (Figma 154:4300). A full turn is the timer's
 // length: the white wedge is the time left, clockwise from 12, with a hand on its moving edge,
-// and a ring of one dot per minute that go dark as the minutes pass. remaining and total are ms.
+// and a ring of one dot per minute (per few, past an hour) that go dark as the minutes pass.
+// remaining and total are ms.
 // The hand and hub are always cut out of the wedge, so the background shows through them
 // (Figma 202:1439). Before it starts (idle) that's all there is; once it's running, the drawn
 // hand fades in over its own cut-out and the two move together.
@@ -30,9 +31,12 @@ const wedge = computed(() => {
 });
 const hand = computed(() => point(145, degrees.value));
 const cut = computed(() => point(151, degrees.value)); // through the disc's edge, as in Figma
+// A meeting can run longer than an hour, so past 60 dots each one stands for a few minutes.
+const DOT_MINUTES = [1, 5, 15, 30, 60];
 const minutes = computed(() => {
-  const n = Math.round(props.total / 60000),
-    left = Math.ceil(props.remaining / 60000);
+  const per = (DOT_MINUTES.find((m) => props.total / (m * 60000) <= 60) || 60) * 60000;
+  const n = Math.max(1, Math.round(props.total / per)),
+    left = Math.ceil(props.remaining / per);
   return Array.from({ length: n }, (_, i) => ({
     ...point(175, (i * 360) / n),
     left: i < left,

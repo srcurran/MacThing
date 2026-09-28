@@ -10,6 +10,7 @@ const rows = [
   { key: 'units', label: 'Temperature', options: [['F', '°F'], ['C', '°C']] },
   { key: 'clock24h', label: 'Time format', options: [[false, '12-hour'], [true, '24-hour']] },
   { key: 'meetingAlert', label: 'Meeting alerts', options: [[0, 'Off'], ['event', 'Event’s alert'], [1, '1 min before'], [5, '5 min before'], [10, '10 min before']] },
+  { key: 'meetingTimer', label: 'Meeting timer', options: [[false, 'Off'], [true, 'Auto-start']] },
   { label: 'Weather location', page: 'location', value: s => s.location && s.location.mode === 'manual' ? s.location.name : 'Current location' },
   { label: 'More settings on Mac', page: '', value: () => '' }
 ];
