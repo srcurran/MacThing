@@ -117,7 +117,7 @@
   --panel-inset-y: 48px;
   --panel-inset-x: 24px;
   --stage-safe-right: 64px;
-  --panel: #000;
+  --panel: #090909;
   --stage: #181818;
   --text: #fff;
   --text-2: rgba(255, 255, 255, 0.72);
@@ -140,8 +140,8 @@
   --timer-used: rgba(255, 255, 255, 0.2); /* the timer's spent minutes */
   --timer-hand: #ff8b00;
   --timer-hand-ink: #000; /* text on the hand colour, e.g. today in the month */
-  --lume: #fff; /* marker and hand fill */
-  --mark-edge: #b9b9b9; /* the metal surround around each */
+  --c-mark-fill: rgba(0,0,0,.1); /* marker and hand fill */
+  --c-mark-edge: #fff; /* the metal surround around each */
   --toast-bg: rgba(255, 255, 255, 0.95);
   --toast-text: #111;
   --offline-bg: #121212;
@@ -162,7 +162,7 @@
   --rain: #8fd0ff;
 }
 #app.light {
-  --panel: #f2f2f0;
+  --panel: #E1DFD9;
   --stage: #e7e7e4;
   --text: #111;
   --text-2: rgba(0, 0, 0, 0.7);
@@ -176,8 +176,8 @@
   --tick: #b9b9b6;
   --hand: #111;
   --timer-used: rgba(0, 0, 0, 0.12);
-  --lume: #fff;
-  --mark-edge: #111;
+  --c-mark-fill: rgba(255, 255, 255, 0.1);
+  --c-mark-edge: #000;
   --toast-bg: rgba(20, 20, 20, 0.92);
   --toast-text: #fff;
   --offline-bg: #f2f2f0;
@@ -906,8 +906,8 @@ h3 {
   stroke-opacity: 1;
 }
 .c-mark {
-  fill: var(--hand);
-  stroke: none;
+  fill: var(--c-mark-fill);
+  stroke: var(--c-mark-edge);
 }
 .c-numerals {
   fill: var(--text);
