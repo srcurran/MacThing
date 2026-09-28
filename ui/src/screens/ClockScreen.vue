@@ -21,12 +21,14 @@ screen.reselect = () => {
 };
 // While it's up and not started, a meeting that starts sets it too, as does one that turns up
 // when the calendar first loads (after a reload that reopened the timer). With Settings → Meeting
-// timer on, a meeting that starts (or is on when it's turned on) starts the timer and puts it up
-// in place of the clock, without leaving the screen you're on.
+// timer on, a meeting that starts (or is on when it's turned on) starts the timer, puts it up in
+// place of the clock and switches to it — unless Settings is open on the device.
 watch([currentMeetingKey, () => state.settings.meetingTimer], ([key]) => {
   if (!key) return;
-  if (autoStartMeeting()) mode.value = 'timer';
-  else if (mode.value === 'timer') pickMeeting();
+  if (autoStartMeeting()) {
+    mode.value = 'timer';
+    if (state.current !== 'settings') CT.show('clock');
+  } else if (mode.value === 'timer') pickMeeting();
 });
 // A finished timer counts up past its time until you leave it, then goes back to its preset.
 watch(() => mode.value === 'timer' && state.current === 'clock', up => { if (!up && timer.status === 'done') resetTimer(); });
