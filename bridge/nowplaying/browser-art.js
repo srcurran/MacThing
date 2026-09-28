@@ -1,3 +1,4 @@
+// From Nihal Shetty's fork, https://github.com/nihalshetty-boop/MacThing (MIT).
 import { execFile } from 'node:child_process';
 import { log } from '../log.js';
 

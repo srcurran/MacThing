@@ -334,6 +334,7 @@ grabs whatever is on screen now.
   [DeskThing](https://github.com/ItsRiprod/DeskThing) — for the firmware that makes any of this
   possible, and for working out ADB access on the device in the first place.
 - [ungive/mediaremote-adapter](https://github.com/ungive/mediaremote-adapter) (BSD-3-Clause), cloned and built by `npm run build`.
+- [Nihal Shetty](https://github.com/nihalshetty-boop), whose [fork](https://github.com/nihalshetty-boop/MacThing) came up with loading larger browser video artwork from the playing tab (`bridge/nowplaying/browser-art.js`).
 - [Inter](https://rsms.me/inter/) by Rasmus Andersson and [Merriweather](https://github.com/EbenSorkin/Merriweather4) by Eben Sorkin (both SIL Open Font License), bundled in `ui/fonts`.
 
 ---
