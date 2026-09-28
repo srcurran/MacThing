@@ -111,100 +111,130 @@
     U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
-/* Dark is the default; #app.light swaps the palette (Settings → Appearance). */
+/* Palette: every raw colour the UI uses, named once. The theme tokens below pick from these, and
+   the rest of the stylesheet uses the theme tokens, so a colour change starts here. Grays run
+   light (100) to dark (975); the -aNN steps are white or black at NN% opacity. */
+:root {
+  --white: #fff;
+  --black: #000;
+  --gray-100: #f2f2f0;
+  --gray-150: #e7e7e4;
+  --gray-200: #e1dfd9; /* warm */
+  --gray-800: #262626;
+  --gray-850: #1c1c1c;
+  --gray-900: #181818;
+  --gray-925: #141414;
+  --gray-950: #111;
+  --gray-975: #090909;
+
+  --white-a01: rgba(255, 255, 255, 0.01);
+  --white-a10: rgba(255, 255, 255, 0.1);
+  --white-a20: rgba(255, 255, 255, 0.2);
+  --white-a30: rgba(255, 255, 255, 0.3);
+  --white-a50: rgba(255, 255, 255, 0.5);
+  --white-a70: rgba(255, 255, 255, 0.7);
+  --white-a95: rgba(255, 255, 255, 0.95);
+
+  --black-a01: rgba(0, 0, 0, 0.01);
+  --black-a05: rgba(0, 0, 0, 0.05);
+  --black-a10: rgba(0, 0, 0, 0.1);
+  --black-a20: rgba(0, 0, 0, 0.2);
+  --black-a30: rgba(0, 0, 0, 0.3);
+  --black-a40: rgba(0, 0, 0, 0.4);
+  --black-a50: rgba(0, 0, 0, 0.5);
+  --black-a70: rgba(0, 0, 0, 0.7);
+
+  --orange-500: #ff8b00;
+  --blue-500: #2d9cdb;
+  --yellow-300: #ffd35c;
+  --yellow-600: #d98a00;
+  --cream-100: #f2efd8;
+  --olive-800: #4d4731;
+  --slate-200: #c3cad3;
+  --slate-300: #b9c2cc;
+  --slate-400: #9aa5b1;
+  --sky-300: #8fd0ff;
+  --sky-700: #1466a8;
+}
+
+/* Theme tokens. Dark is the default; #app.light swaps the palette (Settings → Appearance). */
 :root {
   /* Stage content stays 48px from the top and bottom, 24px from the left and 64px from the right (clear of the dial). */
   --panel-inset-y: 48px;
   --panel-inset-x: 24px;
   --stage-safe-right: 64px;
-  --panel: #090909;
-  --stage: #181818;
-  --text: #fff;
-  --text-2: rgba(255, 255, 255, 0.72);
-  --muted: rgba(255, 255, 255, 0.5);
-  --line: rgba(255, 255, 255, 0.07);
-  --selected: rgba(255, 255, 255, 0.07);
-  --accent: #2d9cdb; /* selection, pulse dot */
-  --bar-fill: #fff; /* played part of a bar */
-  --bar-track: rgba(
-    255,
-    255,
-    255,
-    0.28
-  ); /* unplayed part of the Now Playing bar */
-  --red: #ff453a; /* clock-screen date, calendar NOW label */
-  --orange: #ff8b00; /* calendar clock */
-  --dial: #1d1d1d;
-  --tick: #4a4a4a;
-  --hand: #fff;
-  --timer-used: rgba(255, 255, 255, 0.2); /* the timer's spent minutes */
-  --timer-hand: #ff8b00;
-  --timer-hand-ink: #000; /* text on the hand colour, e.g. today in the month */
-  --c-mark-fill: rgba(255,255,255,.1); /* marker and hand fill */
-  --c-mark-edge: #fff; /* the metal surround around each */
-  --c-hand: #fff; /* clock hands: the outline, pin and tail */
-  --c-hand-fill: rgba(255, 255, 255, 0.01); /* inside the outline */
-  --c-hand-shadow: rgba(255, 255, 255, 0.3); /* the blur behind each hand */
-  --toast-bg: rgba(255, 255, 255, 0.95);
-  --toast-text: #111;
-  --offline-bg: #121212;
-  --hud-bg: rgba(38, 38, 38, 0.94);
-  --scrim: rgba(0, 0, 0, 0.7); /* behind the meeting alert */
-  --ambient-tint: rgba(0, 0, 0, 0.3);
-  --notch: rgba(
-    255,
-    255,
-    255,
-    0.3
-  ); /* the active page's mark under its top button */
+  --panel: var(--gray-975);
+  --stage: var(--gray-900);
+  --text: var(--white);
+  --text-2: var(--white-a70);
+  --muted: var(--white-a50);
+  --line: var(--white-a10);
+  --selected: var(--white-a10);
+  --accent: var(--blue-500); /* selection, pulse dot */
+  --bar-fill: var(--white); /* played part of a bar */
+  --bar-track: var(--white-a30); /* unplayed part of the Now Playing bar */
+  --orange: var(--orange-500); /* the one accent: clock-screen date, calendar clock and NOW label, meeting pill */
+  --hand: var(--white);
+  --timer-used: var(--white-a20); /* the timer's spent minutes */
+  --timer-hand: var(--orange-500);
+  --timer-hand-ink: var(--black); /* text on the hand colour, e.g. today in the month */
+  --c-mark-fill: var(--white-a10); /* marker and hand fill */
+  --c-mark-edge: var(--white); /* the metal surround around each */
+  --c-hand: var(--white); /* clock hands: the outline, pin and tail */
+  --c-hand-fill: var(--white-a01); /* inside the outline */
+  --c-hand-shadow: var(--white-a30); /* the blur behind each hand */
+  --toast-bg: var(--white-a95);
+  --toast-text: var(--gray-950);
+  --offline-bg: var(--gray-950);
+  --hud-bg: var(--gray-800);
+  --scrim: var(--black-a70); /* behind the meeting alert */
+  --ambient-tint: var(--black-a30);
+  --notch: var(--white-a30); /* the active page's mark under its top button */
+  --shadow: var(--black-a50); /* under floating pills and cards */
   /* weather icons */
-  --sun: #ffd35c;
-  --moon: #f2efd8;
-  --cloud: #fff;
-  --cloud-back: #b9c2cc;
-  --rain: #8fd0ff;
+  --sun: var(--yellow-300);
+  --moon: var(--cream-100);
+  --cloud: var(--white);
+  --cloud-back: var(--slate-300);
+  --rain: var(--sky-300);
 }
 #app.light {
-  --panel: #E1DFD9;
-  --stage: #e7e7e4;
-  --text: #111;
-  --text-2: rgba(0, 0, 0, 0.7);
-  --muted: rgba(0, 0, 0, 0.5);
-  --line: rgba(0, 0, 0, 0.08);
-  --selected: rgba(0, 0, 0, 0.06);
-  --red: #ff3b30;
-  --bar-fill: #111;
-  --bar-track: rgba(0, 0, 0, 0.22);
-  --dial: #fbfbfa;
-  --tick: #b9b9b6;
-  --hand: #111;
-  --timer-used: rgba(0, 0, 0, 0.12);
-  --c-mark-fill: rgba(0, 0, 0, 0.1);
-  --c-mark-edge: #000;
-  --c-hand: #000;
-  --c-hand-fill: rgba(0, 0, 0, 0.01);
-  --c-hand-shadow: rgba(0, 0, 0, 0.2);
-  --toast-bg: rgba(20, 20, 20, 0.92);
-  --toast-text: #fff;
-  --offline-bg: #f2f2f0;
-  --hud-bg: rgba(255, 255, 255, 0.96);
-  --scrim: rgba(0, 0, 0, 0.4);
-  --ambient-tint: rgba(255, 255, 255, 0.25);
-  --notch: rgba(0, 0, 0, 0.25);
-  --sun: #d98a00;
-  --moon: #4d4731;
-  --cloud: #c3cad3;
-  --cloud-back: #9aa5b1;
-  --rain: #1466a8;
+  --panel: var(--gray-200);
+  --stage: var(--gray-150);
+  --text: var(--gray-950);
+  --text-2: var(--black-a70);
+  --muted: var(--black-a50);
+  --line: var(--black-a10);
+  --selected: var(--black-a05);
+  --bar-fill: var(--gray-950);
+  --bar-track: var(--black-a20);
+  --hand: var(--gray-950);
+  --timer-used: var(--black-a10);
+  --c-mark-fill: var(--black-a10);
+  --c-mark-edge: var(--black);
+  --c-hand: var(--black);
+  --c-hand-fill: var(--black-a01);
+  --c-hand-shadow: var(--black-a20);
+  --toast-bg: var(--gray-925);
+  --toast-text: var(--white);
+  --offline-bg: var(--gray-100);
+  --hud-bg: var(--white-a95);
+  --scrim: var(--black-a40);
+  --ambient-tint: var(--white-a50);
+  --notch: var(--black-a20);
+  --sun: var(--yellow-600);
+  --moon: var(--olive-800);
+  --cloud: var(--slate-200);
+  --cloud-back: var(--slate-400);
+  --rain: var(--sky-700);
 }
 
 /* With album art behind the UI, accents read as unrelated color noise. Keep the widgets quiet. */
 #app.ambient-on {
-  --red: var(--text);
   --orange: var(--text);
-  --timer-used: rgba(0, 0, 0, 0.3);
-  --timer-hand: #000;
-  --timer-hand-ink: #fff;
+  --timer-used: var(--black-a30);
+  --timer-hand: var(--black);
+  --timer-hand-ink: var(--white);
 }
 
 * {
@@ -219,7 +249,7 @@ body {
   width: 800px;
   height: 480px;
   overflow: hidden;
-  background: #000;
+  background: var(--black);
   cursor: none;
   touch-action: none;
 }
@@ -304,6 +334,28 @@ h3 {
 .view-leave-to {
   opacity: 0;
 }
+/* The pre-drawn version (LeftRail's views, the clock's faces): every view stays on the page, each
+   on its own already-painted layer (will-change), and switching only fades them, on the same
+   timing as above. */
+.fade-view {
+  opacity: 0;
+  will-change: opacity;
+  transition: opacity 0.3s ease-in;
+}
+.fade-view.on {
+  opacity: 1;
+  transition: opacity 0.5s ease-out 0.3s;
+}
+.left-rail-views {
+  position: relative;
+  flex: 1;
+}
+.left-rail-view {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+}
 .left-rail-content.view-leave-active {
   position: absolute;
   top: var(--panel-inset-y);
@@ -366,7 +418,7 @@ h3 {
   width: 112px;
   height: 112px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.55);
+  background: var(--black-a50);
 }
 .disc svg {
   width: 48px;
@@ -402,7 +454,7 @@ h3 {
   padding: 0 24px;
   border-radius: 36px;
   background: var(--hud-bg);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 10px 30px var(--shadow);
   opacity: 0;
   transform: scale(0.94);
   pointer-events: none;
@@ -520,7 +572,7 @@ h3 {
 
 /* Screen asleep (backlight off): render nothing, in case the backlight can't be switched. */
 #app.asleep {
-  background: #000;
+  background: var(--black);
 }
 #app.asleep > * {
   visibility: hidden;
@@ -541,34 +593,32 @@ h3 {
   transition: opacity 0.3s ease;
 }
 /* The card takes the opposite theme's palette so it stands out: light on the dark theme, dark
-   on the light one. Its accent is set here too, since the album art background's plain-text
-   accent is worked out from the page's text colour, not the card's. */
+   on the light one. Over album art its accent is reset
+   here, since the page's plain-text accent is worked out from the page's text colour, not the card's. */
 .m-card {
-  --card: #fff;
-  --text: #111;
-  --text-2: rgba(0, 0, 0, 0.7);
-  --muted: rgba(0, 0, 0, 0.5);
-  --line: rgba(0, 0, 0, 0.1);
-  --red: #ff3b30;
+  --card: var(--white);
+  --text: var(--gray-950);
+  --text-2: var(--black-a70);
+  --muted: var(--black-a50);
+  --line: var(--black-a10);
   color: var(--text);
   width: 680px; /* 85% of the 800×480 screen's width; as tall as its content */
   padding: 40px 44px 40px 34px;
   border-radius: 34px;
   background: var(--card);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 20px 60px var(--black-a50);
   transform: scale(0.94);
   transition: transform 0.3s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 #app.light .m-card {
-  --card: #1c1c1c;
-  --text: #fff;
-  --text-2: rgba(255, 255, 255, 0.72);
-  --muted: rgba(255, 255, 255, 0.5);
-  --line: rgba(255, 255, 255, 0.1);
-  --red: #ff453a;
+  --card: var(--gray-850);
+  --text: var(--white);
+  --text-2: var(--white-a70);
+  --muted: var(--white-a50);
+  --line: var(--white-a10);
 }
 #app.ambient-on .m-card {
-  --red: var(--text);
+  --orange: var(--text);
 }
 #app.ambient-on .m-when {
   color: var(--card); /* the pill is the text colour here */
@@ -584,8 +634,8 @@ h3 {
   margin: 28px 0 0 18px;
   padding: 6px 16px;
   border-radius: 99px;
-  background: var(--red);
-  color: #fff;
+  background: var(--orange);
+  color: var(--white);
   font-size: 28px;
   line-height: 34px;
   font-weight: 700;
@@ -710,7 +760,7 @@ h3 {
 /* Paused: the flash's disc, left in place (the art isn't dimmed). */
 .paused-glyph {
   margin: auto;
-  color: #fff;
+  color: var(--white);
   opacity: 0;
   transition: opacity 0.3s ease;
 }
@@ -725,8 +775,8 @@ h3 {
   bottom: 16px;
   width: 48px;
   height: 48px;
-  -webkit-filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45));
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45));
+  -webkit-filter: drop-shadow(0 2px 6px var(--black-a50));
+  filter: drop-shadow(0 2px 6px var(--black-a50));
 }
 
 /* Nothing playing: the Clock screen's face in the art area, and a muted line in the panel. */
@@ -1023,10 +1073,10 @@ h3 {
 }
 /* Dark theme over album art: black would sink into the dark art, so a white circle instead. */
 #app.ambient-on:not(.light) .k-today {
-  fill: #fff;
+  fill: var(--white);
 }
 #app.ambient-on:not(.light) .k-today text {
-  fill: #000;
+  fill: var(--black);
 }
 
 .k-event + .k-event {
@@ -1047,7 +1097,7 @@ h3 {
   margin-right: 2px;
 }
 .k-event.now .k-time {
-  color: var(--red);
+  color: var(--orange);
 }
 /* Day heading before tomorrow's events. */
 .k-day {
@@ -1112,8 +1162,12 @@ h3 {
 .s-row.sel .s-value {
   color: var(--text);
 }
-.s-value.link::after {
-  content: " ›";
+.s-value {
+  min-width: 0;
+}
+.s-link {
+  width: 22px;
+  height: 22px;
 }
 
 /* ===== utilities ===== */
@@ -1164,7 +1218,7 @@ h3 {
   color: var(--muted);
 }
 .accent {
-  color: var(--red);
+  color: var(--orange);
 }
 .text-center {
   text-align: center;

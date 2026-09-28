@@ -43,17 +43,19 @@ screen.press = () => {
 </script>
 <template>
   <section id="screen-clock" class="screen fill flex" :class="{ active: state.current === 'clock', leaving: state.leaving === 'clock', timer: mode === 'timer' }">
-    <LeftRail :view="mode" v-bind="mode === 'timer' ? { eyebrow: timerLabel, title: timerTitle, subtitle: time.time } : { eyebrow: CT.MONTHS[parts.month], title: parts.date, subtitle: CT.DAYS[parts.day] }">
+    <LeftRail :view="mode" :views="{ clock: { eyebrow: CT.MONTHS[parts.month], title: parts.date, subtitle: CT.DAYS[parts.day] }, timer: { eyebrow: timerLabel, title: timerTitle, subtitle: time.time } }">
       <template #lower>
         <template v-if="next">{{ CT.timeText(next.start) }} <b class="primary medium">{{ next.title }}</b></template><template v-else-if="state.calendar.status === 'ok'">No events today</template>
       </template>
     </LeftRail>
     <ScreenStage class="bg-panel">
-      <Transition name="view">
-      <TimeTimer v-if="mode === 'timer'" :remaining="remaining" :total="total" :idle="timer.status === 'set' && !timer.meeting" />
-      <AnalogClock v-else-if="face !== 'digital'" :numbers="face === 'numbers'" :now="state.current === 'clock' ? state.now : 0" />
-      <div v-else class="c-digital fill flex tabular semibold"><span>{{ time.time }}</span><span class="c-digital-sec accent">{{ String(parts.seconds).padStart(2, '0') }}</span></div>
-      </Transition>
+      <!-- Both faces stay drawn and only fade (see .fade-view), so a press doesn't have to build and
+           paint the incoming one while the other is fading out. -->
+      <div class="fade-view c-view-timer fill" :class="{ on: mode === 'timer' }"><TimeTimer :remaining="remaining" :total="total" :idle="timer.status === 'set' && !timer.meeting" /></div>
+      <div class="fade-view fill" :class="{ on: mode === 'clock' }">
+        <AnalogClock v-if="face !== 'digital'" :numbers="face === 'numbers'" :now="state.current === 'clock' ? state.now : 0" />
+        <div v-else class="c-digital fill flex tabular semibold"><span>{{ time.time }}</span><span class="c-digital-sec accent">{{ String(parts.seconds).padStart(2, '0') }}</span></div>
+      </div>
     </ScreenStage>
   </section>
 </template>

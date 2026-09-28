@@ -46,7 +46,7 @@ The backlight is the part that wears out, so "off" means the backlight really is
 
 **Lock:** while your Mac is locked — the lock screen, or switched to another account — the backlight stays off and no button wakes it. It comes back when you log in.
 
-**Settings** covers appearance (dark, light or match the Mac), the album art background, °F/°C, 12/24-hour time, meeting alerts, the meeting timer's auto-start and the weather location. Anything that needs typing or a longer list — a city, and which calendars and how many days the Calendar screen shows — opens a settings page on your Mac at http://127.0.0.1:4747.
+**Settings** covers appearance (dark, light or match the Mac), the album art background, meeting alerts, the meeting timer's auto-start and the weather location. Anything that needs typing or a longer list, or that you set once — a city, °F/°C, 12/24-hour time, and which calendars and how many days the Calendar screen shows — opens a settings page on your Mac at http://127.0.0.1:4747.
 
 ### Before you grant anything
 
