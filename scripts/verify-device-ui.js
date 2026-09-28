@@ -157,6 +157,19 @@ try {
   await press('4');
   await pause(400);
   await tick(now);
+  // Settings → Meeting timer starts it on its own, without leaving the screen you're on.
+  await evaluate("CT.show('weather')");
+  await message({ type: 'settings', settings: { ...settings, meetingTimer: true } });
+  await tick(now + 5000);
+  await pause(1100);
+  assert.equal(await evaluate('CT.current'), 'weather', 'Auto-start stays on the screen you were on');
+  assert.match(await rail(), /Until Standup ends19:5\d/, 'Meeting timer auto-starts');
+  await message({ type: 'settings', settings });
+  await evaluate("CT.show('clock')");
+  await press('Enter'); await press('Enter');
+  await press('4');
+  await pause(400);
+  await tick(now);
   // Meeting alerts: a card over the screen before a meeting; any press only dismisses it.
   await evaluate("localStorage.removeItem('ct-dismissed-meetings')");
   await message({ type: 'settings', settings: { ...settings, meetingAlert: 5 } });

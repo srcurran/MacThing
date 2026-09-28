@@ -57,6 +57,18 @@ export function stepPreset(steps) {
 export function pickMeeting() {
   if (timer.status === 'set' && currentMeeting.value) timer.meeting = meetingOf(currentMeeting.value);
 }
+/** Settings → Meeting timer: starts the timer on the meeting going on now, unless it's already
+ *  running or paused on something else. True if it did. Back to back, the next meeting starts
+ *  the moment the last one's timer runs out, maybe before the second's tick has said so. */
+export function autoStartMeeting() {
+  if (!state.settings.meetingTimer || !currentMeeting.value) return false;
+  if (timer.status === 'running' && timer.endsAt <= state.now) finish();
+  if (timer.status === 'running' || timer.status === 'paused') return false;
+  timer.meeting = meetingOf(currentMeeting.value);
+  timer.status = 'set';
+  toggleTimer();
+  return true;
+}
 export function toggleTimer() {
   state.now = CT.now();
   if (timer.status === 'running') {
@@ -97,9 +109,9 @@ watch(() => state.calendar, () => {
   timer.endsAt = endOnHalfSecond(e.end);
 });
 
-CT.onSecond(now => {
-  if (timer.status !== 'running' || now < timer.endsAt) return;
+function finish() {
   timer.status = 'done';
   timer.left = 0;
   CT.flash('timer', 'var(--orange)');
-});
+}
+CT.onSecond(now => { if (timer.status === 'running' && now >= timer.endsAt) finish(); });

@@ -5,7 +5,7 @@ import LeftRail from '../components/LeftRail.vue';
 import ScreenStage from '../components/ScreenStage.vue';
 import AnalogClock from '../components/AnalogClock.vue';
 import TimeTimer from '../components/TimeTimer.vue';
-import { timer, total, remaining, timerLabel, timerTitle, stepPreset, currentMeetingKey, pickMeeting, toggleTimer, resetTimer } from '../timer.js';
+import { timer, total, remaining, timerLabel, timerTitle, stepPreset, currentMeetingKey, pickMeeting, autoStartMeeting, toggleTimer, resetTimer } from '../timer.js';
 const parts = computed(() => CT.parts(state.now));
 const face = computed(() => state.settings.clockFace);
 const time = computed(() => CT.clockText(parts.value));
@@ -20,8 +20,14 @@ screen.reselect = () => {
   if (mode.value === 'timer') pickMeeting();
 };
 // While it's up and not started, a meeting that starts sets it too, as does one that turns up
-// when the calendar first loads (after a reload that reopened the timer).
-watch(currentMeetingKey, key => { if (key && mode.value === 'timer') pickMeeting(); });
+// when the calendar first loads (after a reload that reopened the timer). With Settings → Meeting
+// timer on, a meeting that starts (or is on when it's turned on) starts the timer and puts it up
+// in place of the clock, without leaving the screen you're on.
+watch([currentMeetingKey, () => state.settings.meetingTimer], ([key]) => {
+  if (!key) return;
+  if (autoStartMeeting()) mode.value = 'timer';
+  else if (mode.value === 'timer') pickMeeting();
+});
 // A finished timer counts up past its time until you leave it, then goes back to its preset.
 watch(() => mode.value === 'timer' && state.current === 'clock', up => { if (!up && timer.status === 'done') resetTimer(); });
 screen.turn = steps => {
