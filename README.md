@@ -257,7 +257,7 @@ this shows. If Control Center is also empty, `npm run build` self-tests the Medi
 
 - **Now Playing relies on a workaround.** Since macOS 15.4, Apple only lets its own entitled processes read MediaRemote. [ungive/mediaremote-adapter](https://github.com/ungive/mediaremote-adapter) gets around this by running inside `/usr/bin/perl`, which Apple signs. `npm run build` self-tests it. A future macOS update could break it. An AppleScript fallback for Music.app would be the plan B, and `bridge/nowplaying/mediaremote.js` documents the interface such a source would implement.
 - **Only one source at a time.** Control Center can list several players; this shows the one macOS considers current.
-- **Browser video artwork is low resolution.** YouTube only exposes a small thumbnail, and it's centre-cropped to the square panel, so the sides of a 16:9 frame are cut off. The crop happens on the Mac at the source's own resolution, which keeps it as sharp as the thumbnail allows.
+- **Browser video artwork.** macOS only gets a small thumbnail for browser video. When the playing tab is in Chrome, Safari, Arc, Brave, Edge, Vivaldi or Opera, the bridge finds it by title and loads a larger image instead (for YouTube, the full-size thumbnail; otherwise the page's `og:image`). The first time, macOS asks to let the bridge control that browser; if you decline, you get the small thumbnail. The art is still centre-cropped to the square panel, so the sides of a 16:9 frame are cut off.
 - **Non-Latin scripts.** The device has no CJK font, so Japanese, Chinese or Korean titles render as boxes. Adding a Noto Sans CJK subset to `ui/fonts` would fix it.
 - **Volume depends on the output device.** HDMI, S/PDIF and some USB DACs have no software volume. The screen then says "No volume control on …".
 - **Weather data.** Your location leaves the Mac rounded to about 1 km, and only to Open-Meteo. Hourly and daily labels use the forecast place's own timezone.
@@ -334,6 +334,7 @@ grabs whatever is on screen now.
   [DeskThing](https://github.com/ItsRiprod/DeskThing) — for the firmware that makes any of this
   possible, and for working out ADB access on the device in the first place.
 - [ungive/mediaremote-adapter](https://github.com/ungive/mediaremote-adapter) (BSD-3-Clause), cloned and built by `npm run build`.
+- [Nihal Shetty](https://github.com/nihalshetty-boop), whose [fork](https://github.com/nihalshetty-boop/MacThing) came up with loading larger browser video artwork from the playing tab (`bridge/nowplaying/browser-art.js`).
 - [Inter](https://rsms.me/inter/) by Rasmus Andersson and [Merriweather](https://github.com/EbenSorkin/Merriweather4) by Eben Sorkin (both SIL Open Font License), bundled in `ui/fonts`.
 
 ---
