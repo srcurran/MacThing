@@ -139,6 +139,24 @@ try {
   assert.match(await rail(), /30 minute timer30:00/, 'Double press resets');
   await press('4');
   await tick(now);
+  // During a meeting the timer opens set to its end, and runs to it.
+  await message({ type: 'calendar', calendar: { status: 'ok', events: [{ start: now - 600000, end: now + 1200000, title: 'Standup', color: '#2d9cdb', allDay: false, calendarId: 'fixture' }] } });
+  await press('4');
+  await pause(400);
+  assert.match(await rail(), /Until Standup ends(20:00|19:5\d)/, 'The timer opens on the meeting\'s end');
+  await evaluate("window.dispatchEvent(new WheelEvent('wheel', {deltaX:53, cancelable:true}))");
+  await pause(100);
+  assert.match(await rail(), /5 minute timer5:00/, 'Turning right goes on to the presets');
+  await evaluate("window.dispatchEvent(new WheelEvent('wheel', {deltaX:-53, cancelable:true}))");
+  await pause(100);
+  await press('Enter');
+  await tick(now + 600000);
+  await pause(1100);
+  assert.match(await rail(), /Until Standup ends9:5\d/, 'The meeting timer counts down to its end');
+  await press('Enter'); await press('Enter');
+  await press('4');
+  await pause(400);
+  await tick(now);
   // Meeting alerts: a card over the screen before a meeting; any press only dismisses it.
   await evaluate("localStorage.removeItem('ct-dismissed-meetings')");
   await message({ type: 'settings', settings: { ...settings, meetingAlert: 5 } });
