@@ -24,24 +24,23 @@ background turned on, the second doesn't._
 | Press knob once / twice / three times | Play-pause / next track / previous track; starts Apple Music if nothing is playing (in Settings: change the selected option) |
 | Fifth top button (settings)           | Settings (press it again, or the back button, to close)                                                                      |
 | Hold the fifth top button             | Sleep now — screen off until the next button or knob input                                                                   |
-| Back button (under the knob)          | Press once to favorite the playing Apple Music song, twice to unfavorite it |
+| Back button (under the knob)          | Press once to favorite the playing Apple Music song, twice to unfavorite it (does nothing while it's paused) |
 
 The four screens:
 
 - **Now Playing** follows whatever is playing in Control Center's Now Playing: Apple Music, Spotify, Podcasts, YouTube in a browser, and so on. It shows the artist, title, album, progress and artwork, plus a paused state, an app badge for non-Music sources, and the analog clock face when nothing is playing. Optionally the artwork also fills the screen behind everything, blurred and tinted.
 - **Calendar** shows today's remaining events and, by default, tomorrow's under their own heading. Choose how many days (1–7) and which calendars on the Mac settings page. Press the calendar button again while it's up to see the whole month, with today circled; press it once more to go back to the agenda.
 - **Weather** shows the current conditions, the next five hours and four days. It uses [Open-Meteo](https://open-meteo.com) (free, no account) for your Mac's location or a place you pick. Press the weather button again while it's up to list the next six hours (Today), once more for the next six days (This Week), and a third time to go back to the forecast. If the forecast can't be fetched, the weather button asks again instead; each failed try makes the next wait longer (4 seconds, then 8, 16 and so on), and the screen says how long.
-- **Clock** shows an analog face (plain or with numbers) or a digital one — pick which on the Mac settings page — plus the next event still to come today, or "No events today". Press the clock button again while the clock is up to swap in a timer: turn the knob to pick 5, 10, 15, 30, 45 or 60 minutes, press it to start or pause, and press twice to reset. The screen flashes when the time is up. Press the clock button again to go back to the clock; while the timer is running or paused, the knob still sets the volume.
+- **Clock** shows an analog face (plain or with numbers) or a digital one — pick which on the Mac settings page — plus the next event still to come today, or "No events today". Press the clock button again while the clock is up to swap in a timer: turn the knob to pick 5, 10, 15, 30, 45 or 60 minutes, press it to start or pause, and press twice to reset. The screen flashes when the time is up, and the timer then counts on past it (1:23+) until you reset it or leave it. Press the clock button again to go back to the clock; while the timer is running or paused, the knob still sets the volume.
+  - **Until the meeting ends.** While a timed Calendar event is going on, the timer opens set to that meeting's end ("Until Standup ends"), already counting down; it's a knob stop just left of 5 minutes, there only during a meeting. The dial's full turn is the whole meeting, so it shows how much of it is left. Started, it runs to the meeting's actual end time, and follows it if the meeting is moved in Calendar — unless you've paused it. With overlapping meetings it uses the one that ends first; all-day events don't count.
 
 <img src="docs/weather-today-polvo.png" width="49%" alt="Weather's Today view: the next six hours"> <img src="docs/weather-week-polvo.png" width="49%" alt="Weather's This Week view: the next six days">
 
 _Weather's Today and This Week views, from the same fixture data (rendered in Chromium rather than captured on the device)._
 
-**Meeting alerts** (off by default; turn them on in Settings): at a timed event's alert, a card with its title, start and end time and location covers whatever screen is up. "Event's alert" uses the alert set on the event in Calendar (only alerts within an hour of the start; events without one are skipped); or pick a fixed 1, 5 or 10 minutes before every event. It stays until you press any button or the knob — that press only dismisses it — or until five minutes after the meeting starts (sooner if the meeting ends first). It shows one meeting at a time: when meetings overlap, the card shows the first, and one press dismisses them all. Turning the knob still sets the volume.
+**Meeting alerts** (off by default; turn them on in Settings): at a timed event's alert, a card with its title, start and end time and location covers whatever screen is up. A video call is named by its service (Zoom, Google Meet, Microsoft Teams, Webex, FaceTime) rather than shown as a link, including when the link is only in the event's URL or notes. "Event's alert" uses the alert set on the event in Calendar (only alerts within an hour of the start; events without one are skipped); or pick a fixed 1, 5 or 10 minutes before every event. It stays until you press any button or the knob — that press only dismisses it — or until five minutes after the meeting starts (sooner if the meeting ends first). It shows one meeting at a time: when meetings overlap, the card shows the first, and one press dismisses them all. Turning the knob still sets the volume.
 
 **Sleep:** the Car Thing's screen turns off whenever your Mac's display sleeps, when you hold the settings button, and — this part runs on the device itself — about a minute and a half after the Mac stops talking to it at all: shut down, unplugged from the Mac but still powered, or just the bridge stopped. Press any button or turn the knob to wake it; while the Mac is away it stays lit for 20 seconds, and while the Mac is only asleep, for a minute. That first input only wakes it.
-
-**Lock:** while your Mac is locked — the lock screen, or switched to another account — the screen stays off and no button wakes it. It comes back when you log in.
 
 The backlight is the part that wears out, so "off" means the backlight really is off, not a black page — plus the device idles its CPU and the UI stops redrawing. There's no suspend-to-RAM: the Car Thing's kernel can't resume from one, and USB would drop with it, so an idle backlit-off device drawing very little is as deep as this goes.
 
@@ -58,7 +57,7 @@ Nothing is required for the device to work: Now Playing and the clock need no pe
 | Now Playing                               | works; shows the clock face when nothing is playing         | —                                              |
 | Calendar                                  | "Calendar access is off", naming the System Settings pane   | allow Calendars for Car Thing Helper           |
 | Weather                                   | "Location access is off" with the place-picker hint         | allow Location, or pick a city on the Mac page |
-| Clock                                     | works; the event line stays blank until Calendar is allowed | —                                              |
+| Clock                                     | works; no event line or meeting timer until Calendar is allowed | allow Calendars for Car Thing Helper           |
 | Back button (favorite)                    | toast: "Allow musicctl to control Music"                    | allow Automation for musicctl                  |
 | Knob on an output with no software volume | "No volume control on <device>"                             | use an output that has one                     |
 | Bridge not running                        | "Waiting for your Mac"                                      | start it, or `npm run install-agent`           |
@@ -319,12 +318,14 @@ CSS must still avoid flex `gap` (the `.gap-*` utilities use margins instead), `i
 is transpiled, but new browser APIs still require compatibility checks.
 
 `npm run restart` automatically rebuilds the UI before restarting the bridge.
-`npm run dev` rebuilds source changes and deploys only after a successful build.
+`npm run dev` rebuilds source changes and deploys only after a successful build, then reopens the
+screen and view you were on (the weather's Today, the calendar's month, the clock's timer).
 Run `node scripts/verify-device-ui.js` with a connected device for isolated screen/state
 checks. It blocks outgoing commands during fixtures and reloads afterward to restore live data.
 `npm run mock-screens` works the same way and rewrites the README's screenshots in `docs/`, so
-they always show what the device draws. It has two presets, because the album art background
-changes every screen: the default writes `docs/<screen>.png` with it on, and
+they always show what the device draws. It has three presets, because the album art background
+changes every screen: the default (`hug`) writes `docs/<screen>.png` with it on,
+`npm run mock-screens -- deafheaven` writes `docs/<screen>-deafheaven.png` with it on over other art, and
 `npm run mock-screens -- polvo` writes the plain `docs/<screen>-polvo.png` set with it off. `npm run screenshot`
 grabs whatever is on screen now.
 

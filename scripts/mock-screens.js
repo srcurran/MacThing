@@ -5,8 +5,9 @@
 // data instead of whatever is playing — one Friday evening, the same on every run. The page is
 // reloaded afterwards, which puts the live bridge data and input handlers back.
 //
-// Two presets, because the album art background changes every screen: `hug` (the default) has it
-// on and writes docs/<screen>.png, `polvo` has it off and writes docs/<screen>-polvo.png.
+// Three presets, because the album art background changes every screen: `hug` (the default) has it
+// on and writes docs/<screen>.png, `deafheaven` has it on over other art and writes
+// docs/<screen>-deafheaven.png, and `polvo` has it off and writes docs/<screen>-polvo.png.
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { config } from '../bridge/config.js';
