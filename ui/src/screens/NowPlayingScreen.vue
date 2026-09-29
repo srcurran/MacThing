@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch, nextTick, onMounted, onUnmounted } from 'vue';
-import { state, CT, elapsed, durationText, artworkUrl } from '../state.js';
+import { state, CT, elapsed, durationText, artworkUrl, hasArt } from '../state.js';
 import LeftRail from '../components/LeftRail.vue';
 import ScreenStage from '../components/ScreenStage.vue';
 import UiProgress from '../components/UiProgress.vue';
@@ -75,10 +75,10 @@ onUnmounted(() => clearInterval(timer));
         <div class="np-progress flex items-center gap-8 primary"><UiProgress :value="fraction" /><span class="np-duration flex-none regular">{{ np.duration ? durationText(np.duration) : '' }}</span></div>
       </template>
     </LeftRail>
-    <ScreenStage :class="{ 'bg-panel': !np.active || artworkUrl }"><!-- idle, or behind art: one continuous background, so nothing is left as a square when the art fades -->
+    <ScreenStage :class="{ 'bg-panel': !np.active || hasArt }"><!-- idle, or behind art: one continuous background, so nothing is left as a square when the art fades -->
       <Artwork :url="artworkUrl" />
       <AnalogClock v-if="!np.active" :now="state.current === 'nowplaying' ? state.now : 0" />
-      <div class="paused-glyph disc fill flex center"><svg><use href="#i-pause" /></svg></div>
+      <div class="paused-glyph disc fill flex center" :style="{ color: state.flashing ? state.flash.color : '' }"><svg><use :href="'#i-' + (state.flashing ? state.flash.icon : 'pause')" /></svg></div><!-- a flash here swaps its icon into this badge for a moment, in place of a second disc -->
       <img v-if="icon" class="badge" :src="icon" alt="" />
     </ScreenStage>
   </section>

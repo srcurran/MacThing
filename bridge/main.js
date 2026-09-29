@@ -27,7 +27,7 @@ import { Weather } from './widgets/weather.js';
 const source = new MediaRemoteSource(paths.bin);
 const volume = new Volume(paths.bin);
 const apps = new AppInfo(paths.bin);
-const artwork = new ArtworkCache();
+const artwork = new ArtworkCache(path.join(paths.bin, 'artwork'), { blur: config.ambientBlurOnMac });
 const helper = new MacHelper(paths.bin);
 const weather = new Weather(helper, settings);
 const calendar = new Calendar(helper, settings);
@@ -114,7 +114,7 @@ function nowPlayingMessage() {
 function pushNowPlaying(target) {
   const { art } = current;
   if (art && target.sentArtKey !== art.key) {
-    target.send({ type: 'artwork', key: art.key, dataUrl: art.dataUrl, width: art.width, height: art.height });
+    target.send({ type: 'artwork', key: art.key, dataUrl: art.dataUrl, blurUrl: art.blurUrl, width: art.width, height: art.height });
     target.sentArtKey = art.key;
   }
   target.send(nowPlayingMessage());

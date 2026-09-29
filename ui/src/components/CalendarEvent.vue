@@ -6,10 +6,10 @@ const ongoing = computed(() => !props.event.allDay && props.event.start <= props
 const where = computed(() => (props.event.location || '').split('\n')[0]);
 </script>
 <template>
-  <div class="k-event flex font-small" :class="{ now: ongoing }">
+  <div class="k-event flex font-small" :class="{ now: ongoing, 'all-day': event.allDay }">
     <div class="k-bar flex-none" />
     <div class="k-body flex-1">
-      <div class="flex"><span class="k-time flex-none secondary medium">{{ event.allDay ? 'All day' : ongoing ? 'NOW' : CT.timeText(event.start) }}</span><span class="flex-1 semibold truncate">{{ event.title || 'Untitled' }}</span></div>
+      <div class="flex"><span class="k-time flex-none secondary medium">{{ event.allDay ? 'All day' : ongoing ? 'NOW' : CT.timeText(event.start) }}</span><span class="k-title flex-1 semibold truncate">{{ event.title || 'Untitled' }}</span></div>
       <div v-if="where" class="mt-4 weight-light muted truncate">{{ where }}</div>
     </div>
   </div>

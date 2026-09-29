@@ -195,8 +195,14 @@ export function initializeRuntime(state) {
     CT.send({ type: 'command', action: action });
   };
 
+  // `flashing` lasts as long as the .flash animation (0.7s in app.css): while it's set, the paused
+  // badge on Now Playing shows the flash's icon instead of a second disc landing on top of it.
+  var flashTimer = null;
   CT.flash = function (icon, color) {
     state.flash = { icon: icon, color: color || '', key: state.flash.key + 1 };
+    state.flashing = true;
+    clearTimeout(flashTimer);
+    flashTimer = setTimeout(function () { state.flashing = false; }, 700);
   };
 
   var toastTimer = null;
