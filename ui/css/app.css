@@ -191,7 +191,6 @@
   --offline-bg: var(--gray-950);
   --hud-bg: var(--gray-800);
   --scrim: var(--black-a70); /* behind the meeting alert */
-  --ambient-tint: var(--black-a30);
   --notch: var(--white-a30); /* the active page's mark under its top button */
   --shadow: var(--black-a50); /* under floating pills and cards */
   --disc: var(--black-a50); /* the knob-press flash and paused badges, in every theme */
@@ -225,7 +224,6 @@
   --offline-bg: var(--gray-100);
   --hud-bg: var(--white-a95);
   --scrim: var(--black-a40);
-  --ambient-tint: var(--white-a40);
   --notch: var(--black-a20);
   --sun: var(--yellow-600);
   --moon: var(--olive-800);
@@ -601,15 +599,6 @@ h3 {
 }
 .ambient .art-img::after {
   left: 100%;
-}
-.ambient::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--ambient-tint);
 }
 .ambient-on .left-rail,
 .ambient-on .bg-panel {

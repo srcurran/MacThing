@@ -1,7 +1,9 @@
 <script setup>
 import { ref, watch, onUnmounted } from 'vue';
 // direction: 'next' | 'previous' when the change came from a skip on the device, else ''.
-const props = defineProps({ url: String, direction: { type: String, default: '' } });
+// tint: a colour laid over the art (the album art background's). Each layer keeps the tint it
+// came with, so a new strength fades or wipes in with its art instead of jumping ahead of it.
+const props = defineProps({ url: String, direction: { type: String, default: '' }, tint: { type: String, default: '' } });
 const layers = ref(['', '']);
 const front = ref(0);
 // New art fades in over the old, which stays fully opaque underneath until it is covered. Fading
@@ -13,12 +15,16 @@ const under = ref(-1);
 // way last time. The old layer keeps its wipe class: at rest it looks the same as none, and
 // changing it would redraw that layer just as the new wipe starts.
 const wipes = ref(['', '']);
+const tints = ref(['', '']);
 const gen = ref([0, 0]);
 let timer;
-watch(() => props.url, url => {
+watch(() => [props.url, props.tint], ([url, tint], old) => {
+  // Only the tint changed (the theme did): the art on screen takes it.
+  if (old && old[0] === url) { tints.value[front.value] = tint; return; }
   const previous = front.value;
   const next = 1 - previous;
   layers.value[next] = url || '';
+  tints.value[next] = tint;
   wipes.value[next] = url && layers.value[previous] && props.direction ? props.direction : '';
   gen.value[next]++;
   front.value = next;
@@ -34,6 +40,7 @@ onUnmounted(() => clearTimeout(timer));
       <div :key="gen[i]" class="art-wipe fill" :class="wipes[i] && 'wipe-' + wipes[i]">
         <div class="art-slide fill">
           <div class="art-img fill" :style="{ backgroundImage: url ? 'url(' + JSON.stringify(url) + ')' : 'none' }" />
+          <div v-if="url && tints[i]" class="fill" :style="{ background: tints[i] }" />
         </div>
       </div>
     </div>
