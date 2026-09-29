@@ -16,7 +16,11 @@ export const CT = initializeRuntime(state);
 const ART_GRACE_MS = 1500;
 const shownArt = ref('');
 const shownBlur = ref(''); // the album art background, blurred on the Mac (empty: the device blurs the cover)
-let artClear, artLoad = 0;
+// Art that arrives soon after a skip on the device wipes in from that side (see Artwork.vue);
+// anything else, a track changed on the Mac or a "previous" that only restarted the song, fades.
+const SKIP_ART_MS = 4000;
+const artDirection = ref('');
+let artClear, artLoad = 0, skip = null;
 function preload(url) {
   return new Promise(resolve => {
     if (!url) return resolve();
@@ -31,6 +35,8 @@ function showArt(art) {
   const seq = ++artLoad;
   Promise.all([preload(art.dataUrl), preload(art.blurUrl)]).then(() => {
     if (seq !== artLoad) return;
+    artDirection.value = skip && performance.now() - skip.at < SKIP_ART_MS ? skip.action : '';
+    skip = null;
     shownArt.value = art.dataUrl;
     shownBlur.value = art.blurUrl || '';
   });
@@ -47,6 +53,7 @@ watch(() => [state.np.artworkKey, state.artwork], () => {
 export const artworkUrl = computed(() => state.np.active ? shownArt.value : '');
 // For the album art background: the Mac's blurred image when it sent one, else the cover to blur here.
 export const ambientUrl = computed(() => state.np.active ? shownBlur.value || shownArt.value : '');
+export const artworkDirection = computed(() => artDirection.value);
 export const ambientPreBlurred = computed(() => !!shownBlur.value);
 // The track has art, even if it's still loading (as it is just after the page mounts). Backgrounds
 // follow this rather than artworkUrl, so they're already the art's while it loads and it fades
@@ -80,7 +87,10 @@ CT.on('command', action => {
       np.rate = np.playing ? 1 : 0;
     }
     if (state.current !== 'nowplaying' || !np.active) CT.flash(!np.active || np.playing ? 'play' : 'pause');
-  } else if (action === 'next' || action === 'previous') CT.flash(action);
+  } else if (action === 'next' || action === 'previous') {
+    skip = { action: action, at: performance.now() };
+    CT.flash(action);
+  }
 });
 CT.on('favorite', msg => {
   CT.flash(msg.favorited ? 'heart' : 'heart-off');
