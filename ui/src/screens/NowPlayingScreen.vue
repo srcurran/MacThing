@@ -37,7 +37,9 @@ function fitTitle() {
   t.style.webkitLineClamp = '';
   t.classList.remove('break-word');
   if (!np.value.active) { t.style.fontSize = '32px'; t.style.lineHeight = '40px'; return; }
-  const words = (t.textContent || '').split(/\s+/).filter(Boolean);
+  // The browser can wrap after a hyphen or en dash, so "Three-Legged" is measured as "Three-"
+  // and "Legged" rather than as one word.
+  const words = (t.textContent || '').match(/[^\s\-‐–]+[\-‐–]*|[\-‐–]+/g) || [];
   const scale = [[48, 64], [40, 56], [28, 36]];
   // A title is sized down until it fits the rail's height *and* its longest word fits the
   // rail's width: splitting a word across lines reads worse than a smaller title.

@@ -131,6 +131,7 @@
   --white-a10: rgba(255, 255, 255, 0.1);
   --white-a20: rgba(255, 255, 255, 0.2);
   --white-a30: rgba(255, 255, 255, 0.3);
+  --white-a40: rgba(255, 255, 255, 0.4);
   --white-a50: rgba(255, 255, 255, 0.5);
   --white-a70: rgba(255, 255, 255, 0.7);
   --white-a95: rgba(255, 255, 255, 0.95);
@@ -220,7 +221,7 @@
   --offline-bg: var(--gray-100);
   --hud-bg: var(--white-a95);
   --scrim: var(--black-a40);
-  --ambient-tint: var(--white-a50);
+  --ambient-tint: var(--white-a40);
   --notch: var(--black-a20);
   --sun: var(--yellow-600);
   --moon: var(--olive-800);
@@ -538,23 +539,41 @@ h3 {
   opacity: 1;
 }
 
-/* Album art background: blurred art under a 75% tint; the panels and stages of Now Playing and
+/* Album art background: blurred art under a tint; the panels and stages of Now Playing and
    the widgets and Settings go transparent so it shows through. */
 .ambient {
   overflow: hidden;
   background: var(--panel);
 }
-/* A stronger art wash keeps the underlying cover atmospheric rather than legible. The art runs
-   180px (three times the blur) past every edge: blur mixes in the empty space beyond the art, and
-   a smaller overhang lets the black panel darken the edges into a vignette. */
+/* The art is a square as wide as the screen, so the top and bottom 160px are cropped and it runs
+   past the screen by more than three times the blur there. Mirrored copies sit against its left
+   and right edges, so the blur there mixes in matching colour instead of the empty space beyond
+   the art, which would darken the edges into a vignette. Blur greys colours out, so saturate
+   brings them back. */
 .ambient .art-img {
-  left: -180px;
-  top: -180px;
-  right: -180px;
-  bottom: -180px;
-  background: center / cover no-repeat;
-  -webkit-filter: blur(60px);
-  filter: blur(60px);
+  left: 0;
+  top: -160px;
+  right: 0;
+  bottom: -160px;
+  -webkit-filter: blur(50px) saturate(1.6);
+  filter: blur(50px) saturate(1.6);
+}
+.ambient .art-img::before,
+.ambient .art-img::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 100%;
+  background: inherit;
+  -webkit-transform: scaleX(-1);
+  transform: scaleX(-1);
+}
+.ambient .art-img::before {
+  right: 100%;
+}
+.ambient .art-img::after {
+  left: 100%;
 }
 .ambient::after {
   content: "";
