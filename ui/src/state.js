@@ -7,7 +7,7 @@ export const state = reactive({
   now: Date.now(), np: { active: false }, npAt: 0, artwork: null,
   weather: { status: 'loading' }, calendar: { status: 'loading' },
   volume: 0, volumeUnsupported: false, volumeNote: '', showVolume: false,
-  flash: { icon: 'play', color: '', key: 0 }, toast: ''
+  flash: { icon: 'play', color: '', key: 0 }, flashing: false, toast: ''
 });
 export const CT = initializeRuntime(state);
 // The art on screen only changes once its replacement is decoded, and a track that arrives
@@ -15,26 +15,43 @@ export const CT = initializeRuntime(state);
 // a beat later, and dropping to nothing in between flashes the stage and the ambient background.
 const ART_GRACE_MS = 1500;
 const shownArt = ref('');
+const shownBlur = ref(''); // the album art background, blurred on the Mac (empty: the device blurs the cover)
 let artClear, artLoad = 0;
-function showArt(url) {
+function preload(url) {
+  return new Promise(resolve => {
+    if (!url) return resolve();
+    const img = new Image();
+    // decode() can stay pending while the page is hidden, so it only gets a moment to finish.
+    img.onload = () => Promise.race([img.decode && img.decode().catch(() => {}), new Promise(r => setTimeout(r, 250))]).then(resolve);
+    img.onerror = resolve;
+    img.src = url;
+  });
+}
+function showArt(art) {
   const seq = ++artLoad;
-  const img = new Image();
-  const done = () => { if (seq === artLoad) shownArt.value = url; };
-  // decode() can stay pending while the page is hidden, so it only gets a moment to finish.
-  img.onload = () => Promise.race([img.decode && img.decode().catch(() => {}), new Promise(r => setTimeout(r, 250))]).then(done);
-  img.onerror = done;
-  img.src = url;
+  Promise.all([preload(art.dataUrl), preload(art.blurUrl)]).then(() => {
+    if (seq !== artLoad) return;
+    shownArt.value = art.dataUrl;
+    shownBlur.value = art.blurUrl || '';
+  });
 }
 watch(() => [state.np.artworkKey, state.artwork], () => {
   clearTimeout(artClear);
   if (!state.np.artworkKey) {
     artLoad++;
-    artClear = setTimeout(() => { shownArt.value = ''; }, shownArt.value ? ART_GRACE_MS : 0);
+    artClear = setTimeout(() => { shownArt.value = ''; shownBlur.value = ''; }, shownArt.value ? ART_GRACE_MS : 0);
   } else if (state.artwork && state.artwork.key === state.np.artworkKey && state.artwork.dataUrl !== shownArt.value) {
-    showArt(state.artwork.dataUrl);
+    showArt(state.artwork);
   }
 });
 export const artworkUrl = computed(() => state.np.active ? shownArt.value : '');
+// For the album art background: the Mac's blurred image when it sent one, else the cover to blur here.
+export const ambientUrl = computed(() => state.np.active ? shownBlur.value || shownArt.value : '');
+export const ambientPreBlurred = computed(() => !!shownBlur.value);
+// The track has art, even if it's still loading (as it is just after the page mounts). Backgrounds
+// follow this rather than artworkUrl, so they're already the art's while it loads and it fades
+// in, instead of the no-art greys showing first and snapping over.
+export const hasArt = computed(() => !!(state.np.active && (shownArt.value || state.np.artworkKey)));
 CT.onSecond(now => { state.now = now; });
 CT.on('tick', () => { state.now = CT.now(); });
 CT.on('nowPlaying', msg => { state.np = msg.np; state.npAt = performance.now(); });
@@ -66,6 +83,6 @@ CT.on('command', action => {
   } else if (action === 'next' || action === 'previous') CT.flash(action);
 });
 CT.on('favorite', msg => {
-  CT.flash(msg.favorited ? 'heart' : 'heart-off', msg.favorited ? 'var(--orange-500)' : '');
+  CT.flash(msg.favorited ? 'heart' : 'heart-off');
   CT.toast(msg.favorited ? 'Added to Favorites' : 'Removed from Favorites');
 });

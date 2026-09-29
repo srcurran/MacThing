@@ -178,7 +178,9 @@
   --hand: var(--white);
   --timer-used: var(--white-a20); /* the timer's spent minutes */
   --timer-hand: var(--orange-500);
-  --timer-hand-ink: var(--black); /* text on the hand colour, e.g. today in the month */
+  --timer-hand-ink: var(--black); /* text on the hand colour */
+  --today: var(--orange-500); /* today's circle in the month: the timer hand's colour */
+  --today-ink: var(--black);
   --c-mark-fill: var(--white-a10); /* marker and hand fill */
   --c-mark-edge: var(--white); /* the metal surround around each */
   --c-hand: var(--white); /* clock hands: the outline, pin and tail */
@@ -192,6 +194,8 @@
   --ambient-tint: var(--black-a30);
   --notch: var(--white-a30); /* the active page's mark under its top button */
   --shadow: var(--black-a50); /* under floating pills and cards */
+  --disc: var(--black-a50); /* the knob-press flash and paused badges, in every theme */
+  --disc-ink: var(--white);
   /* weather icons */
   --sun: var(--yellow-300);
   --moon: var(--cream-100);
@@ -236,6 +240,13 @@
   --timer-used: var(--black-a30);
   --timer-hand: var(--black);
   --timer-hand-ink: var(--white);
+  --today: var(--black);
+  --today-ink: var(--white);
+}
+/* Dark theme over album art: a black circle would sink into the dark art, so white instead. */
+#app.ambient-on:not(.light) {
+  --today: var(--white);
+  --today-ink: var(--black);
 }
 
 * {
@@ -419,7 +430,7 @@ h3 {
   width: 112px;
   height: 112px;
   border-radius: 50%;
-  background: var(--black-a50);
+  background: var(--disc);
 }
 .disc svg {
   width: 48px;
@@ -492,6 +503,7 @@ h3 {
   top: 0;
   bottom: 0;
   margin: auto;
+  color: var(--disc-ink); /* white on the dark disc in every theme, like the paused badge */
   opacity: 0;
   transform: scale(0.85);
   pointer-events: none;
@@ -544,6 +556,9 @@ h3 {
 .ambient {
   overflow: hidden;
   background: var(--panel);
+  /* Its own layer, so the blur is drawn once per cover. Sharing the page's layer, it was redrawn
+     (~40ms on the device) for every change on screen, down to the settings highlight. */
+  will-change: transform;
 }
 /* The art is a square as wide as the screen, so the top and bottom 160px are cropped and it runs
    past the screen by more than three times the blur there. Mirrored copies sit against its left
@@ -568,6 +583,18 @@ h3 {
   background: inherit;
   -webkit-transform: scaleX(-1);
   transform: scaleX(-1);
+}
+/* Blurred on the Mac (config.ambientBlurOnMac): the finished image is the screen's shape, so it
+   just fills the screen. */
+.ambient.pre-blurred .art-img {
+  top: 0;
+  bottom: 0;
+  -webkit-filter: none;
+  filter: none;
+}
+.ambient.pre-blurred .art-img::before,
+.ambient.pre-blurred .art-img::after {
+  content: none;
 }
 .ambient .art-img::before {
   right: 100%;
@@ -625,7 +652,7 @@ h3 {
   padding: 40px 44px 40px 34px;
   border-radius: 34px;
   background: var(--card);
-  box-shadow: 0 20px 60px var(--black-a50);
+  box-shadow: 0 20px 60px var(--shadow);
   transform: scale(0.94);
   transition: transform 0.3s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
@@ -704,6 +731,10 @@ h3 {
   height: 14px;
   border-radius: 50%;
   background: var(--accent);
+}
+/* Only while it can be seen: hidden, a running animation still has the device drawing 60 frames
+   a second. */
+.offline .pulse {
   -webkit-animation: pulse 1.8s ease-in-out infinite;
   animation: pulse 1.8s ease-in-out infinite;
 }
@@ -760,7 +791,7 @@ h3 {
 .art-layer {
   opacity: 0;
   transition:
-    opacity 0.45s ease,
+    opacity 0.25s ease,
     filter 0.3s ease;
 }
 .art-layer.front {
@@ -779,7 +810,7 @@ h3 {
 /* Paused: the flash's disc, left in place (the art isn't dimmed). */
 .paused-glyph {
   margin: auto;
-  color: var(--white);
+  color: var(--disc-ink);
   opacity: 0;
   transition: opacity 0.3s ease;
 }
@@ -794,8 +825,8 @@ h3 {
   bottom: 16px;
   width: 48px;
   height: 48px;
-  -webkit-filter: drop-shadow(0 2px 6px var(--black-a50));
-  filter: drop-shadow(0 2px 6px var(--black-a50));
+  -webkit-filter: drop-shadow(0 2px 6px var(--shadow));
+  filter: drop-shadow(0 2px 6px var(--shadow));
 }
 
 /* Nothing playing: the Clock screen's face in the art area, and a muted line in the panel. */
@@ -936,12 +967,6 @@ h3 {
   flex: none;
   min-width: 44px;
 }
-.w-today-line + .w-today-temp {
-  margin-left: 8px;
-}
-.w-today-temp + .w-today-line {
-  margin-left: 8px;
-}
 /* The week's lows, bars and highs line up with the forecast's below the hours: the lows start
    546px in, 42px past the icon's 24px gap. */
 .w-week-temps {
@@ -1012,7 +1037,6 @@ h3 {
   letter-spacing: -0.055em;
 }
 .c-digital-sec {
-  margin-left: 10px;
   font-size: 44px;
   letter-spacing: -0.02em;
 }
@@ -1081,21 +1105,12 @@ h3 {
   width: 56px;
   height: 56px;
   margin: -14px 0 0 -15px;
-  fill: var(
-    --timer-hand
-  ); /* the timer's hand colour: orange, or black over album art */
+  fill: var(--today);
 }
 .k-today text {
   font-size: 22px;
   font-weight: 700;
-  fill: var(--timer-hand-ink);
-}
-/* Dark theme over album art: black would sink into the dark art, so a white circle instead. */
-#app.ambient-on:not(.light) .k-today {
-  fill: var(--white);
-}
-#app.ambient-on:not(.light) .k-today text {
-  fill: var(--black);
+  fill: var(--today-ink);
 }
 
 .k-event + .k-event {
@@ -1118,14 +1133,23 @@ h3 {
 .k-event.now .k-time {
   color: var(--orange);
 }
+/* All-day events sit back from the timed ones: muted bar, label and title. */
+.k-event.all-day .k-bar {
+  background: var(--muted);
+}
+.k-event.all-day .k-time,
+.k-event.all-day .k-title {
+  color: var(--text-2);
+}
+.k-event.all-day .k-title {
+  font-weight: 500;
+}
 /* Day heading before tomorrow's events. */
 .k-day {
-  margin-top: 20px;
-  padding-top: 16px;
+  margin-top: 36px;
 }
 .k-day:first-child {
-  margin-top: 0;
-  padding-top: 0; /* the agenda starts at the stage's top inset, like the month */
+  margin-top: 0; /* the agenda starts at the stage's top inset, like the month */
 }
 .k-day + .k-event {
   margin-top: 12px;

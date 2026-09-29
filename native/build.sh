@@ -3,6 +3,7 @@
 #   native/bin/volumectl                         CoreAudio volume helper (Swift)
 #   native/bin/appinfo                           app name + icon lookup by bundle id (Swift)
 #   native/bin/powerwatch                        Mac sleep/wake + display sleep events (Swift)
+#   native/bin/artwork                           covers for the device, and the blurred background (Swift)
 #   native/bin/musicctl                          Apple Music favorite/play via Apple Events (Swift)
 #   native/bin/CarThingHelper.app                location + calendar, with its own permissions (Swift)
 #   native/bin/MediaRemoteAdapter.framework      ungive/mediaremote-adapter, loaded by /usr/bin/perl
@@ -19,10 +20,11 @@ if [[ ! -d "$ADAPTER" ]]; then
   git clone -q --depth 1 --branch "$ADAPTER_TAG" https://github.com/ungive/mediaremote-adapter.git "$ADAPTER"
 fi
 
-echo "• volumectl, appinfo, powerwatch"
+echo "• volumectl, appinfo, powerwatch, artwork"
 swiftc -O -o "$OUT/volumectl" "$ROOT/native/volumectl.swift"
 swiftc -O -o "$OUT/appinfo" "$ROOT/native/appinfo.swift"
 swiftc -O -o "$OUT/powerwatch" "$ROOT/native/powerwatch.swift"
+swiftc -O -o "$OUT/artwork" "$ROOT/native/artwork.swift"
 
 # Ad-hoc signed tools that hold a macOS permission lose it whenever the binary changes,
 # so they're only rebuilt when their source changed.

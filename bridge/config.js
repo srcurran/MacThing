@@ -87,4 +87,8 @@ export const config = {
 
   // Sources that don't get an app badge on the artwork (your "home" player).
   unbadgedApps: ['com.apple.Music'],
+
+  // Blur the album art background here (native/bin/artwork) and send the device a finished image.
+  // false: the device blurs the cover itself with CSS, which takes it ~1.7s of drawing per cover.
+  ambientBlurOnMac: true,
 };

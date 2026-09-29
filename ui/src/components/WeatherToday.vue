@@ -26,7 +26,7 @@ const rows = computed(() => {
         <WeatherIcon class="flex-none" :code="h.code" :is-day="!!h.isDay" />
         <div v-if="h.pop >= 20" class="w-row-pop w-pop">{{ h.pop }}%</div>
       </div>
-      <div class="w-today-range flex-1 flex items-center">
+      <div class="w-today-range flex-1 flex items-center gap-8">
         <i v-if="h.at > 0" class="w-today-line" :style="{ flexGrow: h.at }" />
         <div class="w-today-temp text-right tabular">{{ h.temp }}°</div>
         <i v-if="h.at < 1" class="w-today-line" :style="{ flexGrow: 1 - h.at }" />

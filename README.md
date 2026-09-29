@@ -269,7 +269,7 @@ this shows. If Control Center is also empty, `npm run build` self-tests the Medi
 
 ```
 bridge/           Mac-side Node app (config.js: buttons, knob, volume…; settings.js: user settings)
-  nowplaying/     MediaRemote source, artwork re-encoding (sips → ≤480px JPEG), app names/icons
+  nowplaying/     MediaRemote source, artwork re-encoding (native/bin/artwork → ≤480px JPEG + blurred background), app names/icons
   widgets/        weather (Open-Meteo) and calendar feeds
   mac/            CarThingHelper wrapper, Mac light/dark detection
   settings-page/  the http://127.0.0.1:4747 page
