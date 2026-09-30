@@ -141,11 +141,18 @@ export function initializeRuntime(state) {
     return def;
   };
 
-  // The old screen stays on under the new one until the new one has faded in (see "Switching
-  // screens" in app.css), however long the fades are set to.
+  // The old screen stays on under the new one until the new one has faded or wiped in (see
+  // "Switching screens" in app.css), however long that is set to take.
   document.addEventListener('animationend', function (e) {
-    if (e.animationName === 'fade-in' && e.target.classList.contains('screen')) state.leaving = '';
+    if (e.target.classList.contains('screen') && e.target.classList.contains('active')) {
+      state.leaving = '';
+      state.screenSwitch = '';
+    }
   });
+
+  // The pages in the order their top buttons run, left to right. Moving between them wipes the
+  // new one in from that side; Settings, which has no top button, fades.
+  var PAGES = ['nowplaying', 'calendar', 'weather', 'clock'];
 
   CT.show = function (name) {
     var next = CT.screens[name];
@@ -154,6 +161,8 @@ export function initializeRuntime(state) {
       var prev = CT.screens[CT.current];
       if (name === 'settings') beforeSettings = CT.current;
       if (prev.hide) prev.hide();
+      var from = PAGES.indexOf(CT.current), to = PAGES.indexOf(name);
+      state.screenSwitch = from < 0 || to < 0 ? 'fade' : to > from ? 'next' : 'previous';
       state.leaving = CT.current;
       CT.current = name;
       state.current = name;
