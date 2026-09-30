@@ -16,19 +16,20 @@ const run = (cmd, args) =>
  * decode whatever the source format was (HEIC/TIFF would not render there).
  *
  * With `blur` each cover also gets `blurUrl`, the album art background already blurred, so the
- * device doesn't have to blur it (config.ambientBlurOnMac).
+ * device doesn't have to blur it (config.ambientBlurOnMac), and `tint`, how strong a tint each theme
+ * needs over it for the text to stay readable ({dark, light} overlay opacities, 0…1).
  */
 export class ArtworkCache {
   constructor(bin, { maxSize = 480, blur = false } = {}) {
     this.bin = bin;
     this.maxSize = maxSize;
     this.blur = blur;
-    this.cache = new Map(); // key -> Promise<{key, dataUrl, blurUrl?, width, height}>
+    this.cache = new Map(); // key -> Promise<{key, dataUrl, blurUrl?, tint?, width, height}>
     this.dir = null;
   }
 
   /** @param {{key: string, mime: string, base64: string}} art
-   *  @returns {Promise<{key, dataUrl, blurUrl?, width, height}>} */
+   *  @returns {Promise<{key, dataUrl, blurUrl?, tint?, width, height}>} */
   get(art) {
     if (!this.cache.has(art.key)) {
       if (this.cache.size > 20) this.cache.delete(this.cache.keys().next().value);
@@ -44,7 +45,7 @@ export class ArtworkCache {
     const blur = path.join(this.dir, `${art.key}.blur.jpg`);
     try {
       await fs.writeFile(src, Buffer.from(art.base64, 'base64'));
-      const { width, height } = JSON.parse(await run(this.bin, [src, String(this.maxSize), out, ...(this.blur ? [blur] : [])]));
+      const { width, height, tint } = JSON.parse(await run(this.bin, [src, String(this.maxSize), out, ...(this.blur ? [blur] : [])]));
       const jpeg = await fs.readFile(out);
       // No background (blur off, or it failed): the device blurs the cover itself.
       const background = this.blur ? await fs.readFile(blur).catch(() => null) : null;
@@ -52,6 +53,7 @@ export class ArtworkCache {
         key: art.key,
         dataUrl: `data:image/jpeg;base64,${jpeg.toString('base64')}`,
         blurUrl: background ? `data:image/jpeg;base64,${background.toString('base64')}` : undefined,
+        tint: background ? tint : undefined,
         width,
         height,
       };

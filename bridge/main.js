@@ -114,7 +114,7 @@ function nowPlayingMessage() {
 function pushNowPlaying(target) {
   const { art } = current;
   if (art && target.sentArtKey !== art.key) {
-    target.send({ type: 'artwork', key: art.key, dataUrl: art.dataUrl, blurUrl: art.blurUrl, width: art.width, height: art.height });
+    target.send({ type: 'artwork', key: art.key, dataUrl: art.dataUrl, blurUrl: art.blurUrl, tint: art.tint, width: art.width, height: art.height });
     target.sentArtKey = art.key;
   }
   target.send(nowPlayingMessage());

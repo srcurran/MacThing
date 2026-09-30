@@ -11,6 +11,11 @@
 // match the CSS it replaces (blur(50px) saturate(1.6) on an 800px square, cropped to 800×480), at
 // half size. The device scales it back up, which a blur this heavy doesn't show, and no longer has
 // to blur anything itself: in software that took it about 1.7s of drawing per cover.
+//
+// With a background, the JSON also has "tint": {"dark":…,"light":…}, the least black (dark theme)
+// or white (light theme) overlay that gives the text over the background 4.5:1 contrast on 90% of
+// it. The device uses its usual tint unless this asks for more, so white and yellow covers get
+// darker in the dark theme and black ones lighter in the light theme, and the rest stay as they were.
 
 import CoreImage
 import Foundation
@@ -54,6 +59,47 @@ do {
 }
 
 // ---- Background ----
+/// WCAG relative luminance of an sRGB colour (components 0…1).
+func luminance(_ r: Double, _ g: Double, _ b: Double) -> Double {
+  func linear(_ c: Double) -> Double { c <= 0.04045 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4) }
+  return 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b)
+}
+func contrast(_ a: Double, _ b: Double) -> Double { (max(a, b) + 0.05) / (min(a, b) + 0.05) }
+
+/// {"dark":…,"light":…}: for each theme, the least opacity of its overlay (black under white text,
+/// white under #111 text) that brings the text to 4.5:1 on all but the worst 10% of the background.
+/// The browser blends the overlay with the sRGB values as they are, so that's what is modelled.
+func backgroundTint(_ image: CIImage, context: CIContext) -> String {
+  let w = Int(image.extent.width), h = Int(image.extent.height)
+  var rgba = [UInt8](repeating: 0, count: w * h * 4)
+  context.render(image, toBitmap: &rgba, rowBytes: w * 4, bounds: image.extent, format: .RGBA8, colorSpace: srgb)
+  // Every 4th pixel each way is plenty for an image this blurred.
+  var pixels: [(Double, Double, Double)] = []
+  for y in stride(from: 0, to: h, by: 4) {
+    for x in stride(from: 0, to: w, by: 4) {
+      let i = (y * w + x) * 4
+      pixels.append((Double(rgba[i]) / 255, Double(rgba[i + 1]) / 255, Double(rgba[i + 2]) / 255))
+    }
+  }
+  func needed(overlay: Double, text: Double) -> Double {
+    let needs = pixels.map { p -> Double in
+      let meets = { (a: Double) -> Bool in
+        let mix = { (c: Double) in c * (1 - a) + overlay * a }
+        return contrast(luminance(mix(p.0), mix(p.1), mix(p.2)), text) >= 4.5
+      }
+      if meets(0) { return 0 }
+      var lo = 0.0, hi = 1.0
+      for _ in 0..<12 { let mid = (lo + hi) / 2; if meets(mid) { hi = mid } else { lo = mid } }
+      return hi
+    }.sorted()
+    return needs.isEmpty ? 0 : needs[needs.count * 9 / 10]
+  }
+  let dark = needed(overlay: 0, text: 1)
+  let light = needed(overlay: 1, text: luminance(17 / 255, 17 / 255, 17 / 255))
+  return String(format: "{\"dark\":%.2f,\"light\":%.2f}", dark, light)
+}
+
+var tint: String? = nil
 if args.count > 4 {
   let scale: CGFloat = 0.5 // of the device's 800×480 screen
   let bgSide = 800 * scale, bgHeight = 480 * scale
@@ -83,11 +129,14 @@ if args.count > 4 {
   let background = atOrigin(saturated.cropped(to: CGRect(x: 0, y: (bgSide - bgHeight) / 2, width: bgSide, height: bgHeight)))
 
   // Browsers apply CSS filters to sRGB values as they are, so blur in sRGB rather than linear light.
+  let bgContext = CIContext(options: [.workingColorSpace: srgb, .outputColorSpace: srgb])
   do {
-    try writeJPEG(background, args[4], quality: 0.85, context: CIContext(options: [.workingColorSpace: srgb, .outputColorSpace: srgb]))
+    try writeJPEG(background, args[4], quality: 0.85, context: bgContext)
+    tint = backgroundTint(background, context: bgContext)
   } catch {
     FileHandle.standardError.write("artwork: background: \(error.localizedDescription)\n".data(using: .utf8)!)
   }
 }
 
-print("{\"width\":\(Int(side)),\"height\":\(Int(side))}")
+let tintField = tint.map { ",\"tint\":" + $0 } ?? ""
+print("{\"width\":\(Int(side)),\"height\":\(Int(side))\(tintField)}")

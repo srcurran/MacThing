@@ -191,7 +191,6 @@
   --offline-bg: var(--gray-950);
   --hud-bg: var(--gray-800);
   --scrim: var(--black-a70); /* behind the meeting alert */
-  --ambient-tint: var(--black-a30);
   --notch: var(--white-a30); /* the active page's mark under its top button */
   --shadow: var(--black-a50); /* under floating pills and cards */
   --disc: var(--black-a50); /* the knob-press flash and paused badges, in every theme */
@@ -225,7 +224,6 @@
   --offline-bg: var(--gray-100);
   --hud-bg: var(--white-a95);
   --scrim: var(--black-a40);
-  --ambient-tint: var(--white-a40);
   --notch: var(--black-a20);
   --sun: var(--yellow-600);
   --moon: var(--olive-800);
@@ -305,21 +303,71 @@ h3 {
   visibility: visible;
 }
 
-/* Switching screens (core.js marks the old screen .leaving until the new one's fade-in ends).
-   The old screen's content fades out first, then the new screen fades in over it; the fade-in's
-   delay is the fade-out's duration. The old screen's panels stay put underneath, so the
-   backgrounds never dip to black in between. The fade-out leaves out its starting end, so each
-   element fades from its own opacity (the hidden pause glyph stays hidden). */
+/* Switching screens (core.js sets .screens' data-switch and marks the old screen .leaving until
+   the new one has come in, then clears both).
+   To and from Settings (and on load) it fades: the old screen's content fades out first, then the
+   new screen fades in over it; the fade-in's delay is the fade-out's duration. The old screen's
+   panels stay put underneath, so the backgrounds never dip to black in between. The fade-out
+   leaves out its starting end, so each element fades from its own opacity (the hidden pause
+   glyph stays hidden). */
 .screen.active {
   z-index: 2;
-  animation: fade-in 0.5s ease-out 0.3s backwards;
 }
 .screen.leaving {
   z-index: 1;
 }
-.screen.leaving .left-rail > *,
-.screen.leaving .screen-stage > * {
+[data-switch="fade"] > .screen.active {
+  animation: fade-in 0.5s ease-out 0.3s backwards;
+}
+[data-switch="fade"] > .screen.leaving .left-rail > *,
+[data-switch="fade"] > .screen.leaving .screen-stage > * {
   animation: fade-out 0.3s ease-in forwards;
+}
+/* Between pages it slides a little towards the side the new page's button is on, and crossfades:
+   the old screen's content drifts 6px the other way as it fades out, while the new screen fades
+   in over it, easing in from 12px out as one piece (panels, rail and stage together), both at
+   once. Only opacity and transforms animate. The old screen's panels stay put underneath, as in
+   the fade. The fade outlasts the slide: core.js waits for the fade-in to end. */
+[data-switch="next"] > .screen.active {
+  animation:
+    fade-in 1.5s ease-out backwards,
+    page-from-right 0.35s ease-out backwards;
+}
+[data-switch="previous"] > .screen.active {
+  animation:
+    fade-in 1.5s ease-out backwards,
+    page-from-left 0.35s ease-out backwards;
+}
+[data-switch="next"] > .screen.leaving .left-rail > *,
+[data-switch="next"] > .screen.leaving .screen-stage > * {
+  animation: page-to-left 0.1s ease-in forwards;
+}
+[data-switch="previous"] > .screen.leaving .left-rail > *,
+[data-switch="previous"] > .screen.leaving .screen-stage > * {
+  animation: page-to-right 0.1s ease-in forwards;
+}
+@keyframes page-from-right {
+  from {
+    transform: translateX(12px);
+  }
+}
+@keyframes page-from-left {
+  from {
+    transform: translateX(-12px);
+  }
+}
+/* Like fade-out, these leave out their starting end, so each element fades from its own opacity. */
+@keyframes page-to-left {
+  to {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+}
+@keyframes page-to-right {
+  to {
+    opacity: 0;
+    transform: translateX(6px);
+  }
 }
 @keyframes fade-in {
   from {
@@ -602,15 +650,6 @@ h3 {
 .ambient .art-img::after {
   left: 100%;
 }
-.ambient::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--ambient-tint);
-}
 .ambient-on .left-rail,
 .ambient-on .bg-panel {
   background: transparent;
@@ -805,6 +844,67 @@ h3 {
    letterboxed, so the stage always reads as one image. */
 .art-img {
   background: center / cover no-repeat;
+}
+/* After a skip the new art wipes across behind a soft edge instead of fading: next comes in from
+   the right, previous from the left. Only transforms animate. .art-wipe carries a fixed gradient
+   mask on its leading edge and slides in; .art-slide slides back just as far inside it, so the art
+   itself stays still. The mask never changes, so nothing is redrawn while it runs. .art-wipe is
+   the edge's width wider than the art, so at rest the edge sits just outside it. */
+.art-layer.wiping {
+  transition: none;
+}
+.art-wipe.wipe-next {
+  left: -160px;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 160px);
+  mask-image: linear-gradient(to right, transparent, #000 160px);
+  animation: wipe-from-right 0.45s ease-out backwards;
+}
+.art-wipe.wipe-previous {
+  right: -160px;
+  -webkit-mask-image: linear-gradient(to left, transparent, #000 160px);
+  mask-image: linear-gradient(to left, transparent, #000 160px);
+  animation: wipe-from-left 0.45s ease-out backwards;
+}
+.art-wipe.wipe-next .art-slide {
+  animation: wipe-from-left 0.45s ease-out backwards;
+}
+.art-wipe.wipe-previous .art-slide {
+  animation: wipe-from-right 0.45s ease-out backwards;
+}
+/* Skipped again mid-wipe: the covered art finishes at once, so nothing shows through behind it. */
+.art-layer.under .art-wipe,
+.art-layer.under .art-slide {
+  animation: none;
+}
+.art-wipe.wipe-next .art-img {
+  left: 160px;
+}
+.art-wipe.wipe-previous .art-img {
+  right: 160px;
+}
+/* On Now Playing's stage the wipe spans the screen like the album art background's, so the two
+   share one edge crossing the screen; the stage (right of the 320px rail) shows its part of it. */
+.screen-stage .art-wipe.wipe-next {
+  left: -480px;
+}
+.screen-stage .art-wipe.wipe-next .art-img {
+  left: 480px;
+}
+.screen-stage .art-wipe.wipe-previous {
+  left: -320px;
+}
+.screen-stage .art-wipe.wipe-previous .art-img {
+  left: 320px;
+}
+@keyframes wipe-from-right {
+  from {
+    transform: translateX(100%);
+  }
+}
+@keyframes wipe-from-left {
+  from {
+    transform: translateX(-100%);
+  }
 }
 
 /* Paused: the flash's disc, left in place (the art isn't dimmed). */

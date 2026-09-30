@@ -11,4 +11,5 @@ fixture data and then reloads the page. People usually use the device while they
 - Ask before running it ("Is now a good time for the device test?") and wait for a yes. It
   interrupts whatever is on the screen.
 
-`npm run mock-screens` (the README screenshots) also drives the device, so ask before running it too.
+`npm run mock-screens` (the README screenshots) and `scripts/util/art-compare.js` also drive the device, so ask
+before running them too.

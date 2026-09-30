@@ -2,7 +2,8 @@ import { reactive, ref, computed, watch } from 'vue';
 import { initializeRuntime } from '../js/core.js';
 
 export const state = reactive({
-  current: 'nowplaying', leaving: '', offline: true, asleep: false, light: false,
+  // screenSwitch: how the current screen is coming in ('fade', 'next', 'previous'), until it has (core.js).
+  current: 'nowplaying', leaving: '', screenSwitch: 'fade', offline: true, asleep: false, light: false,
   settings: { theme: 'dark', units: 'F', clock24h: false, clockFace: 'analog', meetingAlert: 0, meetingTimer: false, location: { mode: 'auto' } },
   now: Date.now(), np: { active: false }, npAt: 0, artwork: null,
   weather: { status: 'loading' }, calendar: { status: 'loading' },
@@ -16,7 +17,12 @@ export const CT = initializeRuntime(state);
 const ART_GRACE_MS = 1500;
 const shownArt = ref('');
 const shownBlur = ref(''); // the album art background, blurred on the Mac (empty: the device blurs the cover)
-let artClear, artLoad = 0;
+const shownTint = ref(null); // how strong a tint that background needs in each theme, measured on the Mac
+// Art that arrives soon after a skip on the device wipes in from that side (see Artwork.vue);
+// anything else, a track changed on the Mac or a "previous" that only restarted the song, fades.
+const SKIP_ART_MS = 4000;
+const artDirection = ref('');
+let artClear, artLoad = 0, skip = null;
 function preload(url) {
   return new Promise(resolve => {
     if (!url) return resolve();
@@ -31,15 +37,18 @@ function showArt(art) {
   const seq = ++artLoad;
   Promise.all([preload(art.dataUrl), preload(art.blurUrl)]).then(() => {
     if (seq !== artLoad) return;
+    artDirection.value = skip && performance.now() - skip.at < SKIP_ART_MS ? skip.action : '';
+    skip = null;
     shownArt.value = art.dataUrl;
     shownBlur.value = art.blurUrl || '';
+    shownTint.value = art.blurUrl && art.tint || null;
   });
 }
 watch(() => [state.np.artworkKey, state.artwork], () => {
   clearTimeout(artClear);
   if (!state.np.artworkKey) {
     artLoad++;
-    artClear = setTimeout(() => { shownArt.value = ''; shownBlur.value = ''; }, shownArt.value ? ART_GRACE_MS : 0);
+    artClear = setTimeout(() => { shownArt.value = ''; shownBlur.value = ''; shownTint.value = null; }, shownArt.value ? ART_GRACE_MS : 0);
   } else if (state.artwork && state.artwork.key === state.np.artworkKey && state.artwork.dataUrl !== shownArt.value) {
     showArt(state.artwork);
   }
@@ -47,6 +56,16 @@ watch(() => [state.np.artworkKey, state.artwork], () => {
 export const artworkUrl = computed(() => state.np.active ? shownArt.value : '');
 // For the album art background: the Mac's blurred image when it sent one, else the cover to blur here.
 export const ambientUrl = computed(() => state.np.active ? shownBlur.value || shownArt.value : '');
+export const artworkDirection = computed(() => artDirection.value);
+// The tint over the album art background, black under the dark theme's white text and white under
+// the light theme's dark text. Each theme's usual strength, or more when the Mac measured the art
+// as too bright (dark) or too dark (light) for the text to stay readable over it.
+const AMBIENT_TINT = { dark: 0.3, light: 0.4 };
+export const ambientTint = computed(() => {
+  const theme = state.light ? 'light' : 'dark';
+  const alpha = Math.min(0.6, Math.max(AMBIENT_TINT[theme], shownTint.value && shownTint.value[theme] || 0));
+  return (state.light ? 'rgba(255,255,255,' : 'rgba(0,0,0,') + alpha.toFixed(2) + ')';
+});
 export const ambientPreBlurred = computed(() => !!shownBlur.value);
 // The track has art, even if it's still loading (as it is just after the page mounts). Backgrounds
 // follow this rather than artworkUrl, so they're already the art's while it loads and it fades
@@ -80,7 +99,10 @@ CT.on('command', action => {
       np.rate = np.playing ? 1 : 0;
     }
     if (state.current !== 'nowplaying' || !np.active) CT.flash(!np.active || np.playing ? 'play' : 'pause');
-  } else if (action === 'next' || action === 'previous') CT.flash(action);
+  } else if (action === 'next' || action === 'previous') {
+    skip = { action: action, at: performance.now() };
+    CT.flash(action);
+  }
 });
 CT.on('favorite', msg => {
   CT.flash(msg.favorited ? 'heart' : 'heart-off');
