@@ -5,14 +5,15 @@ import LeftRail from '../components/LeftRail.vue';
 import ScreenStage from '../components/ScreenStage.vue';
 import AnalogClock from '../components/AnalogClock.vue';
 import TimeTimer from '../components/TimeTimer.vue';
-import { timer, total, remaining, timerLabel, timerTitle, stepPreset, currentMeetingKey, pickMeeting, autoStartMeeting, toggleTimer, resetTimer } from '../timer.js';
+import { timer, total, remaining, timerLabel, timerTitle, stepPreset, currentMeetingKey, pickMeeting, autoStartMeeting, toggleTimer, resetTimer, clearTimer } from '../timer.js';
 const parts = computed(() => CT.parts(state.now));
 const face = computed(() => state.settings.clockFace);
 const time = computed(() => CT.clockText(parts.value));
 const next = computed(() => state.calendar.status === 'ok' ? state.calendar.events.find(e => !e.allDay && e.start > state.now && CT.dayNumber(e.start) === CT.dayNumber(state.now)) : null);
 // The clock button, pressed on the clock, swaps it for the timer and back. Knob and wheel work
 // the timer only while it's up: turn to pick a length, press to start or pause, press twice to reset.
-// During a meeting it opens set to the meeting's end, a stop just left of 5 minutes.
+// During a meeting it opens set to the meeting's end, a stop just left of 5 minutes; reset there
+// drops back to the preset, stopped.
 const mode = ref('clock');
 const screen = CT.screen('clock');
 screen.reselect = () => {
@@ -40,7 +41,7 @@ let lastPress = 0;
 screen.press = () => {
   if (mode.value === 'clock') return false;
   const t = performance.now();
-  if (t - lastPress < (CT.config.multiClickMs || 350)) { resetTimer(); lastPress = 0; } else { toggleTimer(); lastPress = t; }
+  if (t - lastPress < (CT.config.multiClickMs || 350)) { clearTimer(); lastPress = 0; } else { toggleTimer(); lastPress = t; }
 };
 </script>
 <template>
