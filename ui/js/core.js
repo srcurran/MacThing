@@ -141,10 +141,10 @@ export function initializeRuntime(state) {
     return def;
   };
 
-  // The old screen stays on under the new one until the new one has faded or wiped in (see
-  // "Switching screens" in app.css), however long that is set to take.
+  // The old screen stays on under the new one until the new one has faded in (see "Switching
+  // screens" in app.css), however long that is set to take.
   document.addEventListener('animationend', function (e) {
-    if (e.target.classList.contains('screen') && e.target.classList.contains('active')) {
+    if (e.animationName === 'fade-in' && e.target.classList.contains('screen') && e.target.classList.contains('active')) {
       state.leaving = '';
       state.screenSwitch = '';
     }

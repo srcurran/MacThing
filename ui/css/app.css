@@ -325,19 +325,18 @@ h3 {
 }
 /* Between pages it slides a little towards the side the new page's button is on, and crossfades:
    the old screen's content drifts 6px the other way as it fades out, while the new screen fades
-   in over it with its content easing in from 12px out, both at once. Only opacity and transforms
-   animate. The old screen's panels stay put underneath, as in the fade. */
-[data-switch="next"] > .screen.active,
+   in over it, easing in from 12px out as one piece (panels, rail and stage together), both at
+   once. Only opacity and transforms animate. The old screen's panels stay put underneath, as in
+   the fade. The fade outlasts the slide: core.js waits for the fade-in to end. */
+[data-switch="next"] > .screen.active {
+  animation:
+    fade-in 1.5s ease-out backwards,
+    page-from-right 0.35s ease-out backwards;
+}
 [data-switch="previous"] > .screen.active {
-  animation: fade-in 1.5s ease-out backwards;
-}
-[data-switch="next"] > .screen.active .left-rail > *,
-[data-switch="next"] > .screen.active .screen-stage > * {
-  animation: page-from-right 0.35s ease-out backwards;
-}
-[data-switch="previous"] > .screen.active .left-rail > *,
-[data-switch="previous"] > .screen.active .screen-stage > * {
-  animation: page-from-left 0.35s ease-out backwards;
+  animation:
+    fade-in 1.5s ease-out backwards,
+    page-from-left 0.35s ease-out backwards;
 }
 [data-switch="next"] > .screen.leaving .left-rail > *,
 [data-switch="next"] > .screen.leaving .screen-stage > * {
