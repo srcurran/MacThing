@@ -39,6 +39,10 @@ const hours = computed(() =>
         i === 0 ? { ...h, ...data.value.current } : h,
       ),
 );
+// Today steps two hours at a time, so its six rows reach ten hours out.
+const todayHours = computed(() =>
+  ok.value ? data.value.hourly.filter((_, i) => i % 2 === 0).slice(0, 6) : [],
+);
 const days = computed(() => {
   if (!ok.value) return [];
   const rows = data.value.daily.slice(0, 4);
@@ -93,7 +97,7 @@ screen.reselect = () => {
       <WeatherToday
         v-if="ok && view === 'today'"
         class="stage-safe"
-        :hours="data.hourly.slice(0, 6)"
+        :hours="todayHours"
         :day="data.daily[0]"
         :tz="tz"
       />

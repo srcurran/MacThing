@@ -64,7 +64,7 @@ const day = (i, code, pop, lo, hi) => ({ t: midnight + i * DAY, code, pop, lo, h
 const weather = {
   status: 'ok', place: 'Portland', utcOffset: 0, updatedAt: now,
   current: { temp: 72, code: 0, isDay: true },
-  hourly: [hour(0, 72, 0, true, 0), hour(1, 74, 0, true, 0), hour(2, 75, 1, true, 0), hour(3, 75, 2, true, 10), hour(4, 73, 2, true, 10), hour(5, 71, 3, true, 20)],
+  hourly: [hour(0, 72, 0, true, 0), hour(1, 74, 0, true, 0), hour(2, 75, 1, true, 0), hour(3, 75, 2, true, 10), hour(4, 74, 2, true, 10), hour(5, 72, 2, true, 10), hour(6, 70, 2, false, 10), hour(7, 68, 3, false, 20), hour(8, 66, 3, false, 20), hour(9, 64, 3, false, 20), hour(10, 63, 3, false, 20)],
   daily: [day(0, 63, 55, 56, 77), day(1, 3, 0, 56, 77), day(2, 63, 55, 44, 63), day(3, 3, 0, 44, 77), day(4, 2, 10, 50, 72), day(5, 61, 40, 52, 68)],
 };
 
