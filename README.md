@@ -285,6 +285,7 @@ dist/ui/          generated device bundle and local assets (git-ignored)
 vite.config.js    Vue compiler and Chromium 69 classic-script build
 device/           sleepd.sh — the device's own sleep watchdog, installed by setup-device
 scripts/          device setup/restore, screenshots, LaunchAgent
+  util/           one-off comparisons (art-compare.js: album art background versions side by side)
 vendor/           mediaremote-adapter source (cloned by native/build.sh, git-ignored)
 ```
 
@@ -327,7 +328,10 @@ they always show what the device draws. It has three presets, because the album 
 changes every screen: the default (`hug`) writes `docs/<screen>.png` with it on,
 `npm run mock-screens -- deafheaven` writes `docs/<screen>-deafheaven.png` with it on over other art, and
 `npm run mock-screens -- polvo` writes the plain `docs/<screen>-polvo.png` set with it off. `npm run screenshot`
-grabs whatever is on screen now.
+grabs whatever is on screen now. `node scripts/util/art-compare.js [covers-dir] [out-dir]` draws the album art
+background four ways (current, Mac blur with the usual tint, CSS blur with mirrored edges, the original CSS
+blur) over each cover in a folder, in both themes, over whatever screen is up, and writes an `index.html`
+that lays them side by side.
 
 ## Credits
 
