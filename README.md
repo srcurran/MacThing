@@ -287,6 +287,7 @@ device/           sleepd.sh — the device's own sleep watchdog, installed by se
 scripts/          device setup/restore, screenshots, LaunchAgent
   util/           one-off comparisons (art-compare.js: album art background versions side by side)
 vendor/           mediaremote-adapter source (cloned by native/build.sh, git-ignored)
+.github/workflows release.yml: a version bump in package.json merged to main publishes release v<version>
 ```
 
 ## Contributing
