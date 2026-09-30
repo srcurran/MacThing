@@ -123,7 +123,8 @@ function toState(d, place, units) {
   const now = Date.now() / 1000;
   const h = d.hourly;
   const start = Math.max(0, h.time.findLastIndex((t) => t <= now));
-  const hourly = h.time.slice(start, start + 6).map((t, i) => ({
+  // Eleven hours from the current one: the forecast shows the first five, Today every other one.
+  const hourly = h.time.slice(start, start + 11).map((t, i) => ({
     t: t * 1000,
     temp: r(h.temperature_2m[start + i]),
     code: h.weather_code[start + i],

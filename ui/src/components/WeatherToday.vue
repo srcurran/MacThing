@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import { CT } from "../state.js";
 import WeatherIcon from "./WeatherIcon.vue";
-// Today (the weather button again): the next six hours as rows, matching the week's six days,
+// Today (the weather button again): six hours, every other one, as rows, matching the week's six days,
 // spread down the stage's insets (Figma 202:1565). Each row: the hour, its icon and chance of rain
 // when it's worth mentioning, and its temperature riding a bar scaled to the whole day's low to
 // high (stretched if an hour past midnight goes beyond it).
