@@ -92,6 +92,13 @@ export function resetTimer() {
   timer.status = 'set';
   if (timer.meeting) followMeeting();
 }
+/** Pressed twice: stop the timer and put it back to its preset. Set to a meeting, it's always
+ *  counting down to the meeting's end, so reset leaves the meeting too; the knob's meeting stop
+ *  (or opening the timer again) brings it back. */
+export function clearTimer() {
+  timer.meeting = null;
+  timer.status = 'set';
+}
 // Set to a meeting, the timer keeps up with it: a new end time, or, once it's over (or moved, or
 // gone from the calendar), back to its preset.
 function followMeeting() {
