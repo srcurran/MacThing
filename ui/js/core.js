@@ -66,6 +66,7 @@ export function initializeRuntime(state) {
   var offlineSince = 0; // when the Mac was last seen; 0 means "not since this page loaded"
   function setConnected(on) {
     if (on !== connected) offlineSince = on ? 0 : performance.now();
+    if (on && !connected) opening = true;
     connected = on;
     state.offline = !on;
   }
@@ -173,18 +174,22 @@ export function initializeRuntime(state) {
   };
   CT.closeSettings = function () { CT.show(beforeSettings); };
 
-  // The page opens on Now Playing, or on the Clock when nothing is playing, and moves to Now
-  // Playing when something starts — until a screen is picked on the device (or restored in dev).
-  // It doesn't move away from Now Playing on its own: a player can drop out between tracks.
-  var autoScreen = true, heardNowPlaying = false;
+  // Whenever the Mac connects (the page loading, or the bridge coming back), an empty Now Playing
+  // gives way to the Clock. From there, or from the page's first screen, it moves to Now Playing
+  // when something starts — until a screen is picked on the device (or restored in dev). It
+  // doesn't leave Now Playing while connected: a player can drop out between tracks.
+  var autoScreen = true, opening = true; // opening: no Now Playing message yet since connecting
   CT.on('nowPlaying', function (msg) {
-    var first = !heardNowPlaying;
-    heardNowPlaying = true;
-    if (!autoScreen) return;
-    if (msg.np.active) {
+    var first = opening;
+    opening = false;
+    if (first && !msg.np.active && CT.current === 'nowplaying') {
+      autoScreen = true;
+      return CT.show('clock', true); // under "Waiting for your Mac" as it fades
+    }
+    if (autoScreen && msg.np.active) {
       autoScreen = false;
       CT.show('nowplaying');
-    } else if (first && CT.current === 'nowplaying') CT.show('clock', true); // under "Waiting for your Mac" as it fades
+    }
   });
 
   // Dev only (npm run dev): the watcher reloads the page on every change, so remember the screen
@@ -201,7 +206,7 @@ export function initializeRuntime(state) {
     var saved;
     try { saved = JSON.parse(sessionStorage.getItem('ct-dev-screen')); } catch (e) {}
     if (!saved || !CT.screens[saved.name]) return;
-    autoScreen = false;
+    autoScreen = opening = false;
     Object.keys(saved.reselects || {}).forEach(function (name) {
       var screen = CT.screens[name];
       for (var i = 0; screen && screen.reselect && i < saved.reselects[name]; i++) screen.reselect();
