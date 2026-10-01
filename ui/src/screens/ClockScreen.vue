@@ -33,6 +33,13 @@ watch([currentMeetingKey, () => state.settings.meetingTimer], ([key]) => {
 });
 // A finished timer counts up past its time until you leave it, then goes back to its preset.
 watch(() => mode.value === 'timer' && state.current === 'clock', up => { if (!up && timer.status === 'done') resetTimer(); });
+// A meeting's timer counts on past its end for ten minutes at most, then puts itself away.
+const MEETING_OVERRUN_MS = 10 * 60000;
+CT.onSecond(now => {
+  if (timer.status !== 'done' || !timer.meeting || now - timer.endsAt < MEETING_OVERRUN_MS) return;
+  resetTimer();
+  mode.value = 'clock';
+});
 screen.turn = steps => {
   if (mode.value === 'clock' || timer.status === 'running' || timer.status === 'paused') return false;
   stepPreset(steps);
