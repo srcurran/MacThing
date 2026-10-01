@@ -154,7 +154,8 @@ export function initializeRuntime(state) {
   // new one in from that side; Settings, which has no top button, fades.
   var PAGES = ['nowplaying', 'calendar', 'weather', 'clock'];
 
-  CT.show = function (name) {
+  /** Shows a screen. `fade` crossfades even between pages, rather than sliding to the side. */
+  CT.show = function (name, fade) {
     var next = CT.screens[name];
     if (!next) return;
     if (name !== CT.current) {
@@ -162,7 +163,7 @@ export function initializeRuntime(state) {
       if (name === 'settings') beforeSettings = CT.current;
       if (prev.hide) prev.hide();
       var from = PAGES.indexOf(CT.current), to = PAGES.indexOf(name);
-      state.screenSwitch = from < 0 || to < 0 ? 'fade' : to > from ? 'next' : 'previous';
+      state.screenSwitch = fade || from < 0 || to < 0 ? 'fade' : to > from ? 'next' : 'previous';
       state.leaving = CT.current;
       CT.current = name;
       state.current = name;
@@ -171,6 +172,20 @@ export function initializeRuntime(state) {
     }
   };
   CT.closeSettings = function () { CT.show(beforeSettings); };
+
+  // The page opens on Now Playing, or on the Clock when nothing is playing, and moves to Now
+  // Playing when something starts — until a screen is picked on the device (or restored in dev).
+  // It doesn't move away from Now Playing on its own: a player can drop out between tracks.
+  var autoScreen = true, heardNowPlaying = false;
+  CT.on('nowPlaying', function (msg) {
+    var first = !heardNowPlaying;
+    heardNowPlaying = true;
+    if (!autoScreen) return;
+    if (msg.np.active) {
+      autoScreen = false;
+      CT.show('nowplaying');
+    } else if (first && CT.current === 'nowplaying') CT.show('clock', true); // under "Waiting for your Mac" as it fades
+  });
 
   // Dev only (npm run dev): the watcher reloads the page on every change, so remember the screen
   // and how many times each screen's button was pressed again (weather Today/This Week, the
@@ -186,6 +201,7 @@ export function initializeRuntime(state) {
     var saved;
     try { saved = JSON.parse(sessionStorage.getItem('ct-dev-screen')); } catch (e) {}
     if (!saved || !CT.screens[saved.name]) return;
+    autoScreen = false;
     Object.keys(saved.reselects || {}).forEach(function (name) {
       var screen = CT.screens[name];
       for (var i = 0; screen && screen.reselect && i < saved.reselects[name]; i++) screen.reselect();
@@ -265,6 +281,7 @@ export function initializeRuntime(state) {
 
   function runButton(action) {
     if (!action) return;
+    if (action.indexOf('screen:') === 0 || action === 'settings') autoScreen = false;
     if (action.indexOf('screen:') === 0) {
       var name = action.slice(7), screen = CT.screens[name];
       if (name === CT.current && screen && screen.reselect) {
