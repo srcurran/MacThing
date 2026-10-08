@@ -15,6 +15,12 @@ const next = computed(() => state.calendar.status === 'ok' ? state.calendar.even
 // During a meeting it opens set to the meeting's end, a stop just left of 5 minutes; reset there
 // drops back to the preset, stopped.
 const mode = ref('clock');
+// Auto-rotate waits while a length is being picked, and while a timer is running, paused, or
+// counting past its end. A preset that was never opened does not hold the other screens.
+watch([mode, () => timer.status], () => {
+  const status = timer.status;
+  state.timerHold = status === 'running' || status === 'paused' || status === 'done' || (mode.value === 'timer' && status === 'set');
+}, { immediate: true });
 const screen = CT.screen('clock');
 screen.reselect = () => {
   mode.value = mode.value === 'clock' ? 'timer' : 'clock';
@@ -64,7 +70,7 @@ screen.press = () => {
       <div class="fade-view c-view-timer fill" :class="{ on: mode === 'timer' }"><TimeTimer :remaining="remaining" :total="total" :idle="timer.status === 'set' && !timer.meeting" /></div>
       <div class="fade-view fill" :class="{ on: mode === 'clock' }">
         <AnalogClock v-if="face !== 'digital'" :numbers="face === 'numbers'" :now="state.current === 'clock' ? state.now : 0" />
-        <div v-else class="c-digital fill flex gap-10 tabular semibold"><span>{{ time.time }}</span><span class="c-digital-sec accent">{{ String(parts.seconds).padStart(2, '0') }}</span></div>
+        <div v-else class="c-digital fill tabular semibold" :class="{ 'flex gap-10': !state.settings.digitalLarge, 'c-digital-large': state.settings.digitalLarge, 'c-digital-hm': state.settings.digitalSeconds === false }"><span>{{ time.time }}</span><span v-if="state.settings.digitalSeconds !== false" class="c-digital-sec accent">{{ String(parts.seconds).padStart(2, '0') }}</span></div>
       </div>
     </ScreenStage>
   </section>

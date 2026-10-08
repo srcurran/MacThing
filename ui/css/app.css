@@ -536,6 +536,18 @@ h3 {
 .vol-value {
   min-width: 36px;
 } /* steadies the bar as the number changes width */
+/* A flat colour repaints the page's text and bars. The pill keeps its own background, so its
+   icon, number and bar take the ink that reads on that background rather than the page's. */
+#app.flat-on .volume-hud {
+  color: var(--white);
+  --bar-fill: var(--white);
+  --bar-track: var(--white-a30);
+}
+#app.flat-on.light .volume-hud {
+  color: var(--gray-950);
+  --bar-fill: var(--gray-950);
+  --bar-track: var(--black-a20);
+}
 /* "No volume control on <device>" replaces the bar, and the pill fits the message. */
 .volume-unsupported .volume-hud {
   width: -webkit-max-content;
@@ -655,6 +667,61 @@ h3 {
   background: transparent;
 }
 
+/* Flat colour (Settings → Background → Color). One colour behind the rail and the stage,
+   and an ink that reads on it. Appearance's light and dark palettes stay out of the way. */
+#app.flat-on {
+  --panel: var(--flat);
+  --stage: var(--flat);
+  --orange: var(--text);
+  --timer-hand: var(--text);
+  --today: var(--text);
+  --today-ink: var(--flat);
+  background: var(--flat);
+}
+#app.flat-on[data-ink="light"] {
+  --text: var(--white);
+  --text-2: var(--white-a70);
+  --muted: var(--white-a50);
+  --line: var(--white-a10);
+  --selected: var(--white-a10);
+  --bar-fill: var(--white);
+  --bar-track: var(--white-a30);
+  --hand: var(--white);
+  --timer-used: var(--white-a20);
+  --c-mark-fill: var(--white-a10);
+  --c-mark-edge: var(--white);
+  --c-hand: var(--white);
+  --c-hand-fill: var(--white-a01);
+  --c-hand-shadow: var(--white-a30);
+  --notch: var(--white-a30);
+  --cloud: var(--white);
+  --cloud-back: var(--slate-300);
+  --moon: var(--cream-100);
+  --rain: var(--sky-300);
+}
+#app.flat-on[data-ink="dark"] {
+  --text: var(--gray-950);
+  --text-2: var(--black-a70);
+  --muted: var(--black-a50);
+  --line: var(--black-a10);
+  --selected: var(--black-a05);
+  --bar-fill: var(--gray-950);
+  --bar-track: var(--black-a20);
+  --hand: var(--gray-950);
+  --timer-used: var(--black-a10);
+  --c-mark-fill: var(--black-a10);
+  --c-mark-edge: var(--black);
+  --c-hand: var(--black);
+  --c-hand-fill: var(--black-a01);
+  --c-hand-shadow: var(--black-a20);
+  --notch: var(--black-a20);
+  --sun: var(--yellow-600);
+  --moon: var(--olive-800);
+  --cloud: var(--slate-200);
+  --cloud-back: var(--slate-400);
+  --rain: var(--sky-700);
+}
+
 /* Screen asleep (backlight off): render nothing, in case the backlight can't be switched. */
 #app.asleep {
   background: var(--black);
@@ -702,10 +769,14 @@ h3 {
   --muted: var(--white-a50);
   --line: var(--white-a10);
 }
-#app.ambient-on .m-card {
+/* Album art and a flat colour both turn the accent into the page's text colour. On this card
+   the accent has to be the card's own text, or a light page paints a white pill with white words. */
+#app.ambient-on .m-card,
+#app.flat-on .m-card {
   --orange: var(--text);
 }
-#app.ambient-on .m-when {
+#app.ambient-on .m-when,
+#app.flat-on .m-when {
   color: var(--card); /* the pill is the text colour here */
 }
 .meeting-alert.on .m-card {
@@ -841,9 +912,13 @@ h3 {
   opacity: 1;
 }
 /* Every source fills the square. A 16:9 video thumbnail is cropped to its middle rather than
-   letterboxed, so the stage always reads as one image. */
+   letterboxed, so the stage always reads as one image. Now playing's 16:9 setting keeps the
+   whole frame instead; the stage colour shows in the bars. A square cover still fills the stage. */
 .art-img {
   background: center / cover no-repeat;
+}
+#screen-nowplaying.art-wide .art-img {
+  background-size: contain;
 }
 /* After a skip the new art wipes across behind a soft edge instead of fading: next comes in from
    the right, previous from the left. Only transforms animate. .art-wipe carries a fixed gradient
@@ -1129,9 +1204,9 @@ h3 {
 }
 
 .c-digital {
-  align-items: baseline;
+  display: flex;
+  align-items: center;
   justify-content: center;
-  padding-top: 170px;
   font-size: 150px;
   line-height: 1;
   letter-spacing: -0.055em;
@@ -1139,6 +1214,24 @@ h3 {
 .c-digital-sec {
   font-size: 44px;
   letter-spacing: -0.02em;
+}
+/* Large hours and minutes fill the width the seconds used to share. Seconds, if still on,
+   move underneath so they don't push the time off the stage. */
+.c-digital-large {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 175px;
+  /* Centered on the stage, the last digit sits under the dial. A full digit (1ch) would
+     meet the day name, so this stops one rail-inset short of that. The stage lets it
+     draw into the empty part of the rail, which is the same colour. */
+  transform: translateX(calc(-1ch + 24px));
+}
+#screen-clock .screen-stage {
+  overflow: visible;
+}
+.c-digital-large .c-digital-sec {
+  margin-top: 8px;
 }
 
 /* ===== timer ===== */
