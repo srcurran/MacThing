@@ -26,9 +26,12 @@ export const config = {
 
   // Buttons → action. Keys are what the device reports to the page: top buttons 1–4, the
   // fifth (settings) button at the end of the top row (m) and the back button under the knob
-  // (Escape — also closes Settings whatever it's mapped to).
-  // Actions: screen:<nowplaying|calendar|weather|clock> | settings | favorite | unfavorite
-  // (the playing Apple Music song) | previous | next | playpause | null
+  // (Escape — also closes Settings whatever it's mapped to). The Back button setting (device
+  // Settings or the Mac page) picks what it does: "Favorite song" uses the mapping here,
+  // "Screen on/off" turns the screen off instead (the next input wakes it).
+  // Actions: screen:<nowplaying|calendar|weather|clock> | settings | sleep (screen off until the
+  // next input) | favorite | unfavorite (the playing Apple Music song) | previous | next |
+  // playpause | null
   buttons: {
     1: 'screen:nowplaying',
     2: 'screen:calendar',

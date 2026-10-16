@@ -255,7 +255,7 @@ export function initializeRuntime(state) {
   }
   CT.on('screen', function (msg) { setAsleep(!msg.on); });
 
-  /** Holding the sleep button: the Mac turns the backlight off until the next input. */
+  /** A `sleep` button (held settings, or the back button): the Mac turns the backlight off until the next input. */
   function sleepNow() {
     setAsleep(true); // black straight away, even if the Mac isn't there to answer
     CT.send({ type: 'sleep' });
@@ -297,6 +297,7 @@ export function initializeRuntime(state) {
       return CT.show(name);
     }
     if (action === 'settings') return CT.current === 'settings' ? CT.closeSettings() : CT.show('settings');
+    if (action === 'sleep') return sleepNow(); // the next input wakes it (wakeInstead)
     CT.command(action);
   }
 
@@ -333,6 +334,9 @@ export function initializeRuntime(state) {
   function runKey(key) {
     if (key === 'Enter') return knobPress();
     if (key === 'Escape' && CT.current === 'settings') return CT.closeSettings();
+    // The Back button setting: 'screen' turns the screen off (the next input wakes it, see
+    // wakeInstead); 'favorite' leaves it to the config's mapping.
+    if (key === 'Escape' && CT.settings.backButton === 'screen') return sleepNow();
     var actions = (CT.config.buttonClicks || {})[key];
     if (actions) return buttonPress(key, actions);
     runButton(CT.config.buttons[key]);

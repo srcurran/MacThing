@@ -24,7 +24,7 @@ background turned on, the second doesn't._
 | Press knob once / twice / three times | Play-pause / next track / previous track; starts Apple Music if nothing is playing (in Settings: change the selected option) |
 | Fifth top button (settings)           | Settings (press it again, or the back button, to close)                                                                      |
 | Hold the fifth top button             | Sleep now — screen off until the next button or knob input                                                                   |
-| Back button (under the knob)          | Press once to favorite the playing Apple Music song, twice to unfavorite it (does nothing while it's paused) |
+| Back button (under the knob)          | Press once to favorite the playing Apple Music song, twice to unfavorite it (does nothing while it's paused); or, with the Back button setting on Screen on/off, turn the screen off — the next press turns it back on |
 
 The four screens:
 
@@ -126,6 +126,10 @@ npm run setup-device  # only if you set the device up before the sleep watchdog 
 ## Customizing
 
 **Everyday settings.** Use the device's Settings screen (fifth top button) or http://127.0.0.1:4747 on the Mac. They're saved in `~/Library/Application Support/carthing-now-playing/settings.json`.
+
+A few of them change how the device behaves:
+
+- **Back button:** *Favorite song* (the default) favorites the playing Apple Music song, or unfavorites it on two presses. *Screen on/off* turns the Car Thing's screen off; the next press (or any input) turns it back on. Either way it closes Settings while Settings is open.
 
 **Hardware mapping and behavior.** Edit `bridge/config.js`, then `npm run restart`:
 
