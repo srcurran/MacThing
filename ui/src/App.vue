@@ -20,13 +20,14 @@ watch(() => state.current, current => { if (NOTCHED.includes(current)) notchAt.v
 </script>
 <template>
   <IconSymbols />
-  <div id="app" :data-screen="state.current" :class="{ offline: state.offline, asleep: state.asleep, light: state.light, 'ambient-on': ambient, 'show-volume': state.showVolume, 'volume-unsupported': state.volumeUnsupported }">
+  <div id="app" :data-screen="state.current" :class="{ offline: state.offline, asleep: state.asleep, light: state.light, 'ambient-on': ambient, 'show-volume': state.showVolume, 'volume-unsupported': state.volumeUnsupported, 'volume-app': !!state.volumeApp }">
     <div v-if="ambient" class="ambient fill" :class="{ 'pre-blurred': ambientPreBlurred }"><Artwork :url="ambientUrl" :tint="ambientTint" /></div>
     <div class="screens fill" :data-switch="state.screenSwitch || null"><NowPlayingScreen /><CalendarScreen /><WeatherScreen /><ClockScreen /><SettingsScreen /></div>
     <div class="page-notch" :class="{ on: NOTCHED.includes(state.current) }" :style="{ transform: 'translateX(' + notchAt * 201 + 'px)' }" />
     <MeetingAlert />
     <div class="volume-hud fill flex items-center gap-16">
       <svg class="vol-icon flex-none"><use :href="state.volume === 0 ? '#i-muted' : '#i-speaker'" /></svg>
+      <span v-if="state.volumeApp && !state.volumeUnsupported" class="vol-app flex-none font-small semibold">{{ state.volumeApp }}</span>
       <UiProgress v-show="!state.volumeUnsupported" :value="state.volume" /><span v-show="state.volumeUnsupported" class="font-small weight-light truncate">{{ state.volumeNote }}</span>
     </div>
     <div :key="state.flash.key" class="flash disc flex center" :class="{ on: state.flash.key > 0 && !pausedBadge }" :style="{ color: state.flash.color }"><svg><use :href="'#i-' + state.flash.icon" /></svg></div>

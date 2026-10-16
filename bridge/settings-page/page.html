@@ -25,7 +25,7 @@
   .label { font-weight: 500; }
   .seg { display: inline-flex; background: var(--seg); border-radius: 9px; padding: 2px; }
   .seg button { border: 0; background: none; color: var(--text); font: inherit; font-size: 14px;
-    padding: 5px 12px; border-radius: 7px; cursor: pointer; }
+    padding: 5px 12px; border-radius: 7px; cursor: pointer; white-space: nowrap; }
   .seg button[aria-pressed="true"] { background: var(--seg-on); box-shadow: 0 1px 3px rgba(0,0,0,.15); font-weight: 600; }
   h2 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 0 0 8px 18px; }
   .choice { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; cursor: pointer; }
@@ -67,6 +67,12 @@
       <span class="seg" data-key="clock24h"><button data-v="false">12-hour</button><button data-v="true">24-hour</button></span></div>
     <div class="row"><span class="label">Clock face</span>
       <span class="seg" data-key="clockFace"><button data-v="analog">Analog</button><button data-v="numbers">Numbers</button><button data-v="digital">Digital</button></span></div>
+  </section>
+
+  <h2 id="controls">Controls</h2>
+  <section>
+    <div class="row"><div><div class="label">Knob volume</div><div class="note">What the knob turns.</div></div>
+      <span class="seg" data-key="knobVolume"><button data-v="auto" title="The Mac’s output, or the playing Spotify or Apple Music when the output has no volume">Auto</button><button data-v="system">Mac</button><button data-v="spotify">Spotify</button><button data-v="music">Apple Music</button></span></div>
   </section>
 
   <h2 id="location">Weather location</h2>

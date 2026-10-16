@@ -7,6 +7,7 @@
 import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { APP_VOLUME, AppVolume } from './audio/app-volume.js';
 import { Volume } from './audio/volume.js';
 import { config, paths } from './config.js';
 import { listCarThings, listDevices, onUsbBus, restartServer, trackDevices } from './device/adb.js';
@@ -26,6 +27,7 @@ import { Weather } from './widgets/weather.js';
 
 const source = new MediaRemoteSource(paths.bin);
 const volume = new Volume(paths.bin);
+const appVolume = new AppVolume();
 const apps = new AppInfo(paths.bin);
 const artwork = new ArtworkCache(path.join(paths.bin, 'artwork'), { blur: config.ambientBlurOnMac });
 const helper = new MacHelper(paths.bin);
@@ -62,6 +64,7 @@ async function onNowPlaying(snapshot) {
   if (summary !== lastLogged) log.info(`[now playing] ${(lastLogged = summary)}`);
 
   if (link) pushNowPlaying(link);
+  refreshKnobTarget(); // under 'auto', the playing app decides what the knob turns
 
   // Browser video art is often a small thumbnail. Look for a bigger one once per cover.
   if (!art || largerArt.has(key) || Math.min(art.width, art.height) >= 360) return;
@@ -142,7 +145,8 @@ function pushAll(target) {
   target.send(tickMessage());
   target.send({ type: 'settings', settings: settings.get() });
   target.send({ type: 'appearance', dark: appearance.dark });
-  if (volume.state) target.send({ type: 'volume', volume: volume.state });
+  const vol = volumeMessage();
+  if (vol) target.send({ type: 'volume', volume: vol });
   pushNowPlaying(target);
   target.send({ type: 'weather', weather: weather.state });
   target.send({ type: 'calendar', calendar: calendar.state });
@@ -251,12 +255,124 @@ const FINE_KEY_STEP = 1 / 64; // one Option+Shift volume-key press
 
 function changeVolume(delta) {
   if (!Number.isFinite(delta) || delta === 0) return;
+  const app = knobApp();
+  if (app) return changeAppVolume(app, delta);
   if (config.macVolumeIndicator && volume.state?.keys) {
     const steps = Math.round(Math.abs(delta) / FINE_KEY_STEP);
     for (let i = 0; i < steps; i++) volume.pressKey(delta > 0);
   } else {
     volume.delta(delta);
   }
+}
+
+// ---- Knob volume: the Mac's output or an app's own ----------------------------------------
+// settings.knobVolume picks what the knob turns: 'system' (the Mac's output), 'spotify' or
+// 'music' (that app's own volume slider, over AppleScript), or 'auto' — the output, unless it
+// has no volume of its own (an HDMI monitor), then the playing app's if it's Spotify or Music.
+// An app's volume is first read on a knob turn, so macOS only asks for the Automation
+// permission ("node wants to control Spotify") when someone actually uses it.
+
+const KNOB_APPS = { spotify: 'com.spotify.client', music: 'com.apple.Music' };
+
+let appVol = null; // {bundleId, level: 0–100, fractional} once the knob has read that app's volume
+let appVolTouched = 0; // last knob turn: a background read mustn't undo what the knob just did
+let appVolReading = false;
+let appVolError = ''; // last failure logged, so the same one isn't logged on every turn
+let appVolToastAt = 0;
+const APP_VOL_QUIET_MS = 2000;
+
+/** The bundle id whose volume the knob turns, or null for the Mac's output volume. */
+function knobApp() {
+  const mode = settings.get().knobVolume;
+  if (KNOB_APPS[mode]) return KNOB_APPS[mode];
+  if (mode !== 'auto' || !volume.state || volume.state.supported) return null;
+  const { np } = current;
+  return np.active && AppVolume.supports(np.bundleId) ? np.bundleId : null;
+}
+
+/** What the device shows: {volume, muted, supported, device, app?: the app the knob turns}. */
+function volumeMessage() {
+  const v = volume.state;
+  const app = knobApp();
+  if (!app) return v;
+  const base = { device: v?.device || '', keys: v?.keys };
+  if (appVol?.bundleId === app) return { ...base, volume: appVol.level / 100, muted: false, supported: true, app: APP_VOLUME[app].name };
+  // Not read yet, or the app isn't running: the page sends the turn anyway and the read answers it.
+  return { ...base, volume: null, muted: false, supported: false, app: APP_VOLUME[app].name };
+}
+
+let lastVolumeSent = '';
+function pushVolume({ force = false } = {}) {
+  const v = volumeMessage();
+  const json = JSON.stringify(v);
+  if (!v || (!force && json === lastVolumeSent)) return;
+  lastVolumeSent = json;
+  link?.send({ type: 'volume', volume: v });
+}
+
+/** Forgets the app's volume when the knob no longer turns that app (setting, source or output changed). */
+function refreshKnobTarget() {
+  if (appVol && knobApp() !== appVol.bundleId) appVol = null;
+  pushVolume();
+}
+
+function appVolFailed(r, bundleId, { toast = false } = {}) {
+  appVol = null;
+  pushVolume();
+  const { name } = APP_VOLUME[bundleId];
+  if (!r.notRunning) {
+    const text = `${r.code || ''} ${r.error || ''}`;
+    if (text !== appVolError) log.warn(`[volume] ${name}'s volume:`, r.error);
+    appVolError = text;
+  }
+  if (!toast || Date.now() - appVolToastAt < 2500) return;
+  appVolToastAt = Date.now();
+  // -1743: the user said no to "node wants to control …" (System Settings → Privacy & Security → Automation).
+  const text = r.notRunning ? `${name} isn’t running`
+    : r.code === -1743 ? `Allow control of ${name} in Automation`
+    : r.timedOut ? `Allow control of ${name} on your Mac`
+    : `Couldn’t change ${name}’s volume`;
+  link?.send({ type: 'toast', text });
+}
+
+async function readAppVolume(bundleId) {
+  appVolReading = true;
+  try {
+    return await appVolume.read(bundleId);
+  } finally {
+    appVolReading = false;
+  }
+}
+
+async function changeAppVolume(bundleId, delta) {
+  appVolTouched = Date.now();
+  if (appVol?.bundleId !== bundleId) {
+    if (appVolReading) return; // the first turn is still reading it (or waiting on the permission prompt)
+    const r = await readAppVolume(bundleId);
+    if (!r.ok) return appVolFailed(r, bundleId, { toast: true });
+    if (knobApp() !== bundleId) return;
+    appVol = { bundleId, level: r.volume };
+    appVolError = '';
+    log.info(`[volume] the knob turns ${APP_VOLUME[bundleId].name}'s volume (${r.volume})`);
+  }
+  appVol.level = Math.min(100, Math.max(0, appVol.level + delta * 100));
+  const r = await appVolume.set(bundleId, appVol.level);
+  appVolTouched = Date.now();
+  if (r && !r.ok) return appVolFailed(r, bundleId, { toast: true });
+  pushVolume();
+}
+
+/** Every few seconds while the knob turns an app: follow its own slider, and notice it quitting. */
+async function syncAppVolume() {
+  refreshKnobTarget();
+  if (!appVol || appVolReading || appVolume.running || Date.now() - appVolTouched < APP_VOL_QUIET_MS) return;
+  const { bundleId } = appVol;
+  const r = await readAppVolume(bundleId);
+  if (Date.now() - appVolTouched < APP_VOL_QUIET_MS || appVolume.running || appVol?.bundleId !== bundleId) return;
+  if (!r.ok) return appVolFailed(r, bundleId);
+  // Keep the knob's fractional level unless the app really moved.
+  if (Math.round(appVol.level) !== r.volume) appVol.level = r.volume;
+  pushVolume();
 }
 
 let askedForKeyAccess = false;
@@ -382,9 +498,13 @@ log.info('Car Thing bridge starting');
 source.on('change', (s) => onNowPlaying(s).catch((err) => log.warn('[now playing]', err.message)));
 volume.on('change', (v) => {
   checkKeyAccess(v);
-  link?.send({ type: 'volume', volume: v });
+  if (appVol && knobApp() !== appVol.bundleId) appVol = null;
+  pushVolume({ force: true });
 });
-settings.on('change', (values) => link?.send({ type: 'settings', settings: values }));
+settings.on('change', (values, changed) => {
+  link?.send({ type: 'settings', settings: values });
+  if (changed.includes('knobVolume')) refreshKnobTarget();
+});
 weather.on('change', (state) => link?.send({ type: 'weather', weather: state }));
 calendar.on('change', (state) => link?.send({ type: 'calendar', calendar: state }));
 appearance.on('change', (dark) => link?.send({ type: 'appearance', dark }));
@@ -421,6 +541,7 @@ refreshDevices();
 
 setInterval(() => link?.send(tickMessage()), 2000);
 setInterval(() => applyScreen(), 5000); // lets the post-input wake window expire
+setInterval(() => syncAppVolume(), 10 * 1000); // follows the app's own volume slider while the knob turns it
 setInterval(heartbeat, config.heartbeatMs);
 setInterval(() => link?.send(nowPlayingMessage()), 15000); // re-anchor the device's progress clock
 

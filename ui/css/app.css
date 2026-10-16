@@ -533,6 +533,13 @@ h3 {
   width: 28px;
   height: 28px;
 }
+/* The knob is turning an app's volume (the output has none): its name sits before the bar. */
+.volume-app .volume-hud {
+  width: 440px;
+}
+.vol-app {
+  color: var(--muted);
+}
 /* "No volume control on <device>" replaces the bar, and the pill fits the message. */
 .volume-unsupported .volume-hud {
   width: -webkit-max-content;
