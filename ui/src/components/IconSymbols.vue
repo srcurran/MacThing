@@ -13,8 +13,8 @@ import timer from '@phosphor-icons/core/assets/fill/timer-fill.svg?raw';
 import speaker from '@phosphor-icons/core/assets/fill/speaker-high-fill.svg?raw';
 import muted from '@phosphor-icons/core/assets/fill/speaker-x-fill.svg?raw';
 import openOnMac from '@phosphor-icons/core/assets/bold/sign-out-bold.svg?raw';
-import playLine from '@phosphor-icons/core/assets/bold/play-bold.svg?raw';
-import pauseLine from '@phosphor-icons/core/assets/bold/pause-bold.svg?raw';
+import playLine from '@phosphor-icons/core/assets/regular/play.svg?raw';
+import pauseLine from '@phosphor-icons/core/assets/regular/pause.svg?raw';
 import refresh from '@phosphor-icons/core/assets/bold/arrow-clockwise-bold.svg?raw';
 import x from '@phosphor-icons/core/assets/bold/x-bold.svg?raw';
 
