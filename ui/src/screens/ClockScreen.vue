@@ -69,7 +69,7 @@ screen.back = () => {
 };
 // On the timer, the back button starts it, pauses it while it runs, and resets it once it's
 // paused or done; the corner says which.
-const TIMER_BACK = { set: ['start', 'play'], running: ['pause', 'pause'], paused: ['reset', 'refresh'], done: ['reset', 'refresh'] };
+const TIMER_BACK = { set: ['start', 'play-line'], running: ['pause', 'pause-line'], paused: ['reset', 'refresh'], done: ['reset', 'refresh'] };
 const timerBack = computed(() => TIMER_BACK[timer.status]);
 function timerBackPress() {
   if (timer.status === 'paused' || timer.status === 'done') clearTimer(); else toggleTimer();
