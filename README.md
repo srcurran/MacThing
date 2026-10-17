@@ -1,3 +1,5 @@
+<img src="assets/icon/macthing-256.png" width="96" height="96" alt="MacThing icon">
+
 # MacThing
 
 Turns a Spotify Car Thing into a desk display and volume knob for macOS.

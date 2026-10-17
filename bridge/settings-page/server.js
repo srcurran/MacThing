@@ -1,9 +1,21 @@
 import fs from 'node:fs';
 import http from 'node:http';
+import path from 'node:path';
 import { log } from '../log.js';
 import { searchPlaces } from '../widgets/weather.js';
 
 const page = fs.readFileSync(new URL('./page.html', import.meta.url));
+
+// The app icon (assets/icon), for the favicon and the page header. A fixed list, so a request
+// can't name any other file.
+const ICON_DIR = new URL('../../assets/icon/', import.meta.url);
+const ICON_TYPES = { '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon' };
+const ICONS = new Map(
+  ['macthing.svg', 'macthing-32.png', 'apple-touch-icon.png', 'favicon.ico'].map((name) => [
+    name === 'favicon.ico' ? '/favicon.ico' : `/icon/${name}`,
+    { file: new URL(name, ICON_DIR), type: ICON_TYPES[path.extname(name)] },
+  ]),
+);
 
 /**
  * Settings page on http://127.0.0.1:<port> — for things that need typing (weather location),
@@ -27,6 +39,11 @@ export function startSettingsPage({ port, settings, status }) {
       if (req.method === 'GET' && url.pathname === '/') {
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
         return res.end(page);
+      }
+      const icon = req.method === 'GET' && ICONS.get(url.pathname);
+      if (icon) {
+        res.writeHead(200, { 'content-type': icon.type, 'cache-control': 'max-age=86400' });
+        return res.end(fs.readFileSync(icon.file));
       }
       if (req.method === 'GET' && url.pathname === '/api/state') {
         return json(200, { settings: settings.get(), ...(await status()) });
