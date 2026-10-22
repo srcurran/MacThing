@@ -7,6 +7,7 @@ import SettingsRow from '../components/SettingsRow.vue';
 const rows = [
   { key: 'theme', label: 'Appearance', options: [['dark', 'Dark'], ['light', 'Light'], ['auto', 'Match Mac']] },
   { key: 'artBackground', label: 'Album art background', options: [[false, 'Off'], [true, 'On']] },
+  { key: 'brightness', label: 'Brightness', options: [['auto', 'Auto'], [220, 'Low'], [160, 'Medium'], [110, 'High'], [64, 'Full']] },
   { key: 'meetingAlert', label: 'Meeting alerts', options: [[0, 'Off'], ['event', 'Event’s alert'], [1, '1 min before'], [5, '5 min before'], [10, '10 min before']] },
   { key: 'screenSleep', label: 'Sleep', options: [['mac', 'With Mac'], [30, 'Mac idle 30 min'], [60, 'Mac idle 1 hr'], [120, 'Mac idle 2 hr'], [240, 'Mac idle 4 hr'], ['never', 'Never']] },
   { spacer: true }, // an empty slot that sets "More settings on Mac" apart; the knob skips it

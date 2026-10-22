@@ -314,7 +314,7 @@ try {
   await pause(400);
   await tick(now);
   await message({ type: 'settings', settings });
-  await evaluate("CT.show('settings'); CT.screens.settings.turn(3); CT.screens.settings.press()");
+  await evaluate("CT.show('settings'); CT.screens.settings.turn(4); CT.screens.settings.press()");
   await pause(100);
   assert.equal(await evaluate('window.fixtureSent.some(m => m.type === "setting" && m.key === "screenSleep" && m.value === 30)'), true, 'Settings → Sleep steps With Mac to Mac idle 30 min');
   await capture('settings');
