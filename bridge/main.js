@@ -214,13 +214,17 @@ function pushLock(target) {
   (target || link)?.send({ type: 'lock', screen });
 }
 
+function backlightChoice() {
+  return settings.get().brightness;
+}
+
 async function applyScreen() {
   pushLock();
   const on = screenShouldBeOn();
   if (!link || on === screenOn) return;
   screenOn = on;
   log.info(`[screen] ${on ? 'on' : 'off'}`);
-  await link.setScreen(on).catch((err) => {
+  await link.setScreen(on, backlightChoice()).catch((err) => {
     screenOn = null;
     log.warn('[screen]', err.message);
   });
@@ -635,6 +639,9 @@ settings.on('change', (values, changed) => {
   link?.send({ type: 'settings', settings: values });
   if (changed.includes('knobVolume')) refreshKnobTarget();
   if (changed.includes('screenSleep') || changed.includes('whenLocked')) refreshIdle();
+  if (changed.includes('brightness') && link && screenOn !== false) {
+    link.setScreen(true, values.brightness).catch((err) => log.warn('[screen]', err.message));
+  }
 });
 settings.on('change', (_, changed) => {
   if (!changed.includes('usageSource')) return;
@@ -729,7 +736,7 @@ async function shutdown() {
   // Don't leave the Car Thing dark with nothing to wake it — unless its own watchdog is there,
   // which wakes the screen on any button or knob press and would only turn it off again anyway.
   if (link && screenOn === false && !link.sleepd) {
-    await Promise.race([link.setScreen(true).catch(() => {}), new Promise((r) => setTimeout(r, 1500))]);
+    await Promise.race([link.setScreen(true, backlightChoice()).catch(() => {}), new Promise((r) => setTimeout(r, 1500))]);
   }
   link?.send({ type: 'bye' });
   source.stop();

@@ -173,22 +173,26 @@ export class DeviceLink extends EventEmitter {
 
   /**
    * Backlight on/off. The ambient-light daemon is paused while off so it can't relight the screen.
+   * `brightness` is 'auto' (the daemon follows the light sensor) or a fixed hardware level. This
+   * panel's PWM is active-low: a lower level is brighter, and 255 turns the LEDs off. The daemon
+   * stays stopped for a fixed level so it cannot pull the level back down.
    *
-   * Use the Amlogic driver's own switch: the standard /sys/class/backlight/aml-bl/bl_power and
-   * its `brightness` are both accepted on this panel and do nothing — the LEDs stay lit while the
-   * page goes black, which looks like a dark screen in a dark room and lit everywhere else.
-   * device/sleepd.sh switches the same file when the Mac isn't there to do it.
+   * Use the Amlogic driver's own power switch: /sys/class/backlight/aml-bl/bl_power accepts writes
+   * and does nothing — the LEDs stay lit while the page goes black. The level file next to it does
+   * work; the sensor daemon writes it. device/sleepd.sh switches the power file when the Mac isn't
+   * there to do it.
    */
-  async setScreen(on) {
+  async setScreen(on, brightness = 'auto') {
     this.send({ type: 'screen', on });
     const power = '/sys/class/aml_bl/power'; // echo 0|1 (see `cat /sys/class/aml_bl/help`)
-    await shell(
-      this.serial,
-      on
+    const levelFile = '/sys/class/backlight/aml-bl/brightness';
+    const level = brightness === 'auto' ? null : brightness;
+    const command = !on
+      ? `supervisorctl stop backlight >/dev/null 2>&1; echo 0 > ${power}; true`
+      : level == null
         ? `echo 1 > ${power}; supervisorctl start backlight >/dev/null 2>&1; true`
-        : `supervisorctl stop backlight >/dev/null 2>&1; echo 0 > ${power}; true`,
-      { timeout: 3000 },
-    );
+        : `supervisorctl stop backlight >/dev/null 2>&1; echo 1 > ${power}; echo ${level} > ${levelFile}; true`;
+    await shell(this.serial, command, { timeout: 3000 });
   }
 
   async screenshot() {

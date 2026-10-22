@@ -59,7 +59,8 @@ MAXF_WAS=""
 [ -z "$GOV_IDLE" ] && [ -r "$MAXF" ] && read -r MAXF_WAS < "$MAXF" 2>/dev/null
 
 # Same sequence the bridge uses: the ambient-light daemon is paused while the screen is off so
-# it can't relight it behind our back.
+# it can't relight it behind our back. This is for when the Mac is away. While the Mac is here
+# the bridge owns the sensor, so a fixed brightness is not undone by starting the daemon.
 backlight() {
   if [ "$1" = on ]; then
     echo 1 > "$BL" 2>/dev/null
@@ -69,6 +70,18 @@ backlight() {
     echo 0 > "$BL" 2>/dev/null
   fi
   say "backlight $1"
+  return 0
+}
+
+# The Mac is back and will set the level itself, including leaving the sensor stopped.
+handoff() {
+  if [ "$1" = on ]; then
+    echo 1 > "$BL" 2>/dev/null
+  else
+    sctl stop backlight
+    echo 0 > "$BL" 2>/dev/null
+  fi
+  say "handoff $1"
   return 0
 }
 
@@ -233,7 +246,7 @@ while :; do
     if [ "$mode" != host ]; then
       mode=host
       governor restore
-      backlight "$want"  # the Mac is back: hand the screen over in the state it wants
+      handoff "$want"  # power only, so the bridge keeps a fixed brightness
       handed=$want
     fi
   else
