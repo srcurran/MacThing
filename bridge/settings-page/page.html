@@ -211,6 +211,10 @@
           <span class="seg" data-key="clockFace"><button data-v="analog">Analog</button><button data-v="numbers">Numbers</button><button data-v="digital">Digital</button></span></div>
         <div class="row"><span class="label">Time format</span>
           <span class="seg" data-key="clock24h"><button data-v="false">12-hour</button><button data-v="true">24-hour</button></span></div>
+        <div class="row"><div><div class="label">Auto-rotate</div><div class="note">Now Playing, Calendar, Weather, then Clock. It waits while a card is up, Settings is open, or the screen is off</div></div>
+          <span class="seg" data-key="rotateEvery" data-type="number"><button data-v="0">Off</button><button data-v="60">1 min</button><button data-v="120">2 min</button></span></div>
+        <div class="row"><div><div class="label">Screens in the rotation</div><div class="note">A screen turned off is skipped. Clock includes the timer</div></div>
+          <span class="seg" data-key="rotateScreens"><button data-screen="nowplaying">Now Playing</button><button data-screen="calendar">Calendar</button><button data-screen="weather">Weather</button><button data-screen="clock">Clock</button></span></div>
       </section>
     </div>
 
@@ -268,7 +272,8 @@
   function render() {
     const s = state.settings;
     document.querySelectorAll('.seg').forEach((seg) => {
-      seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === String(s[seg.dataset.key]))));
+      const chosen = s.rotateScreens || ['nowplaying', 'calendar', 'weather', 'clock'];
+      seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.screen ? chosen.includes(b.dataset.screen) : b.dataset.v === String(s[seg.dataset.key]))));
     });
     document.querySelectorAll('select[data-key]').forEach((select) => { select.value = String(s[select.dataset.key]); });
     // "Date" (value none) is When idle's Never (idleMinutes 0): Now Playing stays, showing the date; Show after is the rest of idleMinutes.
@@ -584,6 +589,14 @@
   }
   document.querySelectorAll('select[data-key]').forEach((select) => select.addEventListener('change', () => saveChoice(select, select.value)));
   document.querySelectorAll('.seg').forEach((seg) => seg.addEventListener('click', (e) => {
+    const screen = e.target.dataset?.screen;
+    if (screen && seg.dataset.key === 'rotateScreens') {
+      const order = ['nowplaying', 'calendar', 'weather', 'clock'];
+      const chosen = new Set(state.settings.rotateScreens || order);
+      if (chosen.has(screen)) chosen.delete(screen); else chosen.add(screen);
+      save({ rotateScreens: order.filter((name) => chosen.has(name)) });
+      return;
+    }
     const v = e.target.dataset?.v;
     if (v === undefined) return;
     saveChoice(seg, v);
