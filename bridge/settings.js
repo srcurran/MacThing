@@ -32,6 +32,8 @@ export const DEFAULTS = {
   // 'unlocked' = everything works | 'nowplaying' | 'weather' | 'calendar' | 'clock' = held on that
   // screen, with only the knob's volume and media controls
   whenLocked: 'unlocked',
+  rotateEvery: 0, // seconds on each screen before the next: 0 off, 60 or 120
+  rotateScreens: ['nowplaying', 'calendar', 'weather', 'clock'], // which of those take a turn; Clock includes the timer
   // Task reminders: [{ id, text, on, repeat: 'every' | 'times', every (minutes at the Mac),
   // times (minutes since midnight) }]. See widgets/reminders.js.
   reminders: [],
@@ -57,6 +59,11 @@ const VALID = {
   idleScreen: (v) => ['clock', 'calendar', 'weather'].includes(v),
   screenSleep: (v) => ['mac', 30, 60, 120, 240, 'never'].includes(v),
   whenLocked: (v) => ['unlocked', 'nowplaying', 'weather', 'calendar', 'clock'].includes(v),
+  rotateEvery: (v) => v === 0 || v === 60 || v === 120,
+  rotateScreens: (v) => {
+    const names = ['nowplaying', 'calendar', 'weather', 'clock'];
+    return Array.isArray(v) && v.length === new Set(v).size && v.every((name) => names.includes(name));
+  },
   reminders: (v) =>
     Array.isArray(v) &&
     v.length <= MAX_REMINDERS &&

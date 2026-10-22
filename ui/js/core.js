@@ -198,9 +198,57 @@ export function initializeRuntime(state) {
       state.current = name;
       if (next.show) next.show();
       saveDevScreen();
+      armRotate();
     }
   };
   CT.closeSettings = function () { CT.show(beforeSettings); };
+
+  // Auto-rotate (Settings → Auto-rotate). Each included screen stays up for rotateEvery
+  // seconds, then the next one wipes in. Screens left out of rotateScreens are skipped, and
+  // Clock wraps back to Now Playing. A button press starts that wait over. It waits while
+  // Settings is open, the backlight is off, the Mac is away, the Mac is locked to one screen,
+  // or a meeting or reminder card is up — and the screen then gets a full wait before the next
+  // change. A clock timer keeps running underneath. Calendar, Weather, and Clock keep the view
+  // they were left on.
+  var rotateDue = 0;
+  var rotateSeen = 0;
+  function rotateEveryMs() {
+    var n = CT.settings.rotateEvery;
+    return n === 60 || n === 120 ? n * 1000 : 0;
+  }
+  function rotateHeld() {
+    return state.offline || CT.asleep || CT.lockedTo || CT.current === 'settings' || (CT.modalOpen && CT.modalOpen());
+  }
+  function rotateIncluded(name) {
+    var chosen = CT.settings.rotateScreens;
+    if (!chosen) return true;
+    return chosen.indexOf(name) !== -1;
+  }
+  // The next screen in the cycle that is included, or null when there is nowhere to go.
+  function nextRotateScreen() {
+    var start = PAGES.indexOf(CT.current);
+    var found = null;
+    for (var i = 1; i <= PAGES.length; i++) {
+      var name = PAGES[(start + i) % PAGES.length];
+      if (rotateIncluded(name)) { found = name; break; }
+    }
+    return found && found !== CT.current ? found : null;
+  }
+  function armRotate() {
+    var ms = rotateEveryMs();
+    rotateSeen = ms;
+    rotateDue = ms && !rotateHeld() ? Date.now() + ms : 0;
+  }
+  function tickRotate() {
+    var ms = rotateEveryMs();
+    if (ms !== rotateSeen) return armRotate();
+    if (!ms || rotateHeld()) { rotateDue = 0; return; }
+    if (!rotateDue) { rotateDue = Date.now() + ms; return; }
+    if (Date.now() < rotateDue) return;
+    var next = nextRotateScreen();
+    if (!next) { rotateDue = Date.now() + ms; return; }
+    CT.show(next);
+  }
 
   // The While locked setting: with the Mac locked, the bridge can hold the device on one screen.
   // Nothing moves it off that screen, and the buttons and knob only work the volume and playback.
@@ -332,6 +380,7 @@ export function initializeRuntime(state) {
       if (name === CT.current && screen && screen.reselect) {
         reselects[name] = (reselects[name] || 0) + 1;
         saveDevScreen();
+        armRotate();
         return screen.reselect();
       }
       return CT.show(name);
@@ -561,6 +610,7 @@ export function initializeRuntime(state) {
     // own watchdog (device/sleepd.sh) kills the backlight at the same point; this just means the
     // panel shows black rather than "Waiting for your Mac" even without it installed.
     if (!connected && !CT.asleep && performance.now() - offlineSince > (CT.config.offlineSleepMs || 90000)) setAsleep(true);
+    tickRotate();
   }, 1000);
 
   // Runs after every screen script has registered.
