@@ -121,6 +121,15 @@
     padding: 8px 10px; border-radius: 8px; cursor: pointer; }
   li button:hover, li button:focus-visible { background: var(--seg); outline: none; }
   li .sub { color: var(--muted); }
+  .update { display: flex; align-items: center; gap: 16px; margin: 0 0 28px; padding: 14px 16px;
+    border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 10px; background: var(--bg); }
+  .update[hidden] { display: none; }
+  .update > div { flex: 1; min-width: 0; }
+  .update a { color: var(--accent); }
+  .update .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .update.failed { border-left-color: var(--warn); }
+  .version { margin-top: 24px; color: var(--muted); font-size: 12px; }
+  @media (max-width: 520px) { .update { flex-wrap: wrap; } }
   .saved { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg);
     padding: 8px 14px; border-radius: 99px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; }
   .saved.on { opacity: 1; }
@@ -149,8 +158,13 @@
       <a href="#usage">AI usage</a>
       <a href="#reminders">Reminders</a>
     </nav>
+    <div class="version" id="version"></div>
   </aside>
   <div class="settings-content">
+    <div class="update" id="update" hidden role="status">
+      <div><div class="label" id="updateTitle"></div><div class="note" id="updateNote"></div></div>
+      <button type="button" class="btn primary" id="updateNow">Update now</button>
+    </div>
     <h2 id="category-title">Appearance</h2>
     <p class="lede">Changes apply to the device right away.</p>
     <div class="settings-panel" id="appearance" role="region" aria-labelledby="category-title">
@@ -297,7 +311,49 @@
     document.documentElement.dataset.theme = theme === 'auto' ? (darkQuery.matches ? 'dark' : 'light') : theme;
   }
 
+  // The update banner. The bridge restarts at the end of an update, so the version it was
+  // updating to is remembered here to say "Updated" once the new one answers.
+  function renderUpdate() {
+    const u = state.update;
+    $('#version').textContent = u ? `Version ${u.current}` : '';
+    let target = null;
+    try { target = sessionStorage.getItem('ct-updating-to'); } catch (e) {}
+    const done = u && target && u.current === target;
+    const box = $('#update'), button = $('#updateNow'), note = $('#updateNote');
+    box.hidden = !u || !(u.available || done);
+    if (box.hidden) return;
+    box.classList.toggle('failed', u.status === 'failed');
+    const link = u.url ? ` <a href="${u.url}" target="_blank" rel="noopener">What’s new</a>` : '';
+    button.hidden = !done && !u.canUpdate && u.status !== 'failed';
+    button.disabled = u.status === 'updating';
+    if (done) {
+      $('#updateTitle').textContent = `Updated to ${u.current}`;
+      note.innerHTML = 'The device picks up the new version on its own.' + link;
+      button.hidden = true;
+    } else if (u.status === 'updating') {
+      $('#updateTitle').textContent = `Updating to ${u.latest}…`;
+      note.textContent = `${u.step || 'Starting'}. This takes a minute or two, and the device shows “Waiting for your Mac” briefly while the bridge restarts.`;
+      button.textContent = 'Updating…';
+    } else if (u.status === 'failed') {
+      $('#updateTitle').textContent = 'The update didn’t finish';
+      note.textContent = `MacThing is still on ${u.current}. ${u.error}`;
+      button.textContent = 'Try again';
+      button.hidden = !u.canUpdate;
+    } else {
+      $('#updateTitle').textContent = `MacThing ${u.latest} is available`;
+      note.innerHTML = `You have ${u.current}.${link}` + (u.canUpdate ? '' : `<br>${u.reason.replace(/</g, '&lt;')}`);
+      button.textContent = 'Update now';
+    }
+  }
+  $('#updateNow').addEventListener('click', async () => {
+    try { sessionStorage.setItem('ct-updating-to', state.update.latest); } catch (e) {}
+    const res = await fetch('/api/update', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+    state.update = (await res.json()).update;
+    renderUpdate();
+  });
+
   function render() {
+    renderUpdate();
     const s = state.settings;
     applyTheme(s.theme);
     document.querySelectorAll('.seg').forEach((seg) => {

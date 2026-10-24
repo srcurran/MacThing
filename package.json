@@ -29,6 +29,7 @@
     "uninstall-agent": "./scripts/launch-agent.sh uninstall",
     "prerestart": "npm run build:ui",
     "restart": "./scripts/launch-agent.sh restart",
+    "update": "./scripts/update.sh",
     "status": "./scripts/launch-agent.sh status",
     "logs": "./scripts/launch-agent.sh logs"
   },

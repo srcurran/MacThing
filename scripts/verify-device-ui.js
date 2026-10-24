@@ -318,6 +318,13 @@ try {
   await pause(100);
   assert.equal(await evaluate('window.fixtureSent.some(m => m.type === "setting" && m.key === "screenSleep" && m.value === 30)'), true, 'Settings → Sleep steps With Mac to Mac idle 30 min');
   await capture('settings');
+  // A newer release puts "Update available" at the top; pressing it opens the Mac page.
+  await message({ type: 'update', update: { available: true, latest: '9.9.9' } });
+  await evaluate("CT.screens.settings.turn(-10); CT.screens.settings.press()");
+  assert.match(await evaluate('document.querySelector("#screen-settings .s-row").textContent'), /Update available\s*9\.9\.9/);
+  assert.equal(await evaluate('window.fixtureSent.some(m => m.type === "openSettingsPage")'), true, 'Update available opens the Mac page');
+  await capture('settings-update');
+  await message({ type: 'update', update: { available: false, latest: null } });
   await message({ type: 'settings', settings: { ...settings, theme: 'light' } });
   await evaluate("CT.show('clock')");
   await capture('clock-light');
