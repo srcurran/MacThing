@@ -240,6 +240,33 @@ try {
   await press('Enter'); await press('Enter');
   await toClock();
   await tick(now);
+  // With meetings at once, the knob has a stop for each, the one that ends first first. One of 90
+  // minutes or more reads in whole hours, and another's alert card doesn't take it over.
+  const overlapping = [{ start: now - 600000, end: now + 1200000, title: 'Standup', color: '#2d9cdb', allDay: false, calendarId: 'fixture' },
+    { start: now - 300000, end: now + 21 * 3600000, title: 'Sleepover', color: '#e8a33d', allDay: false, calendarId: 'fixture' }];
+  await message({ type: 'calendar', calendar: { status: 'ok', events: overlapping } });
+  await press('4');
+  await pause(400);
+  assert.match(await rail(), /Standup20\s*min/, 'With meetings at once, the timer opens on the one that ends first');
+  await evaluate("window.dispatchEvent(new WheelEvent('wheel', {deltaX:53, cancelable:true}))");
+  await pause(100);
+  assert.match(await rail(), /Sleepover21\s*hr/, 'Turning on reaches the other meeting, in hours');
+  await press('Enter');
+  await tick(now + 1000);
+  await pause(1100);
+  assert.match(await rail(), /Sleepover21\s*hr/, 'and counts down in hours');
+  await evaluate("localStorage.removeItem('ct-dismissed-meetings')");
+  await message({ type: 'settings', settings: { ...settings, meetingAlert: 5 } });
+  await pause(400);
+  assert.equal(await evaluate('!!document.querySelector(".meeting-alert.on") && !document.querySelector(".meeting-alert .m-start")'), true, 'With the timer running, a meeting card doesn\'t offer to start another');
+  await press('Escape');
+  await pause(400);
+  assert.match(await rail(), /Sleepover21\s*hr/, 'and its back button leaves the timer be');
+  await message({ type: 'settings', settings });
+  await evaluate("localStorage.removeItem('ct-dismissed-meetings')");
+  await press('Enter'); await press('Enter');
+  await toClock();
+  await tick(now);
   // With "Event's alert", a meeting with no alert of its own gets the card as it starts, and
   // nothing but its Start timer brings the timer up.
   await evaluate("CT.show('weather')");
