@@ -30,8 +30,11 @@ function save() {
     localStorage.setItem(LAST_STORE, JSON.stringify(lastMinutes.value));
   } catch (e) {}
 }
-/** Something on the timer wants watching: a timer running, paused or just finished. */
-export const timerBusy = computed(() => timers.length > 0);
+/** The timer is up on the clock screen (ClockScreen.vue keeps this). */
+export const timerOnScreen = ref(false);
+/** Something on the timer wants watching: a timer running, paused or just finished, or the timer
+ *  up on screen (a meeting's countdown, say), so smart switching and When idle leave it be. */
+export const timerBusy = computed(() => timers.length > 0 || timerOnScreen.value);
 
 // From 90 minutes up, a time reads in whole hours, rounded up: 21 hr for 20:37:28. Under that
 // it's minutes and seconds, 89:59.

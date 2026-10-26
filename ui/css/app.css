@@ -260,6 +260,12 @@
   --today: var(--white);
   --today-ink: var(--black);
 }
+/* In the light theme the timer's dial is dark, so its hand is white: the dark theme's black hand
+   on a white dial, the other way round. */
+#app.light {
+  --timer-hand: var(--white);
+  --timer-hand-ink: var(--black);
+}
 
 * {
   box-sizing: border-box;

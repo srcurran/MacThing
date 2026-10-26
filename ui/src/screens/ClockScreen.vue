@@ -9,7 +9,7 @@ import TimerDeck, { firstCardAt, positionAt } from '../components/TimerDeck.vue'
 import ClaudeUsage from '../components/ClaudeUsage.vue';
 import BackActionIcon from '../components/BackActionIcon.vue';
 import { SESSION_MS, WEEK_MS, paceNumber, untilText, usageProviders, usageOf, usageName, usageUpdatedText } from '../usage.js';
-import { cards, startTimer, toggleTimer, removeTimer, removeCard, removeDoneTimers } from '../timer.js';
+import { cards, timerOnScreen, startTimer, toggleTimer, removeTimer, removeCard, removeDoneTimers } from '../timer.js';
 const parts = computed(() => CT.parts(state.now));
 const face = computed(() => state.settings.clockFace);
 const time = computed(() => CT.clockText(parts.value));
@@ -117,12 +117,29 @@ const focused = computed(() => cards.value[focusIndex.value]);
 const restPosition = computed(() => (atPresets.value ? 0 : focusIndex.value + 1));
 const deckPosition = computed(() => (dragPosition.value == null ? restPosition.value : dragPosition.value));
 // A card that's gone (a meeting over, a timer put away) leaves the focus on the one that took its
-// place, and the full-size view goes back to the deck.
+// place, and the full-size view goes back to the deck. A meeting's countdown to its start, as the
+// meeting begins, carries on as its countdown to its end, full size if it was.
 watch(focusIndex, i => { lastFocus = i; });
 watch(() => focused.value.id, id => {
   if (id === focusId.value) return;
+  const started = focusId.value.indexOf('start|') === 0 && cards.value.find(c => c.id === 'end|' + focusId.value.slice(6));
+  if (started) { focusId.value = started.id; return; }
   focusId.value = id;
   if (timerView.value === 'timer') timerView.value = 'deck';
+});
+watch(() => state.current === 'clock' && mode.value === 'timer', up => { timerOnScreen.value = up; }, { immediate: true });
+// A minute before a meeting, its countdown comes up, full size, once, wherever the screen is,
+// unless you're looking at another timer full size (or in Settings, or the screen is locked).
+const MEETING_LEAD_MS = 60000;
+const leadShown = {};
+CT.onSecond(() => {
+  const card = cards.value.find(c => c.id.indexOf('start|') === 0);
+  if (!card || card.remaining > MEETING_LEAD_MS || card.remaining <= 0 || leadShown[card.id]) return;
+  leadShown[card.id] = true;
+  if (CT.lockedTo || state.current === 'settings') return;
+  const another = state.current === 'clock' && mode.value === 'timer' && timerView.value === 'timer'
+    && focused.value.kind !== 'last' && focused.value.id !== card.id;
+  if (!another) CT.showTimer(card.id);
 });
 function focusOn(id) {
   focusId.value = id;
