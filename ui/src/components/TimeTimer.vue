@@ -8,8 +8,8 @@ import { computed } from "vue";
 // and a ring of one dot per minute (per few, past an hour) that go dark as the minutes pass.
 // remaining and total are ms.
 // The hand and hub are always cut out of the wedge, so the background shows through them
-// (Figma 202:1439). Before it starts (idle) that's all there is, on a see-through disc; once it's
-// running, the disc is solid and the drawn hand fades in over its own cut-out, the two moving together.
+// (Figma 202:1439). Before it starts (idle) it's a plain full circle, no hand at all; once it's
+// running, the hand's cut-out appears and the drawn hand fades in over it, the two moving together.
 const props = defineProps({ remaining: Number, total: Number, idle: Boolean });
 // Several dials can be up at once (the timer cards), so each cuts with its own mask.
 const maskId = 't-hand-cut-' + (++dials);
@@ -69,13 +69,13 @@ const minutes = computed(() => {
       cx="240"
       cy="240"
       r="145"
-      :mask="'url(#' + maskId + ')'"
+      :mask="idle ? null : 'url(#' + maskId + ')'"
     />
     <path
       v-else-if="degrees > 0"
       class="t-left"
       :d="wedge"
-      :mask="'url(#' + maskId + ')'"
+      :mask="idle ? null : 'url(#' + maskId + ')'"
     />
     <circle
       v-for="(m, i) in minutes"
