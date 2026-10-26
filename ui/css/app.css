@@ -334,7 +334,8 @@ h3 {
   animation: fade-in 0.5s ease-out 0.3s backwards;
 }
 [data-switch="fade"] > .screen.leaving .left-rail > *,
-[data-switch="fade"] > .screen.leaving .screen-stage > * {
+[data-switch="fade"] > .screen.leaving .screen-stage > *,
+[data-switch="fade"] > .screen.leaving .td {
   animation: fade-out 0.3s ease-in forwards;
 }
 /* Between pages it slides a little towards the side the new page's button is on, and crossfades:
@@ -353,11 +354,13 @@ h3 {
     page-from-left 0.35s ease-out backwards;
 }
 [data-switch="next"] > .screen.leaving .left-rail > *,
-[data-switch="next"] > .screen.leaving .screen-stage > * {
+[data-switch="next"] > .screen.leaving .screen-stage > *,
+[data-switch="next"] > .screen.leaving .td {
   animation: page-to-left 0.1s ease-in forwards;
 }
 [data-switch="previous"] > .screen.leaving .left-rail > *,
-[data-switch="previous"] > .screen.leaving .screen-stage > * {
+[data-switch="previous"] > .screen.leaving .screen-stage > *,
+[data-switch="previous"] > .screen.leaving .td {
   animation: page-to-right 0.1s ease-in forwards;
 }
 @keyframes page-from-right {
@@ -1250,7 +1253,7 @@ h3 {
 }
 .td.on {
   opacity: 1;
-  visibility: visible;
+  visibility: inherit; /* hidden with its screen when another is up (.screen) */
   transition: opacity 0.3s ease-out, background-color 0.35s ease-out;
 }
 .td-set {
