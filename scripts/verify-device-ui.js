@@ -154,7 +154,7 @@ try {
     await touch(box[0], box[1], box[0], box[1]);
     await pause(400);
   }
-  const preset = minutes => `[].find.call(document.querySelectorAll('.td-preset'), function (p) { return p.textContent.trim() === '${minutes}'; })`;
+  const preset = minutes => `[].find.call(document.querySelectorAll('.td-preset'), function (p) { return p.firstChild.textContent.trim() === '${minutes}'; })`;
   const deckOn = () => evaluate('!!document.querySelector(".td.on")');
   const focusedCard = () => evaluate('document.querySelector(".td-card.focus").textContent.replace(/\\s+/g, " ").trim()');
   const timersKept = () => evaluate('JSON.parse(localStorage.getItem("ct-timers") || "[]").length');

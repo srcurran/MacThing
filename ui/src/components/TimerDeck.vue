@@ -18,7 +18,7 @@ defineEmits(['start', 'pick']);
     <div class="td-set">
       <p class="font-small bold">Set a timer</p>
       <div class="td-presets">
-        <div v-for="m in PRESETS" :key="m" class="td-preset font-medium semibold tabular" @click="$emit('start', m)">{{ m }}</div>
+        <div v-for="m in PRESETS" :key="m" class="td-preset" @click="$emit('start', m)"><span class="font-medium semibold tabular">{{ m }}</span><span class="td-unit bold muted">MIN</span></div>
       </div>
     </div>
     <div class="td-cards"><div class="td-row" :style="{ transform: 'translateX(' + -focus * STEP + 'px)' }">
