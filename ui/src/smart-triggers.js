@@ -19,22 +19,30 @@ export const RESET_MIN_PERCENT = 80;
 // No fires for this long and the session counts as cooled off: fires coming back are news again.
 export const COOL_MS = 15 * 60000;
 
+// The API's reset time wobbles by a second or so between readings of the same window.
+const sameWindow = (a, b) => a === b || (!!a && !!b && Math.abs(a - b) < 60000);
+
 /**
  * Watches one provider's usage. check(usage, now) returns 'hot' when the session's fires climb
- * higher than they have been this session (see heat), or come back after COOL_MS without any,
- * 'reset' when a
- * session or week that was at least RESET_MIN_PERCENT used runs out, else ''. The first reading
- * only sets the baseline, so a page load never switches anything.
+ * higher than they have been since it last cooled off (see heat), 'reset' when a session or week
+ * that was at least RESET_MIN_PERCENT used runs out, else ''. Staying hot never switches again:
+ * only COOL_MS without fires (through a new session too) makes fires news again. The first
+ * reading only sets the baseline, so a page load never switches anything.
  */
 export function usageWatch() {
-  let session = null, week = null; // { resetsAt, percent, tier?, calmSince?, ended? }
+  let session = null, week = null; // { resetsAt, percent, ended }
+  let tier = null, calmSince = null, lastAt = null; // the most fires shown since the last cool-off
   function ended(win, now) {
     if (!win || !win.resetsAt || win.ended || now < win.resetsAt) return false;
     win.ended = true;
     return win.percent >= RESET_MIN_PERCENT;
   }
   function track(win, reading) {
-    if (win && win.resetsAt === reading.resetsAt) { win.percent = reading.percent; return win; }
+    if (win && sameWindow(win.resetsAt, reading.resetsAt)) {
+      win.percent = reading.percent;
+      win.resetsAt = reading.resetsAt;
+      return win;
+    }
     // A new window (or the first reading): the old one is done with.
     return { resetsAt: reading.resetsAt, percent: reading.percent, ended: false };
   }
@@ -42,17 +50,17 @@ export function usageWatch() {
     // The time can run out between readings, so this looks before any new reading is taken in.
     const reset = ended(session, now) || ended(week, now);
     if (!usage || usage.status !== 'ok') return reset ? 'reset' : '';
-    const first = !session;
-    const fresh = !session || session.resetsAt !== usage.session.resetsAt;
     session = track(session, usage.session);
     week = track(week, usage.week);
-    const tier = heat(usage, now);
-    if (fresh) session.tier = first ? tier : 0;
-    if (tier) session.calmSince = null;
-    else if (session.calmSince == null) session.calmSince = now;
-    else if (now - session.calmSince >= COOL_MS) session.tier = 0;
+    const hot = heat(usage, now);
+    if (tier == null) tier = hot;
+    if (!hot && calmSince == null) calmSince = now;
+    // Calm until now, or (when hot again) until the reading before: that's as long as it was seen calm.
+    if (calmSince != null && (hot ? lastAt : now) - calmSince >= COOL_MS) tier = 0; // cooled off
+    if (hot) calmSince = null;
+    lastAt = now;
     if (reset) return 'reset';
-    if (tier > session.tier) { session.tier = tier; return 'hot'; }
+    if (hot > tier) { tier = hot; return 'hot'; }
     return '';
   };
 }

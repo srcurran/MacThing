@@ -90,6 +90,7 @@ test('usage: a new session starts its tiers again', () => {
   assert.equal(check(usage(85, first), T0 + 5 * MIN), 'hot');
   const second = first + 5 * HOUR, start = first + 1;
   assert.equal(check(usage(0, null), start), 'reset'); // it ended at 85%
+  assert.equal(check(usage(0, null), start + HOUR), ''); // calm between sessions
   assert.equal(check(usage(60, second), start + 2.5 * HOUR), 'hot'); // 1.5x: 🔥 again
 });
 
@@ -116,4 +117,25 @@ test('weather: fires when rain becomes due, once, and not on the first reading',
   assert.equal(check(wet, T0 + 30 * MIN), false);
   assert.equal(check(dry, T0 + 45 * MIN), false);
   assert.equal(check(wet, T0 + 50 * MIN), true);
+});
+
+test('usage: staying hot never switches again, even as the reset time wobbles', () => {
+  const check = usageWatch();
+  const half = T0 + 2.5 * HOUR;
+  assert.equal(check(usage(40, half), T0), '');
+  assert.equal(check(usage(56, half), T0 + MIN), 'hot');
+  for (let m = 2; m <= 90; m++) {
+    const wobble = (m % 3 - 1) * 1000; // the API's reset time, off by a second either way
+    assert.equal(check(usage(56 + m / 10, half + wobble), T0 + m * MIN), '', `minute ${m}`);
+  }
+});
+
+test('usage: a session that is still hot when the next one starts does not switch again', () => {
+  const check = usageWatch();
+  const first = T0 + 30 * MIN;
+  check(usage(50, first), T0);
+  assert.equal(check(usage(95, first), T0 + MIN), 'hot');
+  const second = first + 5 * HOUR;
+  assert.equal(check(usage(95, first), first), 'reset');
+  assert.equal(check(usage(10, second), first + 5 * MIN), ''); // 10% in 5 minutes: still hot
 });
