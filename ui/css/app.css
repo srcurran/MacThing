@@ -187,6 +187,7 @@
   --orange: var(--orange-500); /* the one accent: clock-screen date, calendar clock and NOW label, meeting pill */
   --hand: var(--white);
   --timer-used: var(--white-a20); /* the timer's spent minutes */
+  --timer-dial: var(--black); /* the timer's disc: the time left (white in the light theme) */
   --timer-card: var(--white-a10); /* a timer card, lifted off the screen behind it */
   --usage-track: var(--white-a30); /* a Claude usage ring's whole allowance */
   --timer-hand: var(--orange-500);
@@ -226,6 +227,7 @@
   --bar-track: var(--black-a20);
   --hand: var(--gray-950);
   --timer-used: var(--black-a10);
+  --timer-dial: var(--white);
   --timer-card: var(--white-a70);
   --usage-track: var(--black-a20);
   --c-mark-fill: var(--black-a10);
@@ -259,10 +261,7 @@
 #app.ambient-on:not(.light) {
   --today: var(--white);
   --today-ink: var(--black);
-}
-/* In the light theme the timer's dial is dark, so its hand is white: the dark theme's black hand
-   on a white dial, the other way round. */
-#app.light {
+  /* and the timer's hand white on its black disc (black on the light theme's white one) */
   --timer-hand: var(--white);
   --timer-hand-ink: var(--black);
 }
@@ -1204,7 +1203,7 @@ h3 {
 
 /* ===== timer ===== */
 /* The clock button on the clock swaps in a timer (Figma 154:4300). TimeTimer.vue draws its dial
-   across the whole stage: the time left in white, the minutes gone dimmed, a hand on the edge. */
+   across the whole stage: the time left as a disc (black; white in the light theme), the minutes gone dimmed, a hand on the edge. */
 
 .t-face {
   position: absolute;
@@ -1216,7 +1215,9 @@ h3 {
 .t-minute {
   fill: var(--timer-used);
 }
-.t-left,
+.t-left {
+  fill: var(--timer-dial);
+}
 .t-minute.left {
   fill: var(--hand);
 }
