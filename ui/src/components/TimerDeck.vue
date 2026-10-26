@@ -33,7 +33,7 @@ import { PRESETS } from '../timer.js';
 // how far the card in focus is lifted (swiped up) off its Remove, which shows as it rises: a red
 // bin and "Remove" in the space it leaves (tap it: remove). lifting: a finger has it (no easing).
 const LIFT_PX = 160;
-const props = defineProps({ cards: Array, focus: Number, position: Number, dragging: Boolean, lift: Number, lifting: Boolean, removing: Boolean, on: Boolean, zooming: Boolean, instant: Boolean, clock: String, next: Object });
+const props = defineProps({ cards: Array, focus: Number, position: Number, dragging: Boolean, lift: Number, lifting: Boolean, removing: Boolean, on: Boolean, zooming: Boolean, instant: Boolean, page: Object, clock: String, next: Object });
 defineEmits(['start', 'pick', 'remove']);
 const firstCard = computed(() => firstCardAt(props.position));
 const column = computed(() => columnAt(props.position));
@@ -46,14 +46,32 @@ function cardTransform(i) {
 // Lifted, the card fades back a little, and Remove comes up under it.
 const liftShare = computed(() => Math.min(1, props.lift / LIFT_PX));
 const canRemove = computed(() => props.cards[props.focus] && props.cards[props.focus].kind !== 'last');
+// Paging between full-size timers (ClockScreen.vue; Figma 483:3135): two cards side by side,
+// GAP apart, the left one full size at t 0 and the right one at t 1. In between, both shrink to
+// card size (halfway) and grow back, centred top to bottom, as the gap moves across the screen.
+// Full size, a card is square-cornered with no fill, like the full-size timer; it rounds and
+// fills in as it shrinks (--fill: the fill's share).
+const FULL = 1.25;
+const paged = computed(() => {
+  const pg = props.page;
+  if (!pg) return null;
+  const t = pg.dir > 0 ? pg.p : 1 - pg.p;
+  const s = FULL - (FULL - 1) * Math.sin(Math.PI * t);
+  const w = CARD_W * s, ty = (480 - 384 * s) / 2 - 48, gap = 800 + GAP / 2 - t * (800 + GAP);
+  const share = (FULL - s) / (FULL - 1);
+  const at = x => ({ transform: 'translate(' + x + 'px, ' + ty + 'px) scale(' + s + ')', borderRadius: 24 * share + 'px', '--fill': share });
+  const left = pg.dir > 0 ? pg.from : pg.to, right = pg.dir > 0 ? pg.to : pg.from;
+  return { [left]: at(gap - GAP / 2 - w), [right]: at(gap + GAP / 2) };
+});
 function cardStyle(i) {
+  if (paged.value) return paged.value[props.cards[i].id] || {};
   const style = { transform: cardTransform(i) };
   if (i === props.focus && props.lift) style.opacity = 1 - liftShare.value / 2;
   return style;
 }
 </script>
 <template>
-  <div class="td fill" :class="{ on, zooming, instant, dragging, lifting }">
+  <div class="td fill" :class="{ on, zooming, instant, dragging, lifting, paging: !!page }">
     <div v-if="canRemove" class="td-remove flex-col items-center" :style="{ transform: 'translateX(' + (firstCard + focus * STEP) + 'px)', opacity: liftShare }" @click="$emit('remove')">
       <svg class="td-bin" aria-hidden="true"><use href="#i-trash" /></svg>
       <span class="font-medium semibold">Remove</span>
@@ -64,7 +82,7 @@ function cardStyle(i) {
         <div v-for="m in PRESETS" :key="m" class="td-preset" @click="$emit('start', m)"><span class="td-minutes font-medium semibold tabular">{{ m }}</span><span class="td-unit bold muted">MIN</span></div>
       </div>
     </div>
-    <div v-for="(c, i) in cards" :key="c.id" class="td-card" :class="{ focus: i === focus }" :style="cardStyle(i)" :data-card="c.id" @click="$emit('pick', c.id)">
+    <div v-for="(c, i) in cards" :key="c.id" class="td-card" :class="{ focus: i === focus, paged: paged && paged[c.id] }" :style="cardStyle(i)" :data-card="c.id" @click="$emit('pick', c.id)">
       <div class="td-screen">
         <div class="td-rail flex-col justify-between">
           <div class="flex-col">

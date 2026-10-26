@@ -1412,6 +1412,34 @@ h3 {
   border-radius: 0;
   background-color: transparent;
 }
+/* Paging between full-size timers (ClockScreen.vue, TimerDeck.vue): only the two cards, on the
+   full-size timer's own background. Each card's fill is its ::before, so it can come in as the
+   card shrinks (--fill) without changing its colour. */
+.td.paging {
+  background-color: var(--panel);
+}
+.ambient-on .td.paging {
+  background-color: transparent;
+}
+.td.paging .td-set,
+.td.paging .td-remove,
+.td.paging .td-card:not(.paged) {
+  opacity: 0 !important;
+}
+.td.paging .td-card.paged {
+  opacity: 1;
+  background: transparent;
+}
+.td.paging .td-card.paged::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--timer-card);
+  opacity: var(--fill, 1);
+}
 /* Once the timer starts, the drawn hand fades in where the cut-out one was. */
 .t-hand-in {
   animation: fade-in 1.5s ease-out;
