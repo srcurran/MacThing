@@ -463,35 +463,38 @@ export function initializeRuntime(state) {
 
   // A swipe is one finger moving mostly sideways, far enough. Left (to the next, as a page turns)
   // is swipe(1), right is swipe(-1). It acts once, as the finger lifts. A screen with drag()
-  // follows the finger instead: once it's moved sideways past a tap, drag(dx) with how far it's
-  // gone, as it goes, then dragEnd(dx, vx) as it lifts (vx: px/ms, its speed at the end). drag()
-  // returning false leaves it to swipe(). An alert over the screen and a locked screen ignore it.
+  // follows the finger instead: once it's moved past a tap, the way it went most (axis 'x'
+  // sideways, 'y' up and down) holds for the rest of the touch, and drag(dx, dy, axis) says how
+  // far it's gone as it goes, then dragEnd(dx, vx, axis, dy, vy) as it lifts (vx, vy: px/ms, its
+  // speed at the end). drag() returning false leaves a sideways one to swipe(). An alert over the
+  // screen and a locked screen ignore it.
   // A touch that hardly moves is a tap: it clicks what's under the finger (so Vue's @click works),
   // and only that — the browser's own click is held back, so a tap never counts twice.
   var SWIPE_MIN_PX = 50, TAP_MAX_PX = 12;
-  var touchStart = null; // {x, y, dragging, last: [{dx, t}] for the speed}
+  var touchStart = null; // {x, y, axis, dragging, last: [{dx, dy, t}] for the speed}
   function touchScreen() {
     if (CT.asleep || CT.lockedTo || (CT.modalOpen && CT.modalOpen())) return null;
     return CT.screens[CT.current] || null;
   }
   window.addEventListener('touchstart', function (e) {
     var t = e.touches[0];
-    touchStart = e.touches.length === 1 ? { x: t.clientX, y: t.clientY, dragging: false, last: [] } : null;
+    touchStart = e.touches.length === 1 ? { x: t.clientX, y: t.clientY, axis: '', dragging: false, last: [] } : null;
   }, { passive: true, capture: true });
   window.addEventListener('touchmove', function (e) {
     var start = touchStart, t = e.touches[0];
     if (!start || !t) return;
     var dx = t.clientX - start.x, dy = t.clientY - start.y;
-    start.last.push({ dx: dx, t: performance.now() });
+    start.last.push({ dx: dx, dy: dy, t: performance.now() });
     if (start.last.length > 5) start.last.shift();
-    if (!start.dragging) {
-      if (Math.abs(dx) <= TAP_MAX_PX || Math.abs(dx) < Math.abs(dy)) return;
+    if (!start.axis) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) <= TAP_MAX_PX) return;
+      start.axis = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y';
       var screen = touchScreen();
-      if (!screen || !screen.drag) return;
-      start.dragging = true;
+      start.dragging = !!(screen && screen.drag);
     }
+    if (!start.dragging) return;
     var s = touchScreen();
-    if (!s || !s.drag || s.drag(dx) === false) start.dragging = false;
+    if (!s || !s.drag || s.drag(dx, dy, start.axis) === false) start.dragging = false;
   }, { passive: true, capture: true });
   window.addEventListener('touchend', function (e) {
     var start = touchStart, t = e.changedTouches[0];
@@ -506,16 +509,15 @@ export function initializeRuntime(state) {
     var screen = touchScreen();
     if (!screen) return;
     if (start.dragging && screen.dragEnd) {
-      var first = start.last[0], now = performance.now();
-      var vx = first && now - first.t > 0 ? (dx - first.dx) / (now - first.t) : 0;
-      return screen.dragEnd(dx, vx);
+      var first = start.last[0], now = performance.now(), dt = first ? now - first.t : 0;
+      return screen.dragEnd(dx, dt > 0 ? (dx - first.dx) / dt : 0, start.axis, dy, dt > 0 ? (dy - first.dy) / dt : 0);
     }
     if (tap) {
       var target = document.elementFromPoint(t.clientX, t.clientY);
       if (target) target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, clientX: t.clientX, clientY: t.clientY }));
       return;
     }
-    if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) < 1.5 * Math.abs(dy)) return;
+    if (start.axis === 'y' || Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) < 1.5 * Math.abs(dy)) return;
     if (screen.swipe) screen.swipe(dx < 0 ? 1 : -1);
   }, { passive: false, capture: true });
 

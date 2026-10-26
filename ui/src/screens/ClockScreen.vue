@@ -9,7 +9,7 @@ import TimerDeck, { firstCardAt, positionAt } from '../components/TimerDeck.vue'
 import ClaudeUsage from '../components/ClaudeUsage.vue';
 import BackActionIcon from '../components/BackActionIcon.vue';
 import { SESSION_MS, WEEK_MS, paceNumber, untilText, usageProviders, usageOf, usageName, usageUpdatedText } from '../usage.js';
-import { cards, startTimer, toggleTimer, removeTimer, removeDoneTimers } from '../timer.js';
+import { cards, startTimer, toggleTimer, removeTimer, removeCard, removeDoneTimers } from '../timer.js';
 const parts = computed(() => CT.parts(state.now));
 const face = computed(() => state.settings.clockFace);
 const time = computed(() => CT.clockText(parts.value));
@@ -77,17 +77,37 @@ screen.back = () => {
 // along. Resting on a card that's counting for 5 seconds zooms it up to full size. Tapping a
 // preset starts another timer and moves to its card; tapping a card moves to it, or, already on
 // it, zooms it (the last length used, tapped, starts it again); tapping the full-size one goes
-// back to the deck. The knob press starts or pauses the timer you're on (twice:
+// back to the deck. Swiping a card up lifts it off a Remove (Apple Watch faces' way): let go
+// lifted far enough (or flicked) and it stays up, Remove showing; tap Remove to remove it, or swipe
+// it back down, tap it or press back to keep it. The last length used is always there: it lifts a
+// little and drops back. The knob press starts or pauses the timer you're on (twice:
 // puts it away); the back button puts away a paused or finished one, and the corner says so.
 // Turning the knob sets the volume.
-const SETTLE_MS = 5000, ZOOM_MS = 300;
+const SETTLE_MS = 5000, ZOOM_MS = 350, FRAME_MS = 40;
 const focusId = ref('last');
 const timerView = ref('deck'); // 'deck' | 'timer'
 const zooming = ref(false);
+const instant = ref(false); // switching between the deck and the full-size timer with no fade
 const atPresets = ref(true); // resting on the presets (the first card beside them, in focus)
 const dragPosition = ref(null); // the stripe's position while a finger drags it
 let lastFocus = 0, settleTimer = null, zoomTimer = null, dragFrom = 0;
 const FLICK_PX_MS = 0.3;
+// Lifting the card in focus to remove it: how far it rests up (Remove showing), how far up it
+// must be let go to stay there, and how far the last length used gives before dropping back.
+const LIFT_PX = 160, LIFT_ARM_PX = 70, LAST_GIVE_PX = 24;
+const lift = ref(0), lifting = ref(false), removing = ref(false);
+let liftFrom = 0;
+function keepCard() {
+  removing.value = false;
+  lifting.value = false;
+  lift.value = 0;
+}
+function removeFocused() {
+  const card = focused.value;
+  keepCard();
+  removeCard(card);
+  settle();
+}
 const focusIndex = computed(() => {
   const i = cards.value.findIndex(c => c.id === focusId.value);
   return i >= 0 ? i : Math.min(lastFocus, cards.value.length - 1);
@@ -123,13 +143,26 @@ function settle() {
   clearTimeout(settleTimer);
   if (!atPresets.value && focused.value.kind !== 'last') settleTimer = setTimeout(zoom, SETTLE_MS);
 }
+// The card grows to fill the screen first (the rest of the deck fading away), then, at full size,
+// the full-size timer takes its place with no fade: it looks the same, so the swap can't be seen.
+// Back to the deck is the same in reverse.
 function zoom() {
   clearTimeout(settleTimer);
-  if (mode.value !== 'timer' || timerView.value !== 'deck') return;
+  if (mode.value !== 'timer' || timerView.value !== 'deck' || lift.value || zooming.value) return;
   zooming.value = true;
-  timerView.value = 'timer';
   clearTimeout(zoomTimer);
-  zoomTimer = setTimeout(() => { zooming.value = false; }, ZOOM_MS);
+  zoomTimer = setTimeout(() => {
+    instant.value = true;
+    timerView.value = 'timer';
+    zoomTimer = setTimeout(() => { zooming.value = false; instant.value = false; }, FRAME_MS);
+  }, ZOOM_MS);
+}
+function unzoom() {
+  clearTimeout(zoomTimer);
+  instant.value = true;
+  zooming.value = true;
+  timerView.value = 'deck';
+  zoomTimer = setTimeout(() => { instant.value = false; zooming.value = false; }, FRAME_MS);
 }
 /** Opening the timer: on the card asked for (full size), else on a timer of yours if one's going
  *  (full size), else the deck from its start. */
@@ -146,15 +179,20 @@ function startFromPreset(minutes) {
   focusOn(startTimer(minutes));
 }
 function pickCard(id) {
+  if (lift.value) return keepCard();
   if (id !== focusId.value || atPresets.value) return focusOn(id);
   if (focused.value.kind === 'last') return startFromPreset(focused.value.total / 60000);
   zoom();
 }
 function backToDeck() {
-  if (mode.value === 'timer' && timerView.value === 'timer') focusOn(focusId.value);
+  if (mode.value !== 'timer' || timerView.value !== 'timer') return;
+  unzoom();
+  atPresets.value = false;
+  settle();
 }
 const timerResets = computed(() => focused.value.kind === 'timer' && (focused.value.status === 'paused' || focused.value.status === 'done'));
 function timerBackPress() {
+  if (lift.value) return void keepCard();
   if (!timerResets.value) return false;
   removeTimer(focused.value.id);
 }
@@ -201,19 +239,37 @@ CT.showUsage = provider => {
 watch(() => mode.value === 'timer' && state.current === 'clock', up => {
   if (up) return;
   clearTimeout(settleTimer);
+  keepCard();
   removeDoneTimers();
 });
 screen.swipe = direction => {
   if (mode.value !== 'timer') return false;
+  keepCard();
   restOn(restPosition.value + direction);
 };
-// Dragging the deck: the stripe moves with the finger (a little past either end at most).
-screen.drag = dx => {
+// Dragging the deck: sideways, the stripe moves with the finger (a little past either end at
+// most); up and down, the card in focus lifts with it.
+screen.drag = (dx, dy, axis) => {
   if (mode.value !== 'timer' || timerView.value !== 'deck') return false;
+  if (axis === 'y') {
+    if (!lifting.value) { lifting.value = true; liftFrom = lift.value; clearTimeout(settleTimer); }
+    const up = liftFrom - dy;
+    lift.value = focused.value.kind === 'last' ? Math.max(0, Math.min(LAST_GIVE_PX, up / 4)) : Math.max(0, Math.min(LIFT_PX + 24, up));
+    return;
+  }
+  if (lift.value) keepCard();
   if (dragPosition.value == null) { dragFrom = restPosition.value; clearTimeout(settleTimer); }
   dragPosition.value = Math.max(-0.2, Math.min(cards.value.length + 0.2, positionAt(firstCardAt(dragFrom) + dx)));
 };
-screen.dragEnd = (dx, vx) => {
+screen.dragEnd = (dx, vx, axis, dy, vy) => {
+  if (axis === 'y') {
+    const arm = focused.value.kind !== 'last' && (Math.abs(vy) > FLICK_PX_MS ? vy < 0 : lift.value > LIFT_ARM_PX);
+    lifting.value = false;
+    removing.value = arm;
+    lift.value = arm ? LIFT_PX : 0;
+    if (!arm) settle();
+    return;
+  }
   const position = dragPosition.value == null ? restPosition.value : dragPosition.value;
   dragPosition.value = null;
   restOn(Math.abs(vx) > FLICK_PX_MS ? (vx < 0 ? Math.ceil(position) : Math.floor(position)) : Math.round(position));
@@ -221,6 +277,7 @@ screen.dragEnd = (dx, vx) => {
 let lastPress = 0;
 screen.press = () => {
   if (mode.value !== 'timer') return false;
+  if (lift.value) return void keepCard();
   const card = focused.value, t = performance.now();
   const twice = t - lastPress < (CT.config.multiClickMs || 350);
   lastPress = twice ? 0 : t;
@@ -232,7 +289,7 @@ screen.press = () => {
 };
 </script>
 <template>
-  <section id="screen-clock" class="screen fill flex" :class="{ active: state.current === 'clock', leaving: state.leaving === 'clock', timer: mode === 'timer', 'timer-deck': mode === 'timer' && timerView === 'deck' }">
+  <section id="screen-clock" class="screen fill flex" :class="{ active: state.current === 'clock', leaving: state.leaving === 'clock', timer: mode === 'timer', 'timer-deck': mode === 'timer' && timerView === 'deck', 'timer-instant': instant }">
     <LeftRail :view="mode" :views="railViews" :truncate-lower="!resets" @click="backToDeck">
       <template #lower>
         <template v-if="resets"><div class="usage-resets">Resets: Session <b class="primary medium">{{ resets.session }}</b> · Week <b class="primary medium">{{ resets.week }}</b></div></template>
@@ -249,6 +306,6 @@ screen.press = () => {
         <div v-else class="c-digital fill"><span>{{ digits.hours }}</span><span class="c-digital-minutes"><span>:</span><span>{{ digits.minutes }}</span></span></div>
       </div>
     </ScreenStage>
-    <TimerDeck :cards="cards" :focus="focusIndex" :position="deckPosition" :dragging="dragPosition != null" :on="mode === 'timer' && timerView === 'deck'" :zooming="zooming" :clock="time.time" :next="next ? { time: CT.timeText(next.start), title: next.title } : null" @start="startFromPreset" @pick="pickCard" />
+    <TimerDeck :cards="cards" :focus="focusIndex" :position="deckPosition" :dragging="dragPosition != null" :lift="lift" :lifting="lifting" :removing="removing" :on="mode === 'timer' && timerView === 'deck'" :zooming="zooming" :instant="instant" :clock="time.time" :next="next ? { time: CT.timeText(next.start), title: next.title } : null" @start="startFromPreset" @pick="pickCard" @remove="removeFocused" />
   </section>
 </template>

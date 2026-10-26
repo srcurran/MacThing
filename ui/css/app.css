@@ -415,6 +415,10 @@ h3 {
   opacity: 0;
   will-change: opacity;
   transition: opacity 0.3s ease-in;
+  pointer-events: none; /* a view that's faded out doesn't catch a tap meant for the one showing */
+}
+.fade-view.on {
+  pointer-events: auto;
 }
 .fade-view.on {
   opacity: 1;
@@ -1226,10 +1230,10 @@ h3 {
 .td {
   z-index: 2;
   overflow: hidden;
-  background: var(--stage);
+  background-color: var(--stage);
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.3s ease-in, visibility 0s linear 0.3s;
+  transition: opacity 0.3s ease-in, visibility 0s linear 0.3s, background-color 0.35s ease-out;
 }
 .ambient-on .td {
   background: transparent;
@@ -1247,7 +1251,7 @@ h3 {
 .td.on {
   opacity: 1;
   visibility: visible;
-  transition: opacity 0.3s ease-out;
+  transition: opacity 0.3s ease-out, background-color 0.35s ease-out;
 }
 .td-set {
   position: absolute;
@@ -1258,7 +1262,7 @@ h3 {
   display: flex;
   flex-direction: column;
   will-change: transform;
-  transition: transform 0.35s ease-out;
+  transition: transform 0.35s ease-out, opacity 0.3s ease-out;
 }
 .td-presets {
   flex: 1;
@@ -1303,8 +1307,30 @@ h3 {
   transition: opacity 0.35s ease-out, transform 0.35s ease-out, border-radius 0.3s ease-in-out, background-color 0.3s ease-in-out;
 }
 .td.dragging .td-set,
-.td.dragging .td-card {
+.td.dragging .td-card,
+.td.dragging .td-remove,
+.td.lifting .td-card.focus {
   transition: none;
+}
+/* Under the card in focus, its Remove (Apple Watch faces' way): swiped up, the card lifts off it,
+   and a red bin and "Remove" show in the space it leaves (TimerDeck.vue sets how far). */
+.td-remove {
+  position: absolute;
+  left: 0;
+  top: var(--panel-inset-y);
+  width: 640px;
+  height: 384px;
+  padding-bottom: 28px;
+  box-sizing: border-box;
+  justify-content: flex-end;
+  will-change: transform, opacity;
+  transition: transform 0.35s ease-out, opacity 0.35s ease-out;
+}
+.td-bin {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 4px;
+  fill: var(--red-500);
 }
 .td-card.focus {
   opacity: 1;
@@ -1341,7 +1367,24 @@ h3 {
   height: 480px;
 }
 /* Zooming: the card in focus grows to the whole screen, where the full-size timer is (its
-   transform is TimerDeck.vue's), and nothing else is in the way. */
+   transform is TimerDeck.vue's), on the full-size timer's own background, as the rest fades
+   away. Then the full-size timer takes its place with no fade (instant), and back the same. */
+.td.zooming {
+  background-color: var(--panel);
+}
+.ambient-on .td.zooming {
+  background-color: transparent;
+}
+.td.zooming .td-set,
+.td.zooming .td-remove {
+  opacity: 0 !important;
+}
+.td.instant,
+.td.instant *,
+#screen-clock.timer-instant .left-rail,
+#screen-clock.timer-instant .screen-stage {
+  transition: none !important;
+}
 .td.zooming .td-card:not(.focus) {
   opacity: 0;
 }

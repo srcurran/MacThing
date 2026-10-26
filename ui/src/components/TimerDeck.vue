@@ -29,27 +29,42 @@ import { PRESETS } from '../timer.js';
 // (its rail and dial) at 0.8. It rests with the presets showing, or with a card centred, its
 // neighbours peeking in either side; while a finger drags it, it follows (dragging: no easing).
 // Tapping a preset starts a timer; tapping a card focuses it (ClockScreen.vue decides the rest).
-// clock is the time of day and next the next event, as the full-size timer's rail shows.
-const props = defineProps({ cards: Array, focus: Number, position: Number, dragging: Boolean, on: Boolean, zooming: Boolean, clock: String, next: Object });
-defineEmits(['start', 'pick']);
+// clock is the time of day and next the next event, as the full-size timer's rail shows. lift is
+// how far the card in focus is lifted (swiped up) off its Remove, which shows as it rises: a red
+// bin and "Remove" in the space it leaves (tap it: remove). lifting: a finger has it (no easing).
+const LIFT_PX = 160;
+const props = defineProps({ cards: Array, focus: Number, position: Number, dragging: Boolean, lift: Number, lifting: Boolean, removing: Boolean, on: Boolean, zooming: Boolean, instant: Boolean, clock: String, next: Object });
+defineEmits(['start', 'pick', 'remove']);
 const firstCard = computed(() => firstCardAt(props.position));
 const column = computed(() => columnAt(props.position));
 // Zooming, the card in focus grows from where it sits to the whole screen, where the full-size
 // timer is: to x 0, up its 48px inset, and 1.25 (its 0.8 undone).
 function cardTransform(i) {
   if (props.zooming && i === props.focus) return 'translate(0px, -48px) scale(1.25)';
-  return 'translateX(' + (firstCard.value + i * STEP) + 'px)';
+  return 'translate(' + (firstCard.value + i * STEP) + 'px, ' + (i === props.focus ? -props.lift : 0) + 'px)';
+}
+// Lifted, the card fades back a little, and Remove comes up under it.
+const liftShare = computed(() => Math.min(1, props.lift / LIFT_PX));
+const canRemove = computed(() => props.cards[props.focus] && props.cards[props.focus].kind !== 'last');
+function cardStyle(i) {
+  const style = { transform: cardTransform(i) };
+  if (i === props.focus && props.lift) style.opacity = 1 - liftShare.value / 2;
+  return style;
 }
 </script>
 <template>
-  <div class="td fill" :class="{ on, zooming, dragging }">
+  <div class="td fill" :class="{ on, zooming, instant, dragging, lifting }">
+    <div v-if="canRemove" class="td-remove flex-col items-center" :style="{ transform: 'translateX(' + (firstCard + focus * STEP) + 'px)', opacity: liftShare }" @click="$emit('remove')">
+      <svg class="td-bin" aria-hidden="true"><use href="#i-trash" /></svg>
+      <span class="font-medium semibold">Remove</span>
+    </div>
     <div class="td-set" :style="{ transform: 'translateX(' + column + 'px)' }">
       <p class="font-small bold">Set a timer</p>
       <div class="td-presets">
         <div v-for="m in PRESETS" :key="m" class="td-preset" @click="$emit('start', m)"><span class="td-minutes font-medium semibold tabular">{{ m }}</span><span class="td-unit bold muted">MIN</span></div>
       </div>
     </div>
-    <div v-for="(c, i) in cards" :key="c.id" class="td-card" :class="{ focus: i === focus }" :style="{ transform: cardTransform(i) }" :data-card="c.id" @click="$emit('pick', c.id)">
+    <div v-for="(c, i) in cards" :key="c.id" class="td-card" :class="{ focus: i === focus }" :style="cardStyle(i)" :data-card="c.id" @click="$emit('pick', c.id)">
       <div class="td-screen">
         <div class="td-rail flex-col justify-between">
           <div class="flex-col">

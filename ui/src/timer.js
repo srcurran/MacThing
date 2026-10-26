@@ -55,6 +55,11 @@ const keyOf = e => (e.calendarId || '') + '|' + e.start + '|' + (e.title || '');
 /** The card for a meeting going on: its id, for the meeting alert to bring it up. */
 export const meetingCardId = e => 'end|' + keyOf(e);
 const timed = computed(() => (state.calendar.status === 'ok' ? state.calendar.events.filter(e => !e.allDay) : []));
+// Meeting cards you've removed (swiped up, Remove), each until its countdown would have ended:
+// card id → when. Kept across page reloads.
+const HIDDEN_STORE = 'ct-timer-hidden';
+const hidden = reactive(load(HIDDEN_STORE, {}));
+const shown = (id, until) => !(hidden[id] >= until);
 /** The timed events going on now, the one that ends first first. */
 const currentMeetings = computed(() => timed.value.filter(e => e.start <= state.now && state.now < e.end)
   .sort((a, b) => a.end - b.end || a.start - b.start));
@@ -83,12 +88,12 @@ function timerCard(t) {
 /** Every card, left to right: the meetings, your timers, then the last length used. */
 export const cards = computed(() => {
   const now = state.now, list = [];
-  currentMeetings.value.forEach(e => list.push({
+  currentMeetings.value.filter(e => shown(meetingCardId(e), e.end)).forEach(e => list.push({
     id: meetingCardId(e), kind: 'meeting', status: 'running', remaining: e.end - now, total: e.end - e.start,
     label: e.title || 'Meeting ends in', title: countdownText(e.end - now)
   }));
   const next = nextMeeting.value;
-  if (next) {
+  if (next && shown('start|' + keyOf(next), next.start)) {
     const id = 'start|' + keyOf(next);
     nextSeen[id] = nextSeen[id] || now;
     list.push({
@@ -130,6 +135,15 @@ export function removeTimer(id) {
   const i = timers.findIndex(t => t.id === id);
   if (i >= 0) timers.splice(i, 1);
   save();
+}
+/** Removes a card (swiped up, Remove): a timer is put away, a meeting's countdown hidden until
+ *  it would have ended. The last length used always stays. */
+export function removeCard(card) {
+  if (card.kind === 'timer') return removeTimer(card.id);
+  if (card.kind !== 'meeting') return;
+  hidden[card.id] = state.now + card.remaining;
+  Object.keys(hidden).forEach(id => { if (hidden[id] < state.now) delete hidden[id]; });
+  try { localStorage.setItem(HIDDEN_STORE, JSON.stringify(hidden)); } catch (e) {}
 }
 /** Puts away every timer that's finished (leaving the timer does this). */
 export function removeDoneTimers() {
