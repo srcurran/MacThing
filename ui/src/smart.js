@@ -1,7 +1,7 @@
 import { watch } from 'vue';
 import { state, CT } from './state.js';
 import { timer } from './timer.js';
-import { usageProviders } from './usage.js';
+import { usageProviders, usageName } from './usage.js';
 import { usageWatch, weatherWatch } from './smart-triggers.js';
 
 // Settings → Smart switching: the screen moves by itself when something is worth a look.
@@ -19,7 +19,7 @@ const PENDING_MS = 3 * 60000; // something in the way for longer than this: let 
 
 const usageChecks = { claude: usageWatch(), chatgpt: usageWatch() };
 const weatherCheck = weatherWatch();
-let pending = null; // { show: () => void, until }
+let pending = null; // { show: () => void, note, until }
 let placed = ''; // the screen this put up, until someone moves off it
 let returnTo = ''; // 'nowplaying' when that's where this took the screen from
 let holdUntil = 0;
@@ -32,13 +32,17 @@ function busy() {
     || (CT.modalOpen && CT.modalOpen()) || timerUp() || performance.now() - lastInput < QUIET_MS;
 }
 
-function want(show) {
-  if (enabled()) pending = { show, until: performance.now() + PENDING_MS };
+// How long the note saying why the screen moved stays up.
+const NOTE_MS = 5000;
+
+function want(show, note) {
+  if (enabled()) pending = { show, note, until: performance.now() + PENDING_MS };
 }
 
-function go(show) {
+function go({ show, note }) {
   const from = state.current;
   show();
+  CT.toast(note, NOTE_MS);
   if (state.current === from) return; // already there, or the screen wouldn't move
   if (from === 'nowplaying') returnTo = 'nowplaying';
   placed = state.current;
@@ -52,12 +56,16 @@ CT.onSecond(now => {
   Object.keys(usageChecks).forEach(provider => {
     const usage = provider === 'chatgpt' ? state.chatgptUsage : state.usage;
     const event = usageChecks[provider](usage, now);
-    if (event && shown.includes(provider)) want(() => CT.showUsage && CT.showUsage(provider));
+    if (event && shown.includes(provider)) {
+      want(() => CT.showUsage && CT.showUsage(provider),
+        usageName(provider) + (event === 'hot' ? ' usage is speeding up' : ' usage is reset'));
+    }
   });
-  if (weatherCheck(state.weather, now)) want(() => CT.showForecast && CT.showForecast());
+  const wet = weatherCheck(state.weather, now);
+  if (wet) want(() => CT.showForecast && CT.showForecast(), wet);
   if (!pending) return;
   if (!enabled() || performance.now() > pending.until) pending = null;
-  else if (!busy()) { const show = pending.show; pending = null; go(show); }
+  else if (!busy()) { const next = pending; pending = null; go(next); }
 });
 
 function settle() { placed = ''; returnTo = ''; }

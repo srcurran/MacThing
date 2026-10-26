@@ -275,10 +275,10 @@ export function initializeRuntime(state) {
   };
 
   var toastTimer = null;
-  CT.toast = function (text) {
+  CT.toast = function (text, ms) {
     state.toast = text;
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { state.toast = ''; }, 1800);
+    toastTimer = setTimeout(function () { state.toast = ''; }, ms || 1800);
   };
   CT.on('toast', function (msg) { CT.toast(msg.text); });
 

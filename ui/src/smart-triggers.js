@@ -1,7 +1,7 @@
 // What Smart switching reacts to (smart.js does the switching). Plain functions over the Mac's
 // readings, with no Vue, so the tests can drive them.
 import { SESSION_MS, paceK, burnK, fires } from './usage.js';
-import { isWet } from './weather.js';
+import { isWet, describe } from './weather.js';
 
 const HOUR = 3600000;
 
@@ -60,24 +60,31 @@ export function usageWatch() {
 // Rain or snow this likely counts as coming.
 export const WET_MIN_POP = 50;
 
-/** Rain or snow is due within the hour and isn't falling yet. */
+/** The hour rain or snow is due in, within the hour, when it isn't falling yet; else null. */
 export function wetSoon(weather, now) {
-  if (!weather || weather.status !== 'ok' || isWet(weather.current.code)) return false;
+  if (!weather || weather.status !== 'ok' || isWet(weather.current.code)) return null;
   return weather.hourly.filter(h => h.t <= now + HOUR).slice(-2)
-    .some(h => h.t + HOUR > now && isWet(h.code) && h.pop >= WET_MIN_POP);
+    .find(h => h.t + HOUR > now && isWet(h.code) && h.pop >= WET_MIN_POP) || null;
+}
+
+/** The note for what's coming: 'Rain in next hour', or Snow or Storms. */
+export function wetNote(code) {
+  const kind = describe(code, true).icon;
+  return (kind === '#w-snow' ? 'Snow' : kind === '#w-thunder' ? 'Storms' : 'Rain') + ' in next hour';
 }
 
 /**
- * check(weather, now) is true the moment rain or snow becomes due (see wetSoon), and not again
- * until it has passed or the forecast has dropped it. The first reading only sets the baseline.
+ * check(weather, now) returns the note (see wetNote) the moment rain or snow becomes due (see
+ * wetSoon), and not again until it has passed or the forecast has dropped it, else ''. The first
+ * reading only sets the baseline.
  */
 export function weatherWatch() {
   let was = null;
   return function check(weather, now) {
-    if (!weather || weather.status !== 'ok') return false;
+    if (!weather || weather.status !== 'ok') return '';
     const soon = wetSoon(weather, now);
     const fire = was === false && soon;
-    was = soon;
-    return fire;
+    was = !!soon;
+    return fire ? wetNote(soon.code) : '';
   };
 }
