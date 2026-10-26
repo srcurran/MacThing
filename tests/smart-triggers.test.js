@@ -55,7 +55,7 @@ test('usage: switches once for each new fire as the pace climbs', () => {
   assert.equal(check(usage(55, resets), T0 + 5 * MIN), 'hot'); // 🔥
   assert.equal(check(usage(70, resets), T0 + 10 * MIN), 'hot'); // 🔥🔥
   assert.equal(check(usage(72, resets), T0 + 15 * MIN), ''); // still 🔥🔥
-  assert.equal(check(usage(100, resets), T0 + 20 * MIN), 'hot'); // the limit
+  assert.equal(check(usage(100, resets), T0 + 20 * MIN), 'limit');
   assert.equal(check(usage(100, resets), T0 + 25 * MIN), '');
 });
 
@@ -95,6 +95,26 @@ test('usage: a new session starts its tiers again', () => {
 
 const hour = (t, code, pop) => ({ t, code, pop, temp: 50, isDay: true });
 const weather = (currentCode, hourly) => ({ status: 'ok', current: { code: currentCode }, hourly });
+
+test('usage: the limit is told once a session, however long it lasts', () => {
+  const check = usageWatch();
+  const resets = T0 + 2.5 * HOUR;
+  check(usage(60, resets), T0);
+  assert.equal(check(usage(100, resets), T0 + 5 * MIN), 'limit');
+  // Locked out: nothing burns, and the reading wobbles between 99% and 100% for an hour.
+  for (let m = 10; m <= 70; m += 5) assert.equal(check(usage(m % 10 ? 99 : 100, resets), T0 + m * MIN), '', m + ' min');
+  const next = resets + 5 * HOUR;
+  assert.equal(check(usage(0, null), resets + MIN), 'reset'); // it ended well used: the allowance is back
+  assert.equal(check(usage(100, next), resets + 2 * HOUR), 'limit'); // a new session can hit it again
+});
+
+test('usage: hitting the limit after its reset is announced does not hide the reset', () => {
+  const check = usageWatch();
+  const resets = T0 + 10 * MIN;
+  check(usage(90, resets), T0);
+  assert.equal(check(usage(100, resets), T0 + 5 * MIN), 'limit');
+  assert.equal(check(usage(100, resets), resets), 'reset');
+});
 
 test('weather: rain due next hour counts, rain already falling does not', () => {
   const now = T0 + 20 * MIN;

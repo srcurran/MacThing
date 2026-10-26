@@ -58,7 +58,8 @@ CT.onSecond(now => {
     const event = usageChecks[provider](usage, now);
     if (event && shown.includes(provider)) {
       want(() => CT.showUsage && CT.showUsage(provider),
-        usageName(provider) + (event === 'hot' ? ' usage is speeding up' : ' usage is reset'));
+        event === 'limit' ? 'Out of ' + usageName(provider) + ' usage'
+          : usageName(provider) + (event === 'hot' ? ' usage is speeding up' : ' usage is reset'));
     }
   });
   const wet = weatherCheck(state.weather, now);

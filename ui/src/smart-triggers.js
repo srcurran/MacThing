@@ -21,13 +21,15 @@ export const COOL_MS = 15 * 60000;
 
 /**
  * Watches one provider's usage. check(usage, now) returns 'hot' when the session's fires climb
- * higher than they have been this session (see heat), or come back after COOL_MS without any,
- * 'reset' when a
- * session or week that was at least RESET_MIN_PERCENT used runs out, else ''. The first reading
- * only sets the baseline, so a page load never switches anything.
+ * higher than they have been this session (see heat), or come back after COOL_MS without any;
+ * 'limit' the first time the session hits its limit, after which it says nothing more about that
+ * session's heat (locked out, the burn falls to nothing, and a reading of 99% between 100s would
+ * otherwise read as cooling off and announce the limit again and again); 'reset' when a session
+ * or week that was at least RESET_MIN_PERCENT used runs out; else ''. The first reading only sets
+ * the baseline, so a page load never switches anything.
  */
 export function usageWatch() {
-  let session = null, week = null; // { resetsAt, percent, tier?, calmSince?, ended? }
+  let session = null, week = null; // { resetsAt, percent, tier?, calmSince?, limited?, ended? }
   function ended(win, now) {
     if (!win || !win.resetsAt || win.ended || now < win.resetsAt) return false;
     win.ended = true;
@@ -47,11 +49,13 @@ export function usageWatch() {
     session = track(session, usage.session);
     week = track(week, usage.week);
     const tier = heat(usage, now);
-    if (fresh) session.tier = first ? tier : 0;
+    if (fresh) { session.tier = first ? tier : 0; session.limited = first && tier === 3; }
+    if (reset) return 'reset';
+    if (session.limited) return '';
+    if (tier === 3) { session.limited = true; return 'limit'; }
     if (tier) session.calmSince = null;
     else if (session.calmSince == null) session.calmSince = now;
     else if (now - session.calmSince >= COOL_MS) session.tier = 0;
-    if (reset) return 'reset';
     if (tier > session.tier) { session.tier = tier; return 'hot'; }
     return '';
   };
