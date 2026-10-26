@@ -1220,6 +1220,11 @@ h3 {
 }
 .t-left {
   fill: var(--timer-dial);
+  transition: fill-opacity 0.6s ease-out;
+}
+/* Not started yet, the disc is at half strength (a full circle, with just the hub's hole). */
+.t-face.idle .t-left {
+  fill-opacity: 0.5;
 }
 .t-minute.left {
   fill: var(--hand);
