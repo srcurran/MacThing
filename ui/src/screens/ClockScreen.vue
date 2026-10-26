@@ -128,19 +128,6 @@ watch(() => focused.value.id, id => {
   if (timerView.value === 'timer') timerView.value = 'deck';
 });
 watch(() => state.current === 'clock' && mode.value === 'timer', up => { timerOnScreen.value = up; }, { immediate: true });
-// A minute before a meeting, its countdown comes up, full size, once, wherever the screen is,
-// unless you're looking at another timer full size (or in Settings, or the screen is locked).
-const MEETING_LEAD_MS = 60000;
-const leadShown = {};
-CT.onSecond(() => {
-  const card = cards.value.find(c => c.id.indexOf('start|') === 0);
-  if (!card || card.remaining > MEETING_LEAD_MS || card.remaining <= 0 || leadShown[card.id]) return;
-  leadShown[card.id] = true;
-  if (CT.lockedTo || state.current === 'settings') return;
-  const another = state.current === 'clock' && mode.value === 'timer' && timerView.value === 'timer'
-    && focused.value.kind !== 'last' && focused.value.id !== card.id;
-  if (!another) CT.showTimer(card.id);
-});
 function focusOn(id) {
   focusId.value = id;
   atPresets.value = false;
