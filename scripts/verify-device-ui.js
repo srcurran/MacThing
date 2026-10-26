@@ -50,6 +50,10 @@ await evaluate(`(function () {
   localStorage.setItem(key, JSON.stringify(all));
   if ((localStorage.getItem('ct-queued-meeting') || '').indexOf('fixture|') === 0) localStorage.removeItem('ct-queued-meeting');
 })()`);
+// The timers you have going are kept across reloads too: set them aside for the run (it starts
+// with none) and put them back afterwards.
+const ownTimers = await evaluate('JSON.stringify([localStorage.getItem("ct-timers"), localStorage.getItem("ct-timer-last")])');
+await evaluate('localStorage.removeItem("ct-timers"); localStorage.removeItem("ct-timer-last")');
 await cdp.send('Page.reload', { ignoreCache: true });
 await pause(500);
 try {
@@ -131,9 +135,29 @@ try {
   await capture('clock');
   assert.match(await evaluate('document.querySelector("#screen-clock .left-rail").textContent'), /3:35 PM.*Example event 1/);
   // The clock button on the clock steps to the timer, then the usage Settings → Usage asks for (Claude
-  // by default); the knob sets, runs and resets the timer.
+  // by default). The timer opens on its deck: presets to tap, and a card for each timer, meeting
+  // and the last length used, swiped along; staying on one zooms it up to full size.
   const press = key => evaluate(`window.dispatchEvent(new KeyboardEvent('keydown', {key:'${key}'})); window.dispatchEvent(new KeyboardEvent('keyup', {key:'${key}'}))`);
   const rail = () => evaluate('document.querySelector("#screen-clock .left-rail-view.on").textContent');
+  // One finger on the screen, from one point to another: a swipe, or (not moving) a tap.
+  const touch = (x0, y0, x1, y1) => evaluate(`(function () {
+    function at(x, y) { return new Touch({ identifier: 1, target: document.body, clientX: x, clientY: y }); }
+    var start = at(${x0}, ${y0}), end = at(${x1}, ${y1});
+    window.dispatchEvent(new TouchEvent('touchstart', { touches: [start], changedTouches: [start], cancelable: true }));
+    window.dispatchEvent(new TouchEvent('touchend', { touches: [], changedTouches: [end], cancelable: true }));
+  })()`);
+  // 1 is to the left (the next card), -1 to the right.
+  const swipe = async direction => { await touch(400, 240, 400 - 150 * direction, 240); await pause(400); };
+  // Taps the middle of the element the expression finds.
+  async function tap(element) {
+    const box = await evaluate(`(function () { var r = (${element}).getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`);
+    await touch(box[0], box[1], box[0], box[1]);
+    await pause(400);
+  }
+  const preset = minutes => `[].find.call(document.querySelectorAll('.td-preset'), function (p) { return p.textContent.trim() === '${minutes}'; })`;
+  const deckOn = () => evaluate('!!document.querySelector(".td.on")');
+  const focusedCard = () => evaluate('document.querySelector(".td-card.focus").textContent.replace(/\\s+/g, " ").trim()');
+  const timersKept = () => evaluate('JSON.parse(localStorage.getItem("ct-timers") || "[]").length');
   const clockView = () => evaluate('document.querySelector("#screen-clock .left-rail-view.on").getAttribute("data-view")');
   async function toClock() {
     while (await clockView() !== 'clock') await press('4');
@@ -142,14 +166,34 @@ try {
   await toClock(); // start from the clock
   await press('4');
   await pause(400); // the clock's text fades out (0.3 s) before the timer's is the only one
+  assert.equal(await deckOn(), true, 'With no timer going, the timer opens on its deck');
+  assert.match(await focusedCard(), /^Next meeting in 59:59 Example event 1 at 3:35 PM/, 'on the next meeting\'s card');
+  assert.equal(await evaluate('document.querySelectorAll(".td-card").length'), 2, 'with the last length used beside it');
+  await capture('timer-deck');
   await evaluate("window.dispatchEvent(new WheelEvent('wheel', {deltaX:53, cancelable:true}))");
   await pause(100);
-  assert.match(await rail(), /30 minute timer30:00/, 'Wheel picks the timer length');
-  await press('Enter');
+  assert.match(await focusedCard(), /^Next meeting in/, 'The knob doesn\'t move along the deck');
+  await swipe(1);
+  assert.match(await focusedCard(), /^30 minute timer 30:00 Tap to start/, 'A swipe does: the last length used, 30 minutes to start with');
+  await swipe(-1);
+  await tap(preset(10));
+  assert.match(await focusedCard(), /^10 minute timer 9:5\d Ends/, 'Tapping a preset starts a timer, on its own card');
+  await tap(preset(30));
+  assert.equal(await timersKept(), 2, 'and another, beside it');
+  assert.equal(await evaluate('document.querySelectorAll(".td-card").length'), 4, 'each with its card');
+  assert.match(await focusedCard(), /^30 minute timer 29:5\d/, 'on the new one');
+  await pause(5300);
+  assert.equal(await deckOn(), false, 'Staying on a card zooms it up to full size');
   await tick(now + 754000);
   await pause(1100);
   assert.match(await rail(), /30 minute timer1[67]:\d\d/, 'Timer counts down');
   await capture('timer');
+  await swipe(-1);
+  assert.equal(await deckOn(), true, 'A swipe goes back to the deck');
+  assert.match(await focusedCard(), /^10 minute timer 0:00|^Time's up/, 'and along it: the 10 minutes are up');
+  await press('Escape');
+  await pause(100);
+  assert.equal(await timersKept(), 1, 'The back button puts a finished timer away');
   await message({ type: 'usage', usage: { status: 'ok', session: { percent: 42, resetsAt: now + 754000 + 133 * 60000 }, week: { percent: 86, resetsAt: Date.UTC(2026, 8, 24, 9) }, updatedAt: now + 754000 } });
   await press('4');
   await pause(400); // the timer fades out (0.3 s)
@@ -208,65 +252,23 @@ try {
   await message({ type: 'settings', settings });
   await press('4');
   await pause(400);
+  assert.equal(await deckOn(), false, 'Opening the timer with one going shows it full size');
   await press('Enter'); await press('Enter');
   await pause(100);
-  assert.match(await rail(), /30 minute timer30:00/, 'Double press resets');
+  assert.equal(await timersKept(), 0, 'Double press puts it away');
+  assert.equal(await deckOn(), true, 'back on the deck');
   await toClock();
-  await tick(now);
-  // Past 60 minutes, the knob's meeting stop counts to the next meeting's start, in minutes
-  // (rounded up) until it's started: 9:49 to go reads 10 min.
-  await message({ type: 'calendar', calendar: { status: 'ok', events: [{ start: now + 589000, end: now + 2389000, title: 'Standup', color: '#2d9cdb', allDay: false, calendarId: 'fixture' }] } });
+  // Each meeting going on has a card counting to its end, and the next one today one counting to
+  // its start; one of 90 minutes or more reads in whole hours.
+  await message({ type: 'calendar', calendar: { status: 'ok', events: [
+    { start: now - 600000, end: now + 1200000, title: 'Standup', color: '#2d9cdb', allDay: false, calendarId: 'fixture' },
+    { start: now - 300000, end: now + 21 * 3600000, title: 'Sleepover', color: '#e8a33d', allDay: false, calendarId: 'fixture' },
+    { start: now + 589000, end: now + 2389000, title: 'Review', color: '#2d9cdb', allDay: false, calendarId: 'fixture' }] } });
   await press('4');
   await pause(400);
-  for (let i = 0; i < 7; i++) await evaluate("window.dispatchEvent(new WheelEvent('wheel', {deltaX:53, cancelable:true}))");
-  await pause(100);
-  assert.match(await rail(), /Next meeting in10\s*min/, 'Past 60 minutes: the next meeting\'s start');
-  await press('Enter'); await press('Enter');
+  const deck = () => evaluate('[].map.call(document.querySelectorAll(".td-card .td-label, .td-card .td-time"), function (e) { return e.textContent.trim(); }).join(" ")');
+  assert.equal(await deck(), 'Standup 19:59 Sleepover 21 hr Next meeting in 9:48 30 minute timer 30:00', 'A card for each meeting, the one that ends first first, and the next one');
   await toClock();
-  // During a meeting the timer opens set to its end, and runs to it.
-  await message({ type: 'calendar', calendar: { status: 'ok', events: [{ start: now - 600000, end: now + 1200000, title: 'Standup', color: '#2d9cdb', allDay: false, calendarId: 'fixture' }] } });
-  await press('4');
-  await pause(400);
-  assert.match(await rail(), /Standup20\s*min/, 'The timer opens on the meeting\'s end');
-  await evaluate("window.dispatchEvent(new WheelEvent('wheel', {deltaX:-53, cancelable:true}))");
-  await pause(100);
-  assert.match(await rail(), /1 hour timer60:00/, 'Turning left goes back to the presets');
-  await evaluate("window.dispatchEvent(new WheelEvent('wheel', {deltaX:53, cancelable:true}))");
-  await pause(100);
-  await press('Enter');
-  await tick(now + 600000);
-  await pause(1100);
-  assert.match(await rail(), /Standup9:5\d/, 'The meeting timer counts down to its end');
-  await press('Enter'); await press('Enter');
-  await toClock();
-  await tick(now);
-  // With meetings at once, the knob has a stop for each, the one that ends first first. One of 90
-  // minutes or more reads in whole hours, and another's alert card doesn't take it over.
-  const overlapping = [{ start: now - 600000, end: now + 1200000, title: 'Standup', color: '#2d9cdb', allDay: false, calendarId: 'fixture' },
-    { start: now - 300000, end: now + 21 * 3600000, title: 'Sleepover', color: '#e8a33d', allDay: false, calendarId: 'fixture' }];
-  await message({ type: 'calendar', calendar: { status: 'ok', events: overlapping } });
-  await press('4');
-  await pause(400);
-  assert.match(await rail(), /Standup20\s*min/, 'With meetings at once, the timer opens on the one that ends first');
-  await evaluate("window.dispatchEvent(new WheelEvent('wheel', {deltaX:53, cancelable:true}))");
-  await pause(100);
-  assert.match(await rail(), /Sleepover21\s*hr/, 'Turning on reaches the other meeting, in hours');
-  await press('Enter');
-  await tick(now + 1000);
-  await pause(1100);
-  assert.match(await rail(), /Sleepover21\s*hr/, 'and counts down in hours');
-  await evaluate("localStorage.removeItem('ct-dismissed-meetings')");
-  await message({ type: 'settings', settings: { ...settings, meetingAlert: 5 } });
-  await pause(400);
-  assert.equal(await evaluate('!!document.querySelector(".meeting-alert.on") && !document.querySelector(".meeting-alert .m-start")'), true, 'With the timer running, a meeting card doesn\'t offer to start another');
-  await press('Escape');
-  await pause(400);
-  assert.match(await rail(), /Sleepover21\s*hr/, 'and its back button leaves the timer be');
-  await message({ type: 'settings', settings });
-  await evaluate("localStorage.removeItem('ct-dismissed-meetings')");
-  await press('Enter'); await press('Enter');
-  await toClock();
-  await tick(now);
   // With "Event's alert", a meeting with no alert of its own gets the card as it starts, and
   // nothing but its Start timer brings the timer up.
   await evaluate("CT.show('weather')");
@@ -302,7 +304,7 @@ try {
   assert.equal(await evaluate('document.querySelector(".meeting-alert").classList.contains("on")'), true, 'Dismissed early, it comes back as the meeting starts');
   await press('1');
   await tick(now);
-  // Once the meeting has started, the back button starts its timer and brings it up.
+  // Once the meeting has started, the back button brings its countdown up.
   await evaluate("localStorage.removeItem('ct-dismissed-meetings')");
   await evaluate("CT.show('weather')");
   await message({ type: 'calendar', calendar: { status: 'ok', events: [{ start: now + 180000, end: now + 1980000, title: 'Standup', color: '#2d9cdb', allDay: false, calendarId: 'fixture' }] } });
@@ -310,7 +312,7 @@ try {
   assert.equal(await evaluate('document.querySelector(".m-start").textContent'), 'Queue 30 min timer', 'Before the meeting starts, it offers to queue the timer');
   await tick(now + 181000);
   await pause(400);
-  assert.equal(await evaluate('document.querySelector(".m-start").textContent'), 'Start 30 min timer', 'and to start it once it has');
+  assert.equal(await evaluate('document.querySelector(".m-start").textContent'), 'Show timer', 'and to show it once it has');
   await evaluate('window.fixtureSent = []');
   await press('Escape');
   await pause(400);
@@ -323,7 +325,7 @@ try {
   await press('4');
   await pause(400);
   await tick(now);
-  // Queued before it starts, the timer starts with the meeting, and the card doesn't come back.
+  // Queued before it starts, the countdown comes up with the meeting, and the card doesn't come back.
   await evaluate("CT.show('weather')");
   await message({ type: 'calendar', calendar: { status: 'ok', events: [{ start: now + 180000, end: now + 1980000, title: 'Review', color: '#2d9cdb', allDay: false, calendarId: 'fixture' }] } });
   await pause(400);
@@ -371,6 +373,11 @@ try {
   assert.deepEqual(errors, [], 'No runtime exceptions');
   console.log('Device checks passed. Screenshots: ' + output);
 } finally {
+  await evaluate(`(function (saved) {
+    ['ct-timers', 'ct-timer-last'].forEach(function (key, i) {
+      if (saved[i] == null) localStorage.removeItem(key); else localStorage.setItem(key, saved[i]);
+    });
+  })(${ownTimers})`);
   await evaluate(devScreen ? 'sessionStorage.setItem("ct-dev-screen", ' + JSON.stringify(devScreen) + ')' : 'sessionStorage.removeItem("ct-dev-screen")');
   await cdp.send('Page.reload', { ignoreCache: true });
   cdp.close();

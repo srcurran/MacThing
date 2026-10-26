@@ -1,6 +1,6 @@
 import { watch } from 'vue';
 import { state, CT } from './state.js';
-import { timer } from './timer.js';
+import { timerBusy } from './timer.js';
 
 // Settings → When idle: once nothing has played for idleMinutes while Now Playing is up, show
 // idleScreen instead (the clock, by default). Music starting again brings Now Playing back, as
@@ -24,7 +24,7 @@ function arm() {
 function fire() {
   countdown = null;
   if (playing() || state.current !== 'nowplaying' || !state.settings.idleMinutes) return;
-  var busy = (CT.modalOpen && CT.modalOpen()) || timer.status === 'running' || timer.status === 'paused' || timer.status === 'done';
+  var busy = (CT.modalOpen && CT.modalOpen()) || timerBusy.value;
   if (busy) { countdown = setTimeout(fire, RETRY_MS); return; }
   var target = state.settings.idleScreen || 'clock';
   if (!CT.screens[target]) return;

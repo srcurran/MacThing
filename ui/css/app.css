@@ -187,6 +187,7 @@
   --orange: var(--orange-500); /* the one accent: clock-screen date, calendar clock and NOW label, meeting pill */
   --hand: var(--white);
   --timer-used: var(--white-a20); /* the timer's spent minutes */
+  --timer-card: var(--white-a10); /* a timer card, lifted off the screen behind it */
   --usage-track: var(--white-a30); /* a Claude usage ring's whole allowance */
   --timer-hand: var(--orange-500);
   --timer-hand-ink: var(--black); /* text on the hand colour */
@@ -225,6 +226,7 @@
   --bar-track: var(--black-a20);
   --hand: var(--gray-950);
   --timer-used: var(--black-a10);
+  --timer-card: var(--white-a70);
   --usage-track: var(--black-a20);
   --c-mark-fill: var(--black-a10);
   --c-mark-edge: var(--black);
@@ -1212,6 +1214,128 @@ h3 {
 }
 .t-hub {
   fill: var(--timer-hand);
+}
+
+/* The timers' overview (TimerDeck.vue), over the whole clock screen on the screen's own
+   background: "Set a timer" and the presets in two columns on the left, then the cards in a row.
+   Each card is the screen's own shape (5:3). The presets stay put; the cards slide in their own
+   area to the right (from 256px: the presets' column and the page's 24px gap), so the focused
+   card is always beside the presets and only the next one goes off the right edge. The row slides
+   one card (and its 24px gap: 440px) per swipe. Sitting on a card zooms it into the timer
+   (ClockScreen.vue): the deck fades as that card grows. */
+.td {
+  z-index: 2;
+  overflow: hidden;
+  background: var(--stage);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease-in, visibility 0s linear 0.3s;
+}
+.ambient-on .td {
+  background: transparent;
+}
+/* Under the deck, the rail and the full-size timer step aside (they'd show through album art). */
+#screen-clock .left-rail,
+#screen-clock .screen-stage {
+  transition: opacity 0.3s ease-out;
+}
+#screen-clock.timer-deck .left-rail,
+#screen-clock.timer-deck .screen-stage {
+  opacity: 0;
+  transition: opacity 0.3s ease-in;
+}
+.td.on {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.3s ease-out;
+}
+.td-cards {
+  position: absolute;
+  left: 256px;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+}
+.td-row {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  will-change: transform;
+  transition: transform 0.35s ease-out;
+}
+.td-set {
+  position: absolute;
+  left: var(--panel-inset-x);
+  top: var(--panel-inset-y);
+  width: 208px;
+}
+.td-presets {
+  display: grid;
+  grid-template-columns: 96px 96px;
+  grid-gap: 16px;
+  margin-top: 16px;
+}
+.td-preset {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: var(--timer-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.td-card {
+  position: absolute;
+  top: 115px; /* centred: (480 − 250) / 2 */
+  width: 416px;
+  height: 250px; /* the screen's own 5:3, a page on the page */
+  padding: 24px;
+  box-sizing: border-box;
+  border-radius: 24px;
+  overflow: hidden;
+  background: var(--timer-card);
+  opacity: 0.6;
+  transition: opacity 0.35s ease-out, transform 0.3s ease-in;
+}
+.td-card.focus {
+  opacity: 1;
+}
+.td.zooming .td-card.focus {
+  transform: scale(1.12);
+}
+/* The card's dial: the timer's own, small, its left side showing past the card's right edge. */
+.td-dial {
+  position: absolute;
+  right: -72px;
+  top: 17px;
+  width: 216px;
+  height: 216px;
+}
+.td-dial .t-face {
+  width: 216px;
+  height: 216px;
+}
+.td-label,
+.td-time,
+.td-note {
+  position: relative;
+  max-width: 260px; /* clear of the dial */
+}
+.td-time {
+  margin-top: 8px;
+  font-family: Merriweather, Georgia, serif;
+  font-size: 72px;
+  line-height: 88px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.td-note {
+  position: absolute;
+  left: 24px;
+  bottom: 24px;
 }
 /* Once the timer starts, the drawn hand fades in where the cut-out one was. */
 .t-hand-in {

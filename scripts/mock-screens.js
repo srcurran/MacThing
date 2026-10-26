@@ -121,7 +121,12 @@ async function tick(ms = time) {
   await send({ type: 'tick', now: ms, tzMinutes: 0 });
 }
 const press = (key) => evaluate(`window.dispatchEvent(new KeyboardEvent('keydown', {key:${JSON.stringify(key)}})); window.dispatchEvent(new KeyboardEvent('keyup', {key:${JSON.stringify(key)}}))`);
-const turn = (clicks) => evaluate(`window.dispatchEvent(new WheelEvent('wheel', {deltaX:${53 * Math.sign(clicks)}, cancelable:true}))`);
+// A tap on the screen at x, y (a touch that doesn't move).
+const tap = (x, y) => evaluate(`(function () {
+  var t = new Touch({ identifier: 1, target: document.body, clientX: ${x}, clientY: ${y} });
+  window.dispatchEvent(new TouchEvent('touchstart', { touches: [t], changedTouches: [t], cancelable: true }));
+  window.dispatchEvent(new TouchEvent('touchend', { touches: [], changedTouches: [t], cancelable: true }));
+})()`);
 
 let playing = null;
 async function play(name) {
@@ -152,16 +157,17 @@ const shots = [
   { name: 'clock', album: 'artblakey' },
   { name: 'clock-digital', album: 'artblakey', screen: 'clock', before: () => send({ type: 'settings', settings: { ...settings, clockFace: 'digital' } }),
     after: () => send({ type: 'settings', settings }) },
-  // The timer opens at 15 minutes; two clicks of the knob make it 45. A press starts it, and the
-  // countdown frames are 12:38 to 12:41 later — shot 0.6 s early, as a running timer ends on a half
-  // second (timer.js endOnHalfSecond) and shows whole seconds rounded down.
-  { name: 'timer', album: 'basic', screen: 'clock', reselect: 1, before: async () => { await pause(500); await turn(1); await turn(1); } },
+  // The timer opens on its deck: the presets, and a card for the next meeting and the last length
+  // used. Tapping 45 starts a timer, which zooms up to full size five seconds later; the countdown
+  // frames are 12:38 to 12:41 later — shot 0.6 s early, as a running timer ends on a half second
+  // (timer.js endOnHalfSecond) and shows whole seconds rounded down.
+  { name: 'timer', album: 'basic', screen: 'clock', reselect: 1, before: () => pause(500) },
   ...[22, 21, 20, 19].map((s) => ({
     name: `timer-countdown-32-${s}`, album: 'hug', screen: 'clock',
-    before: async () => { if (s === 22) { await tick(now); await press('Enter'); } time = now + (12 * 60 + 60 - s) * 1000 - 600; },
+    before: async () => { if (s === 22) { await tick(now); await tap(72, 363); await pause(5500); } time = now + (12 * 60 + 60 - s) * 1000 - 600; },
   })),
   { name: 'timer-running', album: 'hug', screen: 'clock' },
-  // Reset the timer; the next press of the clock button is Claude's usage, then ChatGPT's, then
+  // Put the timer away; the next press of the clock button is Claude's usage, then ChatGPT's, then
   // back to the clock face.
   { name: 'claude', album: 'post', screen: 'clock', reselect: 1, setup: async () => { await press('Enter'); await press('Enter'); await pause(300); await tick(now); } },
   { name: 'chatgpt', album: 'goodbye', screen: 'clock', reselect: 1, after: () => evaluate('CT.screens.clock.reselect()') },
@@ -173,14 +179,19 @@ const shots = [
     await send({ type: 'settings', settings: { ...settings, meetingAlert: 5 } });
     await send({ type: 'calendar', calendar: { status: 'ok', events: [designSync, ...calendar.events] } });
   } },
-  // Ten minutes into the meeting the clock's timer opens on its end; started, it shows 19:59.
+  // Ten minutes into the meeting, its countdown to the end, full size (as its alert's Show timer
+  // brings it up), a second in: 19:59.
   { name: 'meeting-timer', album: 'ovlov', screen: 'clock', reselect: 1,
     setup: async () => {
       await send({ type: 'settings', settings });
       await send({ type: 'calendar', calendar: { status: 'ok', events: [designSync] } });
       await tick(at(0, 14 + 10 / 60));
     },
-    before: async () => { await pause(400); await tick(); await press('Enter'); time += 400; } }, // a second in, less the 0.6 s above
+    before: async () => {
+      await pause(400);
+      await evaluate(`CT.showTimer(${JSON.stringify('end|' + (designSync.calendarId || '') + '|' + designSync.start + '|' + designSync.title)})`);
+      await tick(); time += 400; // a second in, less the 0.6 s above
+    } },
   // Nothing playing: the perpetual calendar in place of the art, and behind everything.
   { name: 'nowplaying-empty', screen: 'nowplaying', setup: async () => {
     await press('Enter'); await press('Enter');
@@ -216,7 +227,9 @@ async function capture({ name, album, screen = name, reselect = 0, setup, before
 
 // Screens keep the view they were left on (the calendar's month, the clock's timer), so start
 // from a fresh page with the default views.
-await evaluate("localStorage.removeItem('ct-dismissed-meetings'); localStorage.removeItem('ct-queued-meeting'); sessionStorage.removeItem('ct-dev-screen')");
+// Your own timers are kept across reloads: set them aside for the shots, and put them back after.
+const ownTimers = await evaluate('JSON.stringify([localStorage.getItem("ct-timers"), localStorage.getItem("ct-timer-last")])');
+await evaluate("localStorage.removeItem('ct-dismissed-meetings'); localStorage.removeItem('ct-queued-meeting'); localStorage.removeItem('ct-timers'); localStorage.removeItem('ct-timer-last'); sessionStorage.removeItem('ct-dev-screen')");
 await cdp.send('Page.reload', { ignoreCache: true });
 let mounted = false;
 for (let i = 0; i < 30 && !mounted; i++) {
@@ -247,6 +260,11 @@ try {
   for (const shot of shots) await capture(shot);
 } finally {
   await evaluate("localStorage.removeItem('ct-dismissed-meetings'); localStorage.removeItem('ct-queued-meeting')").catch(() => {});
+  await evaluate(`(function (saved) {
+    ['ct-timers', 'ct-timer-last'].forEach(function (key, i) {
+      if (saved[i] == null) localStorage.removeItem(key); else localStorage.setItem(key, saved[i]);
+    });
+  })(${ownTimers})`).catch(() => {});
   await cdp.send('Page.reload', { ignoreCache: true });
   cdp.close();
   await fs.rm(tmp, { recursive: true, force: true });

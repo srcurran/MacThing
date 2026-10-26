@@ -310,7 +310,8 @@ export function initializeRuntime(state) {
 
   // ---- Hardware input -------------------------------------------------------------------
   // Top buttons 1–4 and the settings button arrive as keys; the knob press is Enter, the back
-  // button under it is Escape, and turning the knob is a horizontal wheel event per click.
+  // button under it is Escape, and turning the knob is a horizontal wheel event per click. The
+  // screen is a touchscreen too: a swipe left or right goes to the screen's swipe(), a tap clicks.
 
   var CODE_ALIASES = { Digit1: '1', Digit2: '2', Digit3: '3', Digit4: '4', NumpadEnter: 'Enter', KeyM: 'm' };
   function keyName(e) {
@@ -458,6 +459,38 @@ export function initializeRuntime(state) {
     var steps = (d > 0 ? 1 : -1) * (CT.config.knobDirection || 1);
     var screen = CT.screens[CT.current];
     if (CT.lockedTo || !screen.turn || screen.turn(steps) === false) onKnobVolume(steps);
+  }, { passive: false, capture: true });
+
+  // A swipe is one finger moving mostly sideways, far enough. Left (to the next, as a page turns)
+  // is swipe(1), right is swipe(-1). It acts once, as the finger lifts. An alert over the screen
+  // and a locked screen ignore it. A touch that hardly moves is a tap: it clicks what's under the
+  // finger (so Vue's @click works), and only that — the browser's own click is held back, so a
+  // tap never counts twice.
+  var SWIPE_MIN_PX = 50, TAP_MAX_PX = 12;
+  var touchStart = null;
+  window.addEventListener('touchstart', function (e) {
+    var t = e.touches[0];
+    touchStart = e.touches.length === 1 ? { x: t.clientX, y: t.clientY } : null;
+  }, { passive: true, capture: true });
+  window.addEventListener('touchend', function (e) {
+    var start = touchStart, t = e.changedTouches[0];
+    touchStart = null;
+    if (!start || !t) return;
+    var dx = t.clientX - start.x, dy = t.clientY - start.y;
+    var tap = Math.abs(dx) <= TAP_MAX_PX && Math.abs(dy) <= TAP_MAX_PX;
+    if (tap && e.cancelable) e.preventDefault();
+    debugInput('touch dx=' + Math.round(dx) + ' dy=' + Math.round(dy) + (tap ? ' (tap)' : ''));
+    emit('input', 'touch');
+    if (wakeInstead()) return;
+    if (CT.lockedTo || (CT.modalOpen && CT.modalOpen())) return;
+    if (tap) {
+      var target = document.elementFromPoint(t.clientX, t.clientY);
+      if (target) target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, clientX: t.clientX, clientY: t.clientY }));
+      return;
+    }
+    if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) < 1.5 * Math.abs(dy)) return;
+    var screen = CT.screens[CT.current];
+    if (screen && screen.swipe) screen.swipe(dx < 0 ? 1 : -1);
   }, { passive: false, capture: true });
 
   document.addEventListener('contextmenu', function (e) { e.preventDefault(); });

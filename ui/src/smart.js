@@ -1,6 +1,6 @@
 import { watch } from 'vue';
 import { state, CT } from './state.js';
-import { timer } from './timer.js';
+import { timerBusy } from './timer.js';
 import { usageProviders } from './usage.js';
 import { usageWatch, weatherWatch } from './smart-triggers.js';
 
@@ -26,7 +26,7 @@ let holdUntil = 0;
 let lastInput = -Infinity;
 
 const enabled = () => !!state.settings.smartSwitch;
-const timerUp = () => timer.status === 'running' || timer.status === 'paused' || timer.status === 'done';
+const timerUp = () => timerBusy.value;
 function busy() {
   return state.offline || state.asleep || !!CT.lockedTo || state.current === 'settings'
     || (CT.modalOpen && CT.modalOpen()) || timerUp() || performance.now() - lastInput < QUIET_MS;

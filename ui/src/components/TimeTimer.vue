@@ -1,3 +1,6 @@
+<script>
+let dials = 0;
+</script>
 <script setup>
 import { computed } from "vue";
 // The timer's dial, drawn across the 480×480 stage (Figma 154:4300). A full turn is the timer's
@@ -8,6 +11,8 @@ import { computed } from "vue";
 // (Figma 202:1439). Before it starts (idle) that's all there is; once it's running, the drawn
 // hand fades in over its own cut-out and the two move together.
 const props = defineProps({ remaining: Number, total: Number, idle: Boolean });
+// Several dials can be up at once (the timer cards), so each cuts with its own mask.
+const maskId = 't-hand-cut-' + (++dials);
 function point(r, degrees) {
   const angle = (degrees * Math.PI) / 180;
   return { x: 240 + r * Math.sin(angle), y: 240 - r * Math.cos(angle) };
@@ -45,7 +50,7 @@ const minutes = computed(() => {
 </script>
 <template>
   <svg class="t-face" viewBox="0 0 480 480" aria-label="Timer">
-    <mask id="t-hand-cut">
+    <mask :id="maskId">
       <rect width="480" height="480" fill="#fff" />
       <line
         x1="240"
@@ -64,13 +69,13 @@ const minutes = computed(() => {
       cx="240"
       cy="240"
       r="145"
-      mask="url(#t-hand-cut)"
+      :mask="'url(#' + maskId + ')'"
     />
     <path
       v-else-if="degrees > 0"
       class="t-left"
       :d="wedge"
-      mask="url(#t-hand-cut)"
+      :mask="'url(#' + maskId + ')'"
     />
     <circle
       v-for="(m, i) in minutes"
