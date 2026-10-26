@@ -167,17 +167,17 @@ try {
   await press('4');
   await pause(400); // the clock's text fades out (0.3 s) before the timer's is the only one
   assert.equal(await deckOn(), true, 'With no timer going, the timer opens on its deck');
-  assert.match(await focusedCard(), /^Next meeting in 59:59 Example event 1 at 3:35 PM/, 'on the next meeting\'s card');
+  assert.match(await focusedCard(), /^Next meeting in 59:59 .*3:35 PM Example event 1$/, 'on the next meeting\'s card, the full-size timer at 0.8');
   assert.equal(await evaluate('document.querySelectorAll(".td-card").length'), 2, 'with the last length used beside it');
   await capture('timer-deck');
   await evaluate("window.dispatchEvent(new WheelEvent('wheel', {deltaX:53, cancelable:true}))");
   await pause(100);
   assert.match(await focusedCard(), /^Next meeting in/, 'The knob doesn\'t move along the deck');
   await swipe(1);
-  assert.match(await focusedCard(), /^30 minute timer 30:00 Tap to start/, 'A swipe does: the last length used, 30 minutes to start with');
+  assert.match(await focusedCard(), /^30 minute timer 30:00 /, 'A swipe does: the last length used, 30 minutes to start with');
   await swipe(-1);
   await tap(preset(10));
-  assert.match(await focusedCard(), /^10 minute timer 9:5\d Ends/, 'Tapping a preset starts a timer, on its own card');
+  assert.match(await focusedCard(), /^10 minute timer 9:5\d /, 'Tapping a preset starts a timer, on its own card');
   await tap(preset(30));
   assert.equal(await timersKept(), 2, 'and another, beside it');
   assert.equal(await evaluate('document.querySelectorAll(".td-card").length'), 4, 'each with its card');

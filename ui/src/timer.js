@@ -77,8 +77,7 @@ function timerCard(t) {
     // Paused goes first, so a long label cut short doesn't take it with it.
     label: t.status === 'paused' ? 'Paused · ' + name : t.status === 'done' ? "Time's up" : name,
     // Once the time is up it counts on past it, 1:23+, until it's put away.
-    title: t.status === 'done' ? timerText(now - t.endsAt) + '+' : t.status === 'paused' ? countdownText(t.left) : countdownText(remaining),
-    note: t.status === 'running' ? 'Ends ' + CT.timeText(t.endsAt) : t.status === 'paused' ? 'Paused' : name
+    title: t.status === 'done' ? timerText(now - t.endsAt) + '+' : t.status === 'paused' ? countdownText(t.left) : countdownText(remaining)
   };
 }
 /** Every card, left to right: the meetings, your timers, then the last length used. */
@@ -86,7 +85,7 @@ export const cards = computed(() => {
   const now = state.now, list = [];
   currentMeetings.value.forEach(e => list.push({
     id: meetingCardId(e), kind: 'meeting', status: 'running', remaining: e.end - now, total: e.end - e.start,
-    label: e.title || 'Meeting ends in', title: countdownText(e.end - now), note: 'Ends ' + CT.timeText(e.end)
+    label: e.title || 'Meeting ends in', title: countdownText(e.end - now)
   }));
   const next = nextMeeting.value;
   if (next) {
@@ -94,13 +93,13 @@ export const cards = computed(() => {
     nextSeen[id] = nextSeen[id] || now;
     list.push({
       id, kind: 'meeting', status: 'running', remaining: next.start - now, total: Math.max(3600000, next.start - nextSeen[id]),
-      label: 'Next meeting in', title: countdownText(next.start - now), note: (next.title || 'Untitled') + ' at ' + CT.timeText(next.start)
+      label: 'Next meeting in', title: countdownText(next.start - now)
     });
   }
   timers.forEach(t => list.push(timerCard(t)));
   const minutes = lastMinutes.value;
   list.push({ id: 'last', kind: 'last', status: 'set', remaining: minutes * 60000, total: minutes * 60000,
-    label: lengthLabel(minutes), title: timerText(minutes * 60000), note: 'Tap to start' });
+    label: lengthLabel(minutes), title: timerText(minutes * 60000) });
   return list;
 });
 

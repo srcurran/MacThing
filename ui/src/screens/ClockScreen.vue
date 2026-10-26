@@ -220,6 +220,6 @@ screen.press = () => {
         <div v-else class="c-digital fill"><span>{{ digits.hours }}</span><span class="c-digital-minutes"><span>:</span><span>{{ digits.minutes }}</span></span></div>
       </div>
     </ScreenStage>
-    <TimerDeck :cards="cards" :focus="focusIndex" :on="mode === 'timer' && timerView === 'deck'" :zooming="zooming" @start="startFromPreset" @pick="pickCard" />
+    <TimerDeck :cards="cards" :focus="focusIndex" :on="mode === 'timer' && timerView === 'deck'" :zooming="zooming" :clock="time.time" :next="next ? { time: CT.timeText(next.start), title: next.title } : null" @start="startFromPreset" @pick="pickCard" />
   </section>
 </template>

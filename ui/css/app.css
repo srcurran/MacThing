@@ -1216,13 +1216,14 @@ h3 {
   fill: var(--timer-hand);
 }
 
-/* The timers' overview (TimerDeck.vue), over the whole clock screen on the screen's own
-   background: "Set a timer" and the presets in two columns on the left, then the cards in a row.
-   Each card is the screen's own shape (5:3). The presets stay put; the cards slide in their own
-   area to the right (from 256px: the presets' column and the page's 24px gap), so the focused
-   card is always beside the presets and only the next one goes off the right edge. The row slides
-   one card (and its 24px gap: 440px) per swipe. Sitting on a card zooms it into the timer
-   (ClockScreen.vue): the deck fades as that card grows. */
+/* The timers' overview (TimerDeck.vue; Figma: time timer → "Timer deck · no timers"), over the
+   whole clock screen on the screen's own background, laid out on the page's own grid. In the
+   rail's column (320px, 48/24 insets): "Set a timer", then the presets, two columns spread down
+   to the bottom inset. In the stage's square: the cards, each the full-size timer itself at 0.8
+   (640 × 384), at the square's insets (24px in, 48px down). The one in focus runs off the right
+   edge; the ones before it slide out of sight behind the rail's column. The row slides one card
+   and its 32px gap (672px) per swipe. Sitting on a card zooms it into the timer (ClockScreen.vue):
+   it grows to full size, where the full-size timer is, as the deck fades. */
 .td {
   z-index: 2;
   overflow: hidden;
@@ -1251,7 +1252,7 @@ h3 {
 }
 .td-cards {
   position: absolute;
-  left: 256px;
+  left: 320px;
   top: 0;
   right: 0;
   bottom: 0;
@@ -1270,13 +1271,19 @@ h3 {
   position: absolute;
   left: var(--panel-inset-x);
   top: var(--panel-inset-y);
+  bottom: var(--panel-inset-y);
   width: 208px;
+  display: flex;
+  flex-direction: column;
 }
 .td-presets {
+  flex: 1;
+  margin-top: 24px;
   display: grid;
   grid-template-columns: 96px 96px;
-  grid-gap: 16px;
-  margin-top: 16px;
+  grid-template-rows: 96px 96px 96px;
+  grid-column-gap: 16px;
+  align-content: space-between;
 }
 .td-preset {
   width: 96px;
@@ -1289,53 +1296,62 @@ h3 {
 }
 .td-card {
   position: absolute;
-  top: 115px; /* centred: (480 − 250) / 2 */
-  width: 416px;
-  height: 250px; /* the screen's own 5:3, a page on the page */
-  padding: 24px;
-  box-sizing: border-box;
+  top: var(--panel-inset-y);
+  width: 640px;
+  height: 384px;
   border-radius: 24px;
   overflow: hidden;
   background: var(--timer-card);
   opacity: 0.6;
-  transition: opacity 0.35s ease-out, transform 0.3s ease-in;
+  transform-origin: 0 0;
+  transition: opacity 0.35s ease-out, transform 0.3s ease-in-out, border-radius 0.3s ease-in-out, background-color 0.3s ease-in-out;
 }
 .td-card.focus {
   opacity: 1;
 }
-.td.zooming .td-card.focus {
-  transform: scale(1.12);
-}
-/* The card's dial: the timer's own, small, its left side showing past the card's right edge. */
-.td-dial {
+/* The full-size timer's own layout (the rail, then the dial across the stage), at 0.8. */
+.td-screen {
   position: absolute;
-  right: -72px;
-  top: 17px;
-  width: 216px;
-  height: 216px;
+  left: 0;
+  top: 0;
+  width: 800px;
+  height: 480px;
+  transform: scale(0.8);
+  transform-origin: 0 0;
 }
-.td-dial .t-face {
-  width: 216px;
-  height: 216px;
+.td-rail {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 320px;
+  padding: var(--panel-inset-y) var(--panel-inset-x);
+  box-sizing: border-box;
 }
-.td-label,
-.td-time,
-.td-note {
-  position: relative;
-  max-width: 260px; /* clear of the dial */
-}
+/* As in the rail: the big label close under its eyebrow, with more room below it. */
 .td-time {
-  margin-top: 8px;
-  font-family: Merriweather, Georgia, serif;
-  font-size: 72px;
-  line-height: 88px;
-  font-weight: 600;
+  margin: 20px 0 24px;
   white-space: nowrap;
 }
-.td-note {
+.td-stage {
   position: absolute;
-  left: 24px;
-  bottom: 24px;
+  left: 320px;
+  top: 0;
+  width: 480px;
+  height: 480px;
+}
+/* Zooming: the card in focus grows from where it sits (344, 48) to the whole screen, where the
+   full-size timer is, and nothing else is in the way. */
+.td.zooming .td-cards {
+  overflow: visible;
+}
+.td.zooming .td-card:not(.focus) {
+  opacity: 0;
+}
+.td.zooming .td-card.focus {
+  transform: translate(-344px, -48px) scale(1.25);
+  border-radius: 0;
+  background-color: transparent;
 }
 /* Once the timer starts, the drawn hand fades in where the cut-out one was. */
 .t-hand-in {

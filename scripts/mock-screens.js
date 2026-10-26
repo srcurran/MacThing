@@ -164,7 +164,7 @@ const shots = [
   { name: 'timer', album: 'basic', screen: 'clock', reselect: 1, before: () => pause(500) },
   ...[22, 21, 20, 19].map((s) => ({
     name: `timer-countdown-32-${s}`, album: 'hug', screen: 'clock',
-    before: async () => { if (s === 22) { await tick(now); await tap(72, 363); await pause(5500); } time = now + (12 * 60 + 60 - s) * 1000 - 600; },
+    before: async () => { if (s === 22) { await tick(now); await tap(72, 384); await pause(5500); } time = now + (12 * 60 + 60 - s) * 1000 - 600; },
   })),
   { name: 'timer-running', album: 'hug', screen: 'clock' },
   // Put the timer away; the next press of the clock button is Claude's usage, then ChatGPT's, then
