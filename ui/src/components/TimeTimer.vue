@@ -4,7 +4,7 @@ let dials = 0;
 <script setup>
 import { computed } from "vue";
 // The timer's dial, drawn across the 480×480 stage (Figma 154:4300). A full turn is the timer's
-// length: the wedge (black, white in the light theme) is the time left, clockwise from 12, with a hand on its moving edge,
+// length: the wedge (white, dark in the light theme) is the time left, clockwise from 12, with a hand on its moving edge,
 // and a ring of one dot per minute (per few, past an hour) that go dark as the minutes pass.
 // remaining and total are ms.
 // The hand and hub are always cut out of the wedge, so the background shows through them

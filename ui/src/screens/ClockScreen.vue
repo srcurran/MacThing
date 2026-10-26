@@ -181,10 +181,19 @@ function unzoom() {
   timerView.value = 'deck';
   zoomTimer = setTimeout(() => { instant.value = false; zooming.value = false; }, FRAME_MS);
 }
-/** Opening the timer: on the card asked for (full size), else on a timer of yours if one's going
- *  (full size), else the deck from its start. */
+/** Opening the timer: on the card asked for (full size); else back where it was left (the deck
+ *  where it rested, or that card full size), unless that card's gone or its timer has finished;
+ *  else on a timer of yours if one's going (full size), else the deck from its start. */
+let timerOpened = false;
 function openTimer(id) {
   clearTimeout(settleTimer);
+  const left = !id && timerOpened && cards.value.some(c => c.id === focusId.value)
+    && !(focused.value.kind === 'timer' && focused.value.status === 'done');
+  timerOpened = true;
+  if (left) {
+    if (timerView.value === 'deck') settle();
+    return;
+  }
   const mine = cards.value.filter(c => c.kind === 'timer');
   if (id && cards.value.some(c => c.id === id)) focusId.value = id;
   else if (mine.length) { if (focused.value.kind !== 'timer') focusId.value = mine[0].id; }
@@ -234,8 +243,13 @@ function usageRail(provider) {
     subtitleNote: '· ' + Math.round(u.week.percent) + '%'
   };
 }
+// The full-size timer (its rail and dial) is only drawn while it's what's showing, so it can't
+// show through as the deck, or another view, fades in or out over it. Under the deck, the rail
+// shows nothing.
+const timerFull = computed(() => mode.value === 'timer' && timerView.value === 'timer');
+const railView = computed(() => (mode.value === 'timer' && !timerFull.value ? 'deck' : mode.value));
 const railViews = computed(() => {
-  const views = { clock: { eyebrow: CT.MONTHS[parts.value.month], title: parts.value.date, subtitle: CT.DAYS[parts.value.day] }, timer: { eyebrow: focused.value.label, title: focused.value.title, subtitle: time.value.time } };
+  const views = { clock: { eyebrow: CT.MONTHS[parts.value.month], title: parts.value.date, subtitle: CT.DAYS[parts.value.day] }, timer: { eyebrow: focused.value.label, title: focused.value.title, subtitle: time.value.time }, deck: { title: '' } };
   providers.value.forEach(p => { views[p] = usageRail(p); });
   return views;
 });
@@ -313,7 +327,7 @@ screen.press = () => {
 </script>
 <template>
   <section id="screen-clock" class="screen fill flex" :class="{ active: state.current === 'clock', leaving: state.leaving === 'clock', timer: mode === 'timer', 'timer-deck': mode === 'timer' && timerView === 'deck', 'timer-instant': instant }">
-    <LeftRail :view="mode" :views="railViews" :truncate-lower="!resets" @click="backToDeck">
+    <LeftRail :view="railView" :views="railViews" :truncate-lower="!resets" @click="backToDeck">
       <template #lower>
         <template v-if="resets"><div class="usage-resets">Resets: Session <b class="primary medium">{{ resets.session }}</b> · Week <b class="primary medium">{{ resets.week }}</b></div></template>
         <template v-else-if="next">{{ CT.timeText(next.start) }} <b class="primary medium">{{ next.title }}</b></template><template v-else-if="state.calendar.status === 'ok'">No events today</template>
@@ -322,7 +336,7 @@ screen.press = () => {
     <ScreenStage class="bg-panel">
       <!-- Every view stays drawn and only fades (see .fade-view), so a press doesn't have to build and
            paint the incoming one while the other is fading out. -->
-      <div class="fade-view c-view-timer fill" :class="{ on: mode === 'timer' }" @click="backToDeck"><TimeTimer :remaining="focused.remaining" :total="focused.total" :idle="focused.status === 'set'" /><div v-if="timerResets" class="back-action font-small medium primary">reset <BackActionIcon name="refresh" /></div></div>
+      <div class="fade-view c-view-timer fill" :class="{ on: timerFull }" @click="backToDeck"><TimeTimer :remaining="focused.remaining" :total="focused.total" :idle="focused.status === 'set'" /><div v-if="timerResets" class="back-action font-small medium primary">reset <BackActionIcon name="refresh" /></div></div>
       <div v-for="p in providers" :key="p" class="fade-view fill" :class="{ on: mode === p }"><ClaudeUsage :provider="p" /></div>
       <div class="fade-view fill" :class="{ on: mode === 'clock' }">
         <AnalogClock v-if="face !== 'digital'" :numbers="face === 'numbers'" :now="state.current === 'clock' ? state.now : 0" />
