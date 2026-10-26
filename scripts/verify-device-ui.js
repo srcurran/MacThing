@@ -155,8 +155,10 @@ try {
   await pause(400); // the timer fades out (0.3 s)
   assert.equal(await clockView(), 'claude', 'The clock button goes on to Claude usage');
   assert.equal(await evaluate('window.fixtureSent.some(m => m.type === "refreshUsage")'), true, 'Opening usage asks the Mac for fresh numbers');
-  // The session (42% used, 56% of its time gone) is under pace; the week (86%, 75%) is twice it.
-  assert.match(await rail(), /Session: 42% used\s*0\.6x\s*Week: 2\.\dx · 86%/);
+  // The session (42% used, 56% of its time gone) is under pace; the week (86%, 75%) is twice it,
+  // a whole number from 2x and without fires (the week only ever shows 💀).
+  assert.match(await rail(), /Session: 42% used\s*0\.6x\s*Week: 2x · 86%/);
+  assert.equal(await evaluate('document.querySelectorAll("#screen-clock .left-rail-view.on .rail-fires").length'), 0, 'Neither window shows fires');
   // In place of the next event: the session resets in 2 h 13 min, the week on Thursday at 9.
   assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none").textContent'), /^Resets: Session 2h · Week 2d$/);
   // The session (42% used, 56% of its time gone) is behind its pace; the week (86%, 75%) is ahead of it.
@@ -171,7 +173,9 @@ try {
   assert.equal(await evaluate('document.querySelectorAll("#screen-clock .u-pace").length'), 2, 'Unstarted windows keep both pace dots');
   await capture('usage-unstarted');
   await message({ type: 'usage', usage: { status: 'ok', session: { percent: 100, resetsAt: now + 3600000 }, week: { percent: 100, resetsAt: now + 86400000 }, updatedAt: now } });
-  assert.equal(await evaluate('Array.from(document.querySelectorAll("#screen-clock .left-rail-view.on .rail-fires img")).filter(img => img.complete && img.naturalWidth > 0).length'), 6, 'Session and week each show three bundled fires at the limit');
+  // At the limit 💀 replaces each pace: the Mac's Apple skull once the bridge has sent it, else three bundled fires.
+  assert.equal(await evaluate('Array.from(document.querySelectorAll("#screen-clock .left-rail-view.on .rail-fires")).map(f => f.getAttribute("aria-label")).join()'), '💀,💀', 'Session and week each show 💀 at the limit');
+  assert.equal(await evaluate('Array.from(document.querySelectorAll("#screen-clock .left-rail-view.on .rail-fires")).every(f => { const imgs = Array.from(f.querySelectorAll("img")); return imgs.length === (imgs[0].classList.contains("rail-emoji-mac") ? 1 : 3) && imgs.every(img => img.complete && img.naturalWidth > 0); })'), true, 'Each 💀 is drawn: one Mac skull or three bundled fires');
   await capture('usage-limit');
   await message({ type: 'usage', usage: { status: 'expired' } });
   assert.match(await evaluate('document.querySelector("#screen-clock .stage-message").textContent'), /Claude sign-in expired/);
