@@ -1354,9 +1354,10 @@ h3 {
   padding: var(--panel-inset-y) var(--panel-inset-x);
   box-sizing: border-box;
 }
-/* As in the rail: the big label close under its eyebrow, with more room below it. */
+/* As in the rail (.left-rail .left-rail-content > .font-huge, then its 12px gap): the big label
+   8px under its eyebrow, 24px over the line below, so the card and the full-size timer match. */
 .td-time {
-  margin: 20px 0 24px;
+  margin: 8px 0 24px;
   white-space: nowrap;
 }
 .td-stage {
