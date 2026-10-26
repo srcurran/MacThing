@@ -59,7 +59,7 @@ const reminders = new Reminders({
 
 /** @type {DeviceLink|null} */
 let link = null;
-// The Mac's Apple emoji for the usage labels (🔥, and 💀 at the limit), once drawn.
+// The Mac's Apple emoji for the usage labels (🔥, 💀 at the limit, 🕶️ before a session starts), once drawn.
 let emoji = {};
 let connecting = false;
 
@@ -679,7 +679,7 @@ helper.start();
 weather.start();
 calendar.start();
 perpetual.start();
-macEmoji(['🔥', '💀']).then((drawn) => { emoji = drawn; link?.send({ type: 'emoji', emoji }); });
+macEmoji(['🔥', '💀', '🕶️']).then((drawn) => { emoji = drawn; link?.send({ type: 'emoji', emoji }); });
 usage.start();
 chatgptUsage.start();
 appearance.start();
