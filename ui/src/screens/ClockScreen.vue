@@ -75,8 +75,8 @@ screen.back = () => {
 // dragging finger and, let go, rests on the presets or with a card centred: the nearest, or, let
 // go moving, the next one that way. A swipe on the full-size timer goes back to the deck, a card
 // along. Resting on a card that's counting for 5 seconds zooms it up to full size. Tapping a
-// preset starts another timer and moves to its card; tapping a card moves to it, or, already on
-// it, zooms it (the last length used, tapped, starts it again); tapping the full-size one goes
+// preset starts another timer and moves to its card; tapping a card zooms it up to full size.
+// Full size, the last length used starts with a tap (or the knob); any other full-size one goes
 // back to the deck. Swiping a card up lifts it off a Remove (Apple Watch faces' way): let go
 // lifted far enough (or flicked) and it stays up, Remove showing; tap Remove to remove it, or swipe
 // it back down, tap it or press back to keep it. The last length used is always there: it lifts a
@@ -178,14 +178,20 @@ function openTimer(id) {
 function startFromPreset(minutes) {
   focusOn(startTimer(minutes));
 }
+// The last length used, started from its card: full size, it stays full size, on the new timer.
+function startLast(minutes) {
+  if (timerView.value === 'timer') { focusId.value = startTimer(minutes); atPresets.value = false; }
+  else startFromPreset(minutes);
+}
 function pickCard(id) {
   if (lift.value) return keepCard();
-  if (id !== focusId.value || atPresets.value) return focusOn(id);
-  if (focused.value.kind === 'last') return startFromPreset(focused.value.total / 60000);
+  focusId.value = id;
+  atPresets.value = false;
   zoom();
 }
 function backToDeck() {
   if (mode.value !== 'timer' || timerView.value !== 'timer') return;
+  if (focused.value.kind === 'last') return startLast(focused.value.total / 60000);
   unzoom();
   atPresets.value = false;
   settle();
@@ -281,7 +287,7 @@ screen.press = () => {
   const card = focused.value, t = performance.now();
   const twice = t - lastPress < (CT.config.multiClickMs || 350);
   lastPress = twice ? 0 : t;
-  if (card.kind === 'last') return void startFromPreset(card.total / 60000);
+  if (card.kind === 'last') return void startLast(card.total / 60000);
   if (card.kind !== 'timer') return void zoom(); // a meeting's countdown can't be paused
   if (twice) removeTimer(card.id);
   else toggleTimer(card.id);

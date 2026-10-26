@@ -28,7 +28,7 @@ import { PRESETS } from '../timer.js';
 // column, spread down to the page's bottom inset, then the cards, each the full-size timer itself
 // (its rail and dial) at 0.8. It rests with the presets showing, or with a card centred, its
 // neighbours peeking in either side; while a finger drags it, it follows (dragging: no easing).
-// Tapping a preset starts a timer; tapping a card focuses it (ClockScreen.vue decides the rest).
+// Tapping a preset starts a timer; tapping a card zooms it up (ClockScreen.vue decides the rest).
 // clock is the time of day and next the next event, as the full-size timer's rail shows. lift is
 // how far the card in focus is lifted (swiped up) off its Remove, which shows as it rises: a red
 // bin and "Remove" in the space it leaves (tap it: remove). lifting: a finger has it (no easing).
