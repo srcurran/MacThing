@@ -5,7 +5,7 @@ import LeftRail from '../components/LeftRail.vue';
 import ScreenStage from '../components/ScreenStage.vue';
 import AnalogClock from '../components/AnalogClock.vue';
 import TimeTimer from '../components/TimeTimer.vue';
-import TimerDeck from '../components/TimerDeck.vue';
+import TimerDeck, { firstCardAt, positionAt } from '../components/TimerDeck.vue';
 import ClaudeUsage from '../components/ClaudeUsage.vue';
 import BackActionIcon from '../components/BackActionIcon.vue';
 import { SESSION_MS, WEEK_MS, paceNumber, untilText, usageProviders, usageOf, usageName, usageUpdatedText } from '../usage.js';
@@ -69,25 +69,33 @@ screen.back = () => {
   giveUpTimer = setTimeout(finishRefresh, REFRESH_GIVE_UP_MS);
 };
 // ---- The timer ----------------------------------------------------------------------------
-// Two views: the deck (TimerDeck.vue: the presets and every timer's card, in a row) and one card
+// Two views: the deck (TimerDeck.vue: the presets and every timer's card, one stripe) and one card
 // full size (the rail and the dial, like the other views). With no timer of yours going it opens
-// on the deck; with one, on that timer. Swiping (left to the next card, right back) goes to the
-// deck and moves along it; staying on a card that's counting for 5 seconds zooms it up to full
-// size. Tapping a preset starts another timer and moves to its card; tapping a card moves to it,
-// or, already on it, zooms it (the last length used, tapped, starts it again); tapping the full-
-// size one goes back to the deck. The knob press starts or pauses the timer you're on (twice:
+// on the deck, resting on the presets; with one, on that timer. The deck's stripe follows a
+// dragging finger and, let go, rests on the presets or with a card centred: the nearest, or, let
+// go moving, the next one that way. A swipe on the full-size timer goes back to the deck, a card
+// along. Resting on a card that's counting for 5 seconds zooms it up to full size. Tapping a
+// preset starts another timer and moves to its card; tapping a card moves to it, or, already on
+// it, zooms it (the last length used, tapped, starts it again); tapping the full-size one goes
+// back to the deck. The knob press starts or pauses the timer you're on (twice:
 // puts it away); the back button puts away a paused or finished one, and the corner says so.
 // Turning the knob sets the volume.
 const SETTLE_MS = 5000, ZOOM_MS = 300;
 const focusId = ref('last');
 const timerView = ref('deck'); // 'deck' | 'timer'
 const zooming = ref(false);
-let lastFocus = 0, settleTimer = null, zoomTimer = null;
+const atPresets = ref(true); // resting on the presets (the first card beside them, in focus)
+const dragPosition = ref(null); // the stripe's position while a finger drags it
+let lastFocus = 0, settleTimer = null, zoomTimer = null, dragFrom = 0;
+const FLICK_PX_MS = 0.3;
 const focusIndex = computed(() => {
   const i = cards.value.findIndex(c => c.id === focusId.value);
   return i >= 0 ? i : Math.min(lastFocus, cards.value.length - 1);
 });
 const focused = computed(() => cards.value[focusIndex.value]);
+// Where the deck rests: 0 on the presets, then 1, 2… with that card centred (TimerDeck.vue).
+const restPosition = computed(() => (atPresets.value ? 0 : focusIndex.value + 1));
+const deckPosition = computed(() => (dragPosition.value == null ? restPosition.value : dragPosition.value));
 // A card that's gone (a meeting over, a timer put away) leaves the focus on the one that took its
 // place, and the full-size view goes back to the deck.
 watch(focusIndex, i => { lastFocus = i; });
@@ -98,13 +106,22 @@ watch(() => focused.value.id, id => {
 });
 function focusOn(id) {
   focusId.value = id;
+  atPresets.value = false;
   timerView.value = 'deck';
   settle();
+}
+function restOn(position) {
+  position = Math.max(0, Math.min(cards.value.length, position));
+  if (position) return focusOn(cards.value[position - 1].id);
+  clearTimeout(settleTimer);
+  focusId.value = cards.value[0].id;
+  atPresets.value = true;
+  timerView.value = 'deck';
 }
 // Staying on a card that's counting zooms it up to full size: the card grows as the deck fades.
 function settle() {
   clearTimeout(settleTimer);
-  if (focused.value.kind !== 'last') settleTimer = setTimeout(zoom, SETTLE_MS);
+  if (!atPresets.value && focused.value.kind !== 'last') settleTimer = setTimeout(zoom, SETTLE_MS);
 }
 function zoom() {
   clearTimeout(settleTimer);
@@ -121,14 +138,15 @@ function openTimer(id) {
   const mine = cards.value.filter(c => c.kind === 'timer');
   if (id && cards.value.some(c => c.id === id)) focusId.value = id;
   else if (mine.length) { if (focused.value.kind !== 'timer') focusId.value = mine[0].id; }
-  else { focusId.value = cards.value[0].id; timerView.value = 'deck'; return; }
+  else return restOn(0);
+  atPresets.value = false;
   timerView.value = 'timer';
 }
 function startFromPreset(minutes) {
   focusOn(startTimer(minutes));
 }
 function pickCard(id) {
-  if (id !== focusId.value) return focusOn(id);
+  if (id !== focusId.value || atPresets.value) return focusOn(id);
   if (focused.value.kind === 'last') return startFromPreset(focused.value.total / 60000);
   zoom();
 }
@@ -187,7 +205,18 @@ watch(() => mode.value === 'timer' && state.current === 'clock', up => {
 });
 screen.swipe = direction => {
   if (mode.value !== 'timer') return false;
-  focusOn(cards.value[Math.max(0, Math.min(cards.value.length - 1, focusIndex.value + direction))].id);
+  restOn(restPosition.value + direction);
+};
+// Dragging the deck: the stripe moves with the finger (a little past either end at most).
+screen.drag = dx => {
+  if (mode.value !== 'timer' || timerView.value !== 'deck') return false;
+  if (dragPosition.value == null) { dragFrom = restPosition.value; clearTimeout(settleTimer); }
+  dragPosition.value = Math.max(-0.2, Math.min(cards.value.length + 0.2, positionAt(firstCardAt(dragFrom) + dx)));
+};
+screen.dragEnd = (dx, vx) => {
+  const position = dragPosition.value == null ? restPosition.value : dragPosition.value;
+  dragPosition.value = null;
+  restOn(Math.abs(vx) > FLICK_PX_MS ? (vx < 0 ? Math.ceil(position) : Math.floor(position)) : Math.round(position));
 };
 let lastPress = 0;
 screen.press = () => {
@@ -220,6 +249,6 @@ screen.press = () => {
         <div v-else class="c-digital fill"><span>{{ digits.hours }}</span><span class="c-digital-minutes"><span>:</span><span>{{ digits.minutes }}</span></span></div>
       </div>
     </ScreenStage>
-    <TimerDeck :cards="cards" :focus="focusIndex" :on="mode === 'timer' && timerView === 'deck'" :zooming="zooming" :clock="time.time" :next="next ? { time: CT.timeText(next.start), title: next.title } : null" @start="startFromPreset" @pick="pickCard" />
+    <TimerDeck :cards="cards" :focus="focusIndex" :position="deckPosition" :dragging="dragPosition != null" :on="mode === 'timer' && timerView === 'deck'" :zooming="zooming" :clock="time.time" :next="next ? { time: CT.timeText(next.start), title: next.title } : null" @start="startFromPreset" @pick="pickCard" />
   </section>
 </template>

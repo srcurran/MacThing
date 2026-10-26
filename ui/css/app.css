@@ -1216,14 +1216,13 @@ h3 {
   fill: var(--timer-hand);
 }
 
-/* The timers' overview (TimerDeck.vue; Figma: time timer → "Timer deck · no timers"), over the
-   whole clock screen on the screen's own background, laid out on the page's own grid. In the
-   rail's column (320px, 48/24 insets): "Set a timer", then the presets, two columns spread down
-   to the bottom inset. In the stage's square: the cards, each the full-size timer itself at 0.8
-   (640 × 384), at the square's insets (24px in, 48px down). The one in focus runs off the right
-   edge; the ones before it slide out of sight behind the rail's column. The row slides one card
-   and its 32px gap (672px) per swipe. Sitting on a card zooms it into the timer (ClockScreen.vue):
-   it grows to full size, where the full-size timer is, as the deck fades. */
+/* The timers' overview (TimerDeck.vue; Figma: time timer → "Timer deck · no timers" and
+   "Swiping"), over the whole clock screen on the screen's own background, laid out on the page's
+   own grid: one stripe of the presets' column (the rail's 320px, 48/24 insets) and the cards, each
+   the full-size timer itself at 0.8 (640 × 384) at the 48px inset. TimerDeck.vue places them along
+   it; they ease to where they rest, and follow a dragging finger exactly. Sitting on a card zooms
+   it into the timer (ClockScreen.vue): it grows to full size, where the full-size timer is, as the
+   deck fades. */
 .td {
   z-index: 2;
   overflow: hidden;
@@ -1250,23 +1249,6 @@ h3 {
   visibility: visible;
   transition: opacity 0.3s ease-out;
 }
-.td-cards {
-  position: absolute;
-  left: 320px;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  overflow: hidden;
-}
-.td-row {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  will-change: transform;
-  transition: transform 0.35s ease-out;
-}
 .td-set {
   position: absolute;
   left: var(--panel-inset-x);
@@ -1275,6 +1257,8 @@ h3 {
   width: 208px;
   display: flex;
   flex-direction: column;
+  will-change: transform;
+  transition: transform 0.35s ease-out;
 }
 .td-presets {
   flex: 1;
@@ -1295,15 +1279,20 @@ h3 {
   align-items: center;
   justify-content: center;
 }
-/* "MIN" under each preset's number, small and spaced out. */
+/* "MIN" close under each preset's number, small and a little spaced out. */
+.td-minutes {
+  line-height: 32px;
+}
 .td-unit {
-  font-size: 13px;
-  line-height: 16px;
-  letter-spacing: 0.08em;
+  font-size: 16px;
+  line-height: 18px;
+  letter-spacing: 0.04em;
 }
 .td-card {
   position: absolute;
+  left: 0;
   top: var(--panel-inset-y);
+  will-change: transform;
   width: 640px;
   height: 384px;
   border-radius: 24px;
@@ -1311,7 +1300,11 @@ h3 {
   background: var(--timer-card);
   opacity: 0.6;
   transform-origin: 0 0;
-  transition: opacity 0.35s ease-out, transform 0.3s ease-in-out, border-radius 0.3s ease-in-out, background-color 0.3s ease-in-out;
+  transition: opacity 0.35s ease-out, transform 0.35s ease-out, border-radius 0.3s ease-in-out, background-color 0.3s ease-in-out;
+}
+.td.dragging .td-set,
+.td.dragging .td-card {
+  transition: none;
 }
 .td-card.focus {
   opacity: 1;
@@ -1347,16 +1340,12 @@ h3 {
   width: 480px;
   height: 480px;
 }
-/* Zooming: the card in focus grows from where it sits (344, 48) to the whole screen, where the
-   full-size timer is, and nothing else is in the way. */
-.td.zooming .td-cards {
-  overflow: visible;
-}
+/* Zooming: the card in focus grows to the whole screen, where the full-size timer is (its
+   transform is TimerDeck.vue's), and nothing else is in the way. */
 .td.zooming .td-card:not(.focus) {
   opacity: 0;
 }
 .td.zooming .td-card.focus {
-  transform: translate(-344px, -48px) scale(1.25);
   border-radius: 0;
   background-color: transparent;
 }

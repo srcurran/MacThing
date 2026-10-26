@@ -148,6 +148,15 @@ try {
   })()`);
   // 1 is to the left (the next card), -1 to the right.
   const swipe = async direction => { await touch(400, 240, 400 - 150 * direction, 240); await pause(400); };
+  // A finger dragging the deck's stripe: down at x, through each of the moves, and (lift) up.
+  const drag = (x, moves, lift) => evaluate(`(function () {
+    function at(dx) { return new Touch({ identifier: 1, target: document.body, clientX: ${x} + dx, clientY: 240 }); }
+    var start = at(0);
+    window.dispatchEvent(new TouchEvent('touchstart', { touches: [start], changedTouches: [start], cancelable: true }));
+    ${JSON.stringify(moves)}.forEach(function (dx) { var m = at(dx); window.dispatchEvent(new TouchEvent('touchmove', { touches: [m], changedTouches: [m], cancelable: true })); });
+    if (${!!lift}) { var end = at(${moves[moves.length - 1]}); window.dispatchEvent(new TouchEvent('touchend', { touches: [], changedTouches: [end], cancelable: true })); }
+  })()`);
+  const cardX = card => evaluate(`Math.round(new DOMMatrix(getComputedStyle(document.querySelector('.td-card[data-card^="${card}"]')).transform).m41)`);
   // Taps the middle of the element the expression finds.
   async function tap(element) {
     const box = await evaluate(`(function () { var r = (${element}).getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()`);
@@ -174,8 +183,19 @@ try {
   await pause(100);
   assert.match(await focusedCard(), /^Next meeting in/, 'The knob doesn\'t move along the deck');
   await swipe(1);
-  assert.match(await focusedCard(), /^30 minute timer 30:00 /, 'A swipe does: the last length used, 30 minutes to start with');
-  await swipe(-1);
+  assert.match(await focusedCard(), /^Next meeting in/, 'A swipe does: the first card comes to rest in the middle');
+  assert.equal(await cardX('start'), 80, 'centred');
+  await swipe(1);
+  assert.match(await focusedCard(), /^30 minute timer 30:00 /, 'then the last length used, 30 minutes to start with');
+  await drag(400, [40, 120, 200]);
+  await pause(100);
+  assert.equal(await cardX('last'), 280, 'Dragging, the stripe follows the finger');
+  await drag(400, [120, 260, 400], true);
+  await pause(500);
+  assert.match(await focusedCard(), /^Next meeting in/, 'and let go, it rests on the nearest card');
+  await drag(400, [100, 200, 300], true);
+  await pause(500);
+  assert.equal(await cardX('start'), 344, 'or the presets, beside the first card');
   await tap(preset(10));
   assert.match(await focusedCard(), /^10 minute timer 9:5\d /, 'Tapping a preset starts a timer, on its own card');
   await tap(preset(30));
