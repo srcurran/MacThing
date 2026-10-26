@@ -601,6 +601,34 @@ h3 {
   opacity: 1;
   transform: scale(1);
 }
+/* Smart switching's note: a pill like the volume's, in the middle of the display, saying why the
+   screen just moved. It gives way to the volume while the knob turns. */
+.note-hud {
+  pointer-events: none;
+}
+.note-pill {
+  display: flex;
+  align-items: center;
+  height: 72px;
+  padding: 0 32px;
+  border-radius: 36px;
+  background: var(--hud-bg);
+  box-shadow: 0 10px 30px var(--shadow);
+  color: var(--text);
+  white-space: nowrap;
+  opacity: 0;
+  transform: scale(0.94);
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+}
+.note-hud.on .note-pill {
+  opacity: 1;
+  transform: scale(1);
+}
+.show-volume .note-hud .note-pill {
+  opacity: 0;
+}
 .show-volume .paused-glyph {
   opacity: 0;
 }

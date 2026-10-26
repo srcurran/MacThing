@@ -36,6 +36,7 @@ watch(() => state.current, current => { if (NOTCHED.includes(current)) notchAt.v
       <svg class="vol-icon flex-none"><use :href="state.volumeIcon ? '#i-' + state.volumeIcon : state.volume === 0 ? '#i-muted' : '#i-speaker'" /></svg>
       <UiProgress v-show="!state.volumeUnsupported" :value="state.volume" /><span v-show="state.volumeUnsupported" class="font-small weight-light truncate">{{ state.volumeNote }}</span>
     </div>
+    <div class="note-hud fill flex center" :class="{ on: state.showNote }"><div class="note-pill font-small semibold">{{ state.note }}</div></div>
     <div :key="state.flash.key" class="flash disc flex center" :class="{ on: flashKey > 0 && flashKey === state.flash.key }" :style="{ color: state.flash.color }"><svg><use :href="'#i-' + state.flash.icon" /></svg></div>
     <div class="toast" :class="{ on: !!state.toast }">{{ state.toast }}</div>
     <div class="offline-screen fill flex-col center"><div class="pulse" /><div class="mt-28 font-medium semibold">Waiting for your Mac</div><div class="mt-10 font-small weight-light muted">Connect by USB and start the bridge</div></div>

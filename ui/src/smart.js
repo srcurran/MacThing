@@ -42,7 +42,7 @@ function want(show, note) {
 function go({ show, note }) {
   const from = state.current;
   show();
-  CT.toast(note, NOTE_MS);
+  CT.note(note, NOTE_MS);
   if (state.current === from) return; // already there, or the screen wouldn't move
   if (from === 'nowplaying') returnTo = 'nowplaying';
   placed = state.current;
