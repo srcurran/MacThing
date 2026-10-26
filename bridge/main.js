@@ -16,7 +16,7 @@ import { log } from './log.js';
 import { AppInfo, kindOf } from './nowplaying/apps.js';
 import { ArtworkCache } from './nowplaying/artwork.js';
 import { browserArtKey, largerBrowserArt } from './nowplaying/browser-art.js';
-import { MediaRemoteSource } from './nowplaying/mediaremote.js';
+import { MediaRemoteSource, normalize } from './nowplaying/mediaremote.js';
 import { MacAppearance } from './mac/appearance.js';
 import { MacHelper } from './mac/helper.js';
 import { MacPower } from './mac/power.js';
@@ -71,12 +71,19 @@ let resolveSeq = 0;
 let lastLogged = '';
 const largerArt = new Map(); // source + video + artwork identity -> upgraded art (null: none found)
 
+// The apps seen playing since the bridge started, for the settings page's Ignored apps list.
+const seenApps = new Map(); // bundle id -> name
+const isIgnored = (bundleId) => settings.get().ignoredApps.some((a) => a.id === bundleId);
+/** The snapshot as the device sees it: an ignored app playing reads as nothing playing. */
+const visible = (snapshot) => (snapshot.active && isIgnored(snapshot.bundleId) ? normalize({}) : snapshot);
+
 async function onNowPlaying(snapshot) {
   const seq = ++resolveSeq;
   const [art, app] = await Promise.all([
     snapshot.artwork ? artwork.get(snapshot.artwork) : null,
     snapshot.bundleId ? apps.get(snapshot.bundleId) : null,
   ]);
+  if (snapshot.bundleId && app?.name) seenApps.set(snapshot.bundleId, app.name);
   if (seq !== resolveSeq) return; // superseded by a newer update
   const key = browserArtKey(snapshot);
   current = { np: snapshot, art: (key && largerArt.get(key)) || art, app };
@@ -248,6 +255,7 @@ async function macStatus() {
   return {
     location: { status: s.location || 'unknown', name: weather.auto?.name || null },
     calendar: { status: s.calendar || 'unknown', list: cals.ok ? cals.calendars : [] },
+    apps: [...seenApps].map(([id, name]) => ({ id, name })),
   };
 }
 
@@ -623,6 +631,7 @@ function debounce(fn, ms) {
 log.info('Car Thing bridge starting');
 source.on('change', (s) => {
   // Skips made on the Mac show on the device the same way as its own.
+  s = visible(s);
   const skip = skips.observe(s);
   if (skip && Date.now() - lastDeviceCommand > OWN_PRESS_MS) {
     log.info(`[now playing] skipped: ${skip}`);
@@ -638,6 +647,7 @@ volume.on('change', (v) => {
 settings.on('change', (values, changed) => {
   link?.send({ type: 'settings', settings: values });
   if (changed.includes('knobVolume')) refreshKnobTarget();
+  if (changed.includes('ignoredApps')) onNowPlaying(visible(source.snapshot)).catch((err) => log.warn('[now playing]', err.message));
   if (changed.includes('screenSleep') || changed.includes('whenLocked')) refreshIdle();
 });
 settings.on('change', (_, changed) => {

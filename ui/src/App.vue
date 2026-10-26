@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { state, hasArt, idleCover, ambientUrl, ambientPreBlurred, ambientTint } from './state.js';
+import { state, hasArt, calendarCover, ambientUrl, ambientPreBlurred, ambientTint } from './state.js';
 import Artwork from './components/Artwork.vue';
 import IconSymbols from './components/IconSymbols.vue';
 import UiProgress from './components/UiProgress.vue';
@@ -18,7 +18,7 @@ const pausedBadge = computed(() => state.current === 'nowplaying' && state.np.ac
 const flashKey = ref(0);
 watch(() => state.flash.key, key => { if (!pausedBadge.value) flashKey.value = key; });
 watch(pausedBadge, paused => { if (paused) flashKey.value = 0; }); // the badge takes over from a flash under way
-const ambient = computed(() => !!(state.settings.artBackground && (hasArt.value || idleCover.value)));
+const ambient = computed(() => !!(state.settings.artBackground && (hasArt.value || calendarCover.value)));
 const NOTCHED = ['nowplaying', 'calendar', 'weather', 'clock']; // left to right, as the top buttons run
 // Settings has no top button, so the notch stays under the last page's while it fades out.
 const notchAt = ref(Math.max(0, NOTCHED.indexOf(state.current)));

@@ -53,27 +53,28 @@ watch(() => [state.np.artworkKey, state.artwork], () => {
   }
 });
 export const artworkUrl = computed(() => state.np.active ? shownArt.value : '');
-// Nothing playing: today's perpetual-calendar cover (drawn on the Mac) is the art, on Now Playing's
-// stage and as the album art background.
-export const idleCover = computed(() => !state.np.active && state.perpetual.status === 'ok' ? state.perpetual : null);
+// The track has art, even if it's still loading (as it is just after the page mounts). Backgrounds
+// follow this rather than artworkUrl, so they're already the art's while it loads and it fades
+// in, instead of the no-art greys showing first and snapping over.
+export const hasArt = computed(() => !!(state.np.active && (shownArt.value || state.np.artworkKey)));
+// Today's perpetual-calendar cover (drawn on the Mac) stands in for album art when there is none:
+// nothing playing, or a track without art (a Figma recording, say). It goes on Now Playing's stage
+// and behind everything as the album art background, so that mode doesn't drop to the plain theme.
+export const calendarCover = computed(() => !hasArt.value && state.perpetual.status === 'ok' ? state.perpetual : null);
 // For the album art background: the Mac's blurred image when it sent one, else the cover to blur here.
-export const ambientUrl = computed(() => state.np.active ? shownBlur.value || shownArt.value
-  : idleCover.value ? idleCover.value.blurUrl || idleCover.value.dataUrl : '');
+export const ambientUrl = computed(() => hasArt.value ? shownBlur.value || shownArt.value
+  : calendarCover.value ? calendarCover.value.blurUrl || calendarCover.value.dataUrl : '');
 // The tint over the album art background, black under the dark theme's white text and white under
 // the light theme's dark text. Each theme's usual strength, or more when the Mac measured the art
 // as too bright (dark) or too dark (light) for the text to stay readable over it.
 const AMBIENT_TINT = { dark: 0.3, light: 0.4 };
 export const ambientTint = computed(() => {
   const theme = state.light ? 'light' : 'dark';
-  const measured = state.np.active ? shownTint.value : idleCover.value && idleCover.value.blurUrl && idleCover.value.tint;
+  const measured = hasArt.value ? shownTint.value : calendarCover.value && calendarCover.value.blurUrl && calendarCover.value.tint;
   const alpha = Math.min(0.6, Math.max(AMBIENT_TINT[theme], measured && measured[theme] || 0));
   return (state.light ? 'rgba(255,255,255,' : 'rgba(0,0,0,') + alpha.toFixed(2) + ')';
 });
-export const ambientPreBlurred = computed(() => state.np.active ? !!shownBlur.value : !!(idleCover.value && idleCover.value.blurUrl));
-// The track has art, even if it's still loading (as it is just after the page mounts). Backgrounds
-// follow this rather than artworkUrl, so they're already the art's while it loads and it fades
-// in, instead of the no-art greys showing first and snapping over.
-export const hasArt = computed(() => !!(state.np.active && (shownArt.value || state.np.artworkKey)));
+export const ambientPreBlurred = computed(() => hasArt.value ? !!shownBlur.value : !!(calendarCover.value && calendarCover.value.blurUrl));
 CT.onSecond(now => { state.now = now; });
 // The Mac's tick arrives every 2s at a phase of its own, and writing state.now from each one
 // knocks the clock off the aligned second: measured on the device, state.now advanced by 683ms,

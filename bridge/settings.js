@@ -15,6 +15,9 @@ export const DEFAULTS = {
   clock24h: false,
   clockFace: 'analog', // 'analog' | 'numbers' | 'digital'
   artBackground: false, // blurred album art behind Now Playing and the widgets
+  // Apps Now Playing never shows (a Figma recording, say): [{ id: bundle id, name }]. While one of
+  // them is macOS's Now Playing app the device reads it as nothing playing.
+  ignoredApps: [],
   location: { mode: 'auto' }, // or { mode: 'manual', name, lat, lon }
   calendars: null, // null = every calendar in the Mac's Calendar app; else an array of calendar ids
   calendarDays: 2, // days of events on the Calendar screen: today plus the next (n − 1)
@@ -48,6 +51,10 @@ const VALID = {
   clock24h: (v) => typeof v === 'boolean',
   clockFace: (v) => ['analog', 'numbers', 'digital'].includes(v),
   artBackground: (v) => typeof v === 'boolean',
+  ignoredApps: (v) =>
+    Array.isArray(v) &&
+    v.length <= 50 &&
+    v.every((a) => typeof a?.id === 'string' && a.id.length <= 200 && typeof a.name === 'string' && a.name.length <= 200),
   location: (v) =>
     v?.mode === 'auto' ||
     (v?.mode === 'manual' && typeof v.name === 'string' && Number.isFinite(v.lat) && Number.isFinite(v.lon)),

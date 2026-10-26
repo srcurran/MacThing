@@ -106,6 +106,7 @@
   section:first-child > .subhead { margin-top: 0; }
   .row.off { opacity: .45; }
   @media (max-width: 520px) { .row { flex-wrap: wrap; } }
+  #appList { margin-top: 4px; }
   #calList { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); column-gap: 24px; margin-top: 12px; }
   .cal { display: grid; grid-template-columns: 16px 10px minmax(0, 1fr); gap: 10px; align-items: start; min-width: 0; padding: 10px 0; }
   .cal > div { min-width: 0; overflow-wrap: anywhere; }
@@ -187,6 +188,10 @@
         <h3 class="subhead">Knob</h3>
         <div class="row"><div><div class="label">Volume</div><div class="note">What turning the knob controls</div></div>
           <span class="seg" data-key="knobVolume"><button data-v="auto" title="The Mac’s output, or the playing Spotify or Apple Music when the output has no volume">Auto</button><button data-v="system">Mac</button><button data-v="spotify">Spotify</button><button data-v="music">Apple Music</button></span></div>
+      </section>
+      <section>
+        <h3 class="subhead">Now Playing</h3>
+        <div class="row stack"><div><div class="label">Ignored apps</div><div class="note" id="appNote"></div></div><div id="appList"></div></div>
       </section>
     </div>
 
@@ -329,7 +334,30 @@
         : 'macOS will ask for permission the first time.';
 
     renderCalendars();
+    renderApps();
     renderReminders();
+  }
+
+  // Apps Now Playing ignores. The list is what has played since the bridge started, plus any already ignored.
+  function renderApps() {
+    const ignored = state.settings.ignoredApps || [];
+    const seen = (state.apps || []).filter((a) => !ignored.some((x) => x.id === a.id));
+    const list = [...ignored, ...seen].sort((a, b) => a.name.localeCompare(b.name));
+    $('#appNote').textContent = list.length
+      ? 'While a checked app is the Mac’s Now Playing, the device shows nothing playing'
+      : 'Apps show up here once they’ve played something';
+    $('#appList').replaceChildren(...list.map((a) => {
+      const box = document.createElement('input');
+      box.type = 'checkbox';
+      box.checked = ignored.some((x) => x.id === a.id);
+      box.addEventListener('change', () => {
+        save({ ignoredApps: box.checked ? [...ignored, a] : ignored.filter((x) => x.id !== a.id) });
+      });
+      const label = document.createElement('label');
+      label.className = 'choice';
+      label.append(box, Object.assign(document.createElement('div'), { className: 'label', textContent: a.name }));
+      return label;
+    }));
   }
 
   // Task reminders: each row saves the whole list. The text saves when it loses focus.
