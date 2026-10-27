@@ -62,6 +62,14 @@
   .chip button { border: 0; background: none; color: var(--muted); font: inherit; cursor: pointer; padding: 0 4px; }
   .chip .chip-time { color: var(--text); padding: 4px 4px 4px 12px; }
   .chip.open, .tbtn.open, .add-time.open { border-color: var(--accent); }
+  .app-group { margin-top: 14px; }
+  .app-group-title { color: var(--muted); font-size: 13px; }
+  .app-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+  .app-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px 5px 14px; border-radius: 99px;
+    border: 1px solid var(--muted); background: var(--card); color: var(--text); font: inherit; font-size: 14px; cursor: pointer; }
+  .app-chip .mark { color: var(--muted); font-size: 16px; line-height: 1; }
+  .app-chip.off { border-color: var(--line); background: none; color: var(--muted); }
+  .app-chip:hover .mark, .app-chip:focus-visible .mark { color: var(--text); }
   .add-time { border: 1px dashed var(--line); background: none; color: var(--muted); font: inherit; font-size: 14px;
     padding: 4px 12px; border-radius: 99px; cursor: pointer; }
   .tbtn { padding: 5px 12px; font: inherit; font-size: 14px; color: var(--text); background: var(--bg);
@@ -191,7 +199,7 @@
       </section>
       <section>
         <h3 class="subhead">Now Playing</h3>
-        <div class="row stack"><div><div class="label">Ignored apps</div><div class="note" id="appNote"></div></div><div id="appList"></div></div>
+        <div class="row stack"><div><div class="label">Apps with Now Playing</div><div class="note" id="appNote"></div></div><div id="appList"></div></div>
       </section>
     </div>
 
@@ -338,26 +346,34 @@
     renderReminders();
   }
 
-  // Apps Now Playing ignores. The list is what has played since the bridge started, plus any already ignored.
+  // Apps with Now Playing, as chips. Apps row: apps that show; × moves one down to the Ignored row,
+  // where + brings it back. The apps are what has played since the bridge started, plus any already ignored.
   function renderApps() {
     const ignored = state.settings.ignoredApps || [];
-    const seen = (state.apps || []).filter((a) => !ignored.some((x) => x.id === a.id));
-    const list = [...ignored, ...seen].sort((a, b) => a.name.localeCompare(b.name));
-    $('#appNote').textContent = list.length
-      ? 'While a checked app is the Mac’s Now Playing, the device shows nothing playing'
+    const isIgnored = (a) => ignored.some((x) => x.id === a.id);
+    const byName = (a, b) => a.name.localeCompare(b.name);
+    const shown = (state.apps || []).filter((a) => !isIgnored(a)).sort(byName);
+    const hidden = [...ignored].sort(byName);
+    $('#appNote').textContent = shown.length || hidden.length
+      ? 'While an ignored app is the Mac’s Now Playing, the device shows nothing playing'
       : 'Apps show up here once they’ve played something';
-    $('#appList').replaceChildren(...list.map((a) => {
-      const box = document.createElement('input');
-      box.type = 'checkbox';
-      box.checked = ignored.some((x) => x.id === a.id);
-      box.addEventListener('change', () => {
-        save({ ignoredApps: box.checked ? [...ignored, a] : ignored.filter((x) => x.id !== a.id) });
+    const chip = (a, off) => {
+      const b = Object.assign(document.createElement('button'), {
+        type: 'button', className: off ? 'app-chip off' : 'app-chip',
+        title: off ? `Show ${a.name} on the device` : `Ignore ${a.name}`,
       });
-      const label = document.createElement('label');
-      label.className = 'choice';
-      label.append(box, Object.assign(document.createElement('div'), { className: 'label', textContent: a.name }));
-      return label;
-    }));
+      b.append(a.name, Object.assign(document.createElement('span'), { className: 'mark', textContent: off ? '+' : '×', ariaHidden: 'true' }));
+      b.addEventListener('click', () => save({ ignoredApps: off ? ignored.filter((x) => x.id !== a.id) : [...ignored, a] }));
+      return b;
+    };
+    const row = (title, list, off) => {
+      const div = Object.assign(document.createElement('div'), { className: 'app-group' });
+      const chips = Object.assign(document.createElement('div'), { className: 'app-chips' });
+      chips.append(...list.map((a) => chip(a, off)));
+      div.append(Object.assign(document.createElement('div'), { className: 'app-group-title', textContent: title }), chips);
+      return div;
+    };
+    $('#appList').replaceChildren(...[shown.length && row('Apps', shown, false), hidden.length && row('Ignored', hidden, true)].filter(Boolean));
   }
 
   // Task reminders: each row saves the whole list. The text saves when it loses focus.
