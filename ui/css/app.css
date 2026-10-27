@@ -487,6 +487,23 @@ h3 {
 .font-huge .rail-skull {
   font-size: 0.85em;
 }
+/* Before a session starts its sunglasses stand alone in place of the pace, as tall as its digits
+   (0.775em, like the fires) and on its baseline. The glasses are a wide band across the middle
+   third of a square image, so the image is cropped to them: a box their shape, filled with cover. */
+.rail-fires.rail-shades {
+  font-size: 0.775em;
+  vertical-align: baseline;
+}
+.rail-shades .rail-emoji {
+  width: 3em;
+  height: 1em;
+  object-fit: cover;
+  vertical-align: baseline;
+}
+/* The Mac's glasses are a little less wide: ink 118 x 42 of 128. */
+.rail-shades .rail-emoji-mac {
+  width: 2.8em;
+}
 /* Keep the 32px weekly pace and percentage together in the 272px rail. */
 .usage-week {
   letter-spacing: -0.02em;
