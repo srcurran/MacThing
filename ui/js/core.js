@@ -460,6 +460,16 @@ export function initializeRuntime(state) {
     if (CT.lockedTo || !screen.turn || screen.turn(steps) === false) onKnobVolume(steps);
   }, { passive: false, capture: true });
 
+  /** A tap on the touchscreen: a media command, or a function to run. Like a button, a tap while
+   *  dark only wakes. */
+  CT.tap = function (action) {
+    debugInput('tap → ' + (typeof action === 'function' ? 'handler' : action));
+    emit('input', 'tap');
+    if (wakeInstead()) return;
+    if (typeof action === 'function') action();
+    else CT.command(action);
+  };
+
   document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 
   // ---- Volume (knob turns anywhere but settings) --------------------------------------
