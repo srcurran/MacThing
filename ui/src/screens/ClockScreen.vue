@@ -354,7 +354,9 @@ function dragPageEnd(dx, vx) {
 }
 // Dragging the deck: sideways, the stripe moves with the finger (a little past either end at
 // most); up and down, the card in focus lifts with it.
-screen.drag = (dx, dy, axis) => {
+// Up and down lifts a card only when the finger started on one (or on the bin under it); anywhere
+// else, it's left to core.js, which steps through the clock's views as on the other screens.
+screen.drag = (dx, dy, axis, target) => {
   if (mode.value !== 'timer' || pageSettling) return false;
   if (pageDrag || timerView.value === 'timer') {
     if (axis !== 'x') return false;
@@ -363,6 +365,7 @@ screen.drag = (dx, dy, axis) => {
   }
   if (timerView.value !== 'deck') return false;
   if (axis === 'y') {
+    if (!lifting.value && !(target && target.closest && target.closest('.td-card, .td-remove'))) return false;
     if (!lifting.value) { lifting.value = true; liftFrom = lift.value; clearTimeout(settleTimer); }
     const up = liftFrom - dy;
     lift.value = focused.value.kind === 'last' ? Math.max(0, Math.min(LAST_GIVE_PX, up / 4)) : Math.max(0, Math.min(LIFT_PX + 24, up));
