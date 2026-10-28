@@ -187,6 +187,8 @@
   --orange: var(--orange-500); /* the one accent: clock-screen date, calendar clock and NOW label, meeting pill */
   --hand: var(--white);
   --timer-used: var(--white-a20); /* the timer's spent minutes */
+  --timer-dial: var(--white); /* the timer's disc: the time left (dark in the light theme) */
+  --timer-card: var(--white-a10); /* a timer card, lifted off the screen behind it */
   --usage-track: var(--white-a30); /* a Claude usage ring's whole allowance */
   --timer-hand: var(--orange-500);
   --timer-hand-ink: var(--black); /* text on the hand colour */
@@ -225,6 +227,8 @@
   --bar-track: var(--black-a20);
   --hand: var(--gray-950);
   --timer-used: var(--black-a10);
+  --timer-dial: var(--gray-950);
+  --timer-card: var(--white-a70);
   --usage-track: var(--black-a20);
   --c-mark-fill: var(--black-a10);
   --c-mark-edge: var(--black);
@@ -257,6 +261,12 @@
 #app.ambient-on:not(.light) {
   --today: var(--white);
   --today-ink: var(--black);
+}
+/* In the light theme the timer's disc is dark, so its hand is white: the dark theme's black hand
+   on a white disc, the other way round. */
+#app.light {
+  --timer-hand: var(--white);
+  --timer-hand-ink: var(--black);
 }
 
 * {
@@ -332,7 +342,8 @@ h3 {
   animation: fade-in 0.5s ease-out 0.3s backwards;
 }
 [data-switch="fade"] > .screen.leaving .left-rail > *,
-[data-switch="fade"] > .screen.leaving .screen-stage > * {
+[data-switch="fade"] > .screen.leaving .screen-stage > *,
+[data-switch="fade"] > .screen.leaving .td {
   animation: fade-out 0.3s ease-in forwards;
 }
 /* Between pages it slides a little towards the side the new page's button is on, and crossfades:
@@ -351,11 +362,13 @@ h3 {
     page-from-left 0.35s ease-out backwards;
 }
 [data-switch="next"] > .screen.leaving .left-rail > *,
-[data-switch="next"] > .screen.leaving .screen-stage > * {
+[data-switch="next"] > .screen.leaving .screen-stage > *,
+[data-switch="next"] > .screen.leaving .td {
   animation: page-to-left 0.1s ease-in forwards;
 }
 [data-switch="previous"] > .screen.leaving .left-rail > *,
-[data-switch="previous"] > .screen.leaving .screen-stage > * {
+[data-switch="previous"] > .screen.leaving .screen-stage > *,
+[data-switch="previous"] > .screen.leaving .td {
   animation: page-to-right 0.1s ease-in forwards;
 }
 @keyframes page-from-right {
@@ -413,6 +426,10 @@ h3 {
   opacity: 0;
   will-change: opacity;
   transition: opacity 0.3s ease-in;
+  pointer-events: none; /* a view that's faded out doesn't catch a tap meant for the one showing */
+}
+.fade-view.on {
+  pointer-events: auto;
 }
 .fade-view.on {
   opacity: 1;
@@ -1234,7 +1251,7 @@ h3 {
 
 /* ===== timer ===== */
 /* The clock button on the clock swaps in a timer (Figma 154:4300). TimeTimer.vue draws its dial
-   across the whole stage: the time left in white, the minutes gone dimmed, a hand on the edge. */
+   across the whole stage: the time left as a disc (white; dark in the light theme), the minutes gone dimmed, a hand on the edge. */
 
 .t-face {
   position: absolute;
@@ -1246,7 +1263,14 @@ h3 {
 .t-minute {
   fill: var(--timer-used);
 }
-.t-left,
+.t-left {
+  fill: var(--timer-dial);
+  transition: fill-opacity 0.6s ease-out;
+}
+/* Not started yet, the disc is at half strength (a full circle, with just the hub's hole). */
+.t-face.idle .t-left {
+  fill-opacity: 0.5;
+}
 .t-minute.left {
   fill: var(--hand);
 }
@@ -1257,6 +1281,181 @@ h3 {
 }
 .t-hub {
   fill: var(--timer-hand);
+}
+
+/* The timers' overview (TimerDeck.vue; Figma: time timer → "Timer deck · no timers" and
+   "Swiping"), over the whole clock screen on the screen's own background, laid out on the page's
+   own grid: one stripe of the presets' column (the rail's 320px, 48/24 insets) and the cards, each
+   the full-size timer itself at 0.8 (640 × 384) at the 48px inset. TimerDeck.vue places them along
+   it; they ease to where they rest, and follow a dragging finger exactly. Sitting on a card zooms
+   it into the timer (ClockScreen.vue): it grows to full size, where the full-size timer is, as the
+   deck fades. */
+.td {
+  z-index: 2;
+  overflow: hidden;
+  background-color: var(--stage);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease-in, visibility 0s linear 0.3s, background-color 0.35s ease-out;
+}
+.ambient-on .td {
+  background: transparent;
+}
+/* Under the deck, the rail and the full-size timer step aside (they'd show through album art). */
+#screen-clock .left-rail,
+#screen-clock .screen-stage {
+  transition: opacity 0.3s ease-out;
+}
+#screen-clock.timer-deck .left-rail,
+#screen-clock.timer-deck .screen-stage {
+  opacity: 0;
+  transition: opacity 0.3s ease-in;
+}
+.td.on {
+  opacity: 1;
+  visibility: inherit; /* hidden with its screen when another is up (.screen) */
+  transition: opacity 0.3s ease-out, background-color 0.35s ease-out;
+}
+.td-set {
+  position: absolute;
+  left: var(--panel-inset-x);
+  top: var(--panel-inset-y);
+  bottom: var(--panel-inset-y);
+  width: 208px;
+  display: flex;
+  flex-direction: column;
+  will-change: transform;
+  transition: transform 0.35s ease-out, opacity 0.3s ease-out;
+}
+.td-presets {
+  flex: 1;
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: 96px 96px;
+  grid-template-rows: 96px 96px 96px;
+  grid-column-gap: 16px;
+  align-content: space-between;
+}
+.td-preset {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: var(--timer-card);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+/* "MIN" close under each preset's number, small and a little spaced out. */
+.td-minutes {
+  line-height: 32px;
+}
+.td-unit {
+  font-size: 16px;
+  line-height: 18px;
+  letter-spacing: 0.04em;
+}
+.td-card {
+  position: absolute;
+  left: 0;
+  top: var(--panel-inset-y);
+  will-change: transform;
+  width: 640px;
+  height: 384px;
+  border-radius: 24px;
+  overflow: hidden;
+  background: var(--timer-card);
+  opacity: 0.6;
+  transform-origin: 0 0;
+  transition: opacity 0.35s ease-out, transform 0.35s ease-out, border-radius 0.3s ease-in-out, background-color 0.3s ease-in-out;
+}
+.td.dragging .td-set,
+.td.dragging .td-card,
+.td.dragging .td-remove,
+.td.lifting .td-card.focus {
+  transition: none;
+}
+/* Under the card in focus, its Remove (Apple Watch faces' way): swiped up, the card lifts off it,
+   and a red bin and "Remove" show in the space it leaves (TimerDeck.vue sets how far). */
+.td-remove {
+  position: absolute;
+  left: 0;
+  top: var(--panel-inset-y);
+  width: 640px;
+  height: 384px;
+  padding-bottom: 28px;
+  box-sizing: border-box;
+  justify-content: flex-end;
+  will-change: transform, opacity;
+  transition: transform 0.35s ease-out, opacity 0.35s ease-out;
+}
+.td-bin {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 4px;
+  fill: var(--red-500);
+}
+.td-card.focus {
+  opacity: 1;
+}
+/* The full-size timer's own layout (the rail, then the dial across the stage), at 0.8. */
+.td-screen {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 800px;
+  height: 480px;
+  transform: scale(0.8);
+  transform-origin: 0 0;
+}
+.td-rail {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 320px;
+  padding: var(--panel-inset-y) var(--panel-inset-x);
+  box-sizing: border-box;
+}
+/* As in the rail (.left-rail .left-rail-content > .font-huge, then its 12px gap): the big label
+   8px under its eyebrow, 24px over the line below, so the card and the full-size timer match. */
+.td-time {
+  margin: 8px 0 24px;
+  white-space: nowrap;
+}
+.td-stage {
+  position: absolute;
+  left: 320px;
+  top: 0;
+  width: 480px;
+  height: 480px;
+}
+/* Zooming: the card in focus grows to the whole screen, where the full-size timer is (its
+   transform is TimerDeck.vue's), on the full-size timer's own background, as the rest fades
+   away. Then the full-size timer takes its place with no fade (instant), and back the same. */
+.td.zooming {
+  background-color: var(--panel);
+}
+.ambient-on .td.zooming {
+  background-color: transparent;
+}
+.td.zooming .td-set,
+.td.zooming .td-remove {
+  opacity: 0 !important;
+}
+.td.instant,
+.td.instant *,
+#screen-clock.timer-instant .left-rail,
+#screen-clock.timer-instant .screen-stage,
+#screen-clock.timer-instant .fade-view {
+  transition: none !important;
+}
+.td.zooming .td-card:not(.focus) {
+  opacity: 0;
+}
+.td.zooming .td-card.focus {
+  border-radius: 0;
+  background-color: transparent;
 }
 /* Once the timer starts, the drawn hand fades in where the cut-out one was. */
 .t-hand-in {

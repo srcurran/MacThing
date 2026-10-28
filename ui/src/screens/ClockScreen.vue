@@ -1,14 +1,15 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { state, CT } from '../state.js';
 import LeftRail from '../components/LeftRail.vue';
 import ScreenStage from '../components/ScreenStage.vue';
 import AnalogClock from '../components/AnalogClock.vue';
 import TimeTimer from '../components/TimeTimer.vue';
+import TimerDeck, { firstCardAt, positionAt } from '../components/TimerDeck.vue';
 import ClaudeUsage from '../components/ClaudeUsage.vue';
 import BackActionIcon from '../components/BackActionIcon.vue';
 import { SESSION_MS, WEEK_MS, paceNumber, untilText, usageProviders, usageOf, usageName, usageUpdatedText } from '../usage.js';
-import { timer, total, remaining, timerLabel, timerTitle, stepPreset, currentMeetingKey, pickMeeting, toggleTimer, resetTimer, clearTimer } from '../timer.js';
+import { cards, timerOnScreen, startTimer, toggleTimer, removeTimer, removeCard, removeDoneTimers } from '../timer.js';
 const parts = computed(() => CT.parts(state.now));
 const face = computed(() => state.settings.clockFace);
 const time = computed(() => CT.clockText(parts.value));
@@ -16,11 +17,8 @@ const time = computed(() => CT.clockText(parts.value));
 const digits = computed(() => { const [hours, minutes] = time.value.time.split(':'); return { hours: hours.padStart(2, '0'), minutes }; });
 const next = computed(() => state.calendar.status === 'ok' ? state.calendar.events.find(e => !e.allDay && e.start > state.now && CT.dayNumber(e.start) === CT.dayNumber(state.now)) : null);
 // The clock button, pressed on the clock, steps it to the timer, then each usage Settings → Usage
-// asks for (Claude, ChatGPT, both or none), then back. Knob and wheel work the timer only while
-// it's up: turn to pick a length, press to start or pause, press twice to reset. Past 60 minutes
-// there are meeting stops: the end of each meeting going on now, or the start of the next one today.
-// During a meeting the timer opens on it; reset there drops back to the preset, stopped. Opening a
-// usage asks the Mac for fresh numbers (Claude's at most once a minute).
+// asks for (Claude, ChatGPT, both or none), then back (the timer's own controls are further down).
+// Opening a usage asks the Mac for fresh numbers (Claude's at most once a minute).
 const providers = computed(() => usageProviders(state));
 const modes = computed(() => ['clock', 'timer', ...providers.value]);
 const isUsage = m => m === 'claude' || m === 'chatgpt';
@@ -29,7 +27,7 @@ const screen = CT.screen('clock');
 screen.reselect = (steps = 1) => {
   const n = modes.value.length;
   mode.value = modes.value[(((modes.value.indexOf(mode.value) + steps) % n) + n) % n];
-  if (mode.value === 'timer') pickMeeting();
+  if (mode.value === 'timer') openTimer();
   if (isUsage(mode.value)) CT.send({ type: 'refreshUsage' });
 };
 screen.show = () => { if (isUsage(mode.value)) CT.send({ type: 'refreshUsage' }); };
@@ -71,12 +69,152 @@ screen.back = () => {
   setTimeout(() => { if (refreshDone) settleRefresh(); else state.usageRefresh = 'pending'; }, REFRESH_SPIN_MS);
   giveUpTimer = setTimeout(finishRefresh, REFRESH_GIVE_UP_MS);
 };
-// On the timer, the knob starts and pauses it; once it's paused or done the back button resets
-// it, and the corner says so. Otherwise the back button does nothing here.
-const timerResets = computed(() => timer.status === 'paused' || timer.status === 'done');
+// ---- The timer ----------------------------------------------------------------------------
+// Two views: the deck (TimerDeck.vue: the presets and every timer's card, one stripe) and one card
+// full size (the rail and the dial, like the other views). With no timer of yours going it opens
+// on the deck, resting on the presets; with one, on that timer. The deck's stripe follows a
+// dragging finger and, let go, rests on the presets or with a card centred: the nearest, or, let
+// go moving, the next one that way. A swipe on the full-size timer goes back to the deck, a card
+// along. Resting on a card that's counting for 5 seconds zooms it up to full size. Tapping a
+// preset starts another timer and moves to its card; tapping a card zooms it up to full size.
+// Full size, the last length used starts with a tap (or the knob); any other full-size one goes
+// back to the deck. Swiping a card up lifts it off a Remove (Apple Watch faces' way): let go
+// lifted far enough (or flicked) and it stays up, Remove showing; tap Remove to remove it, or swipe
+// it back down, tap it or press back to keep it. The last length used is always there: it lifts a
+// little and drops back. The knob press starts or pauses the timer you're on (twice:
+// puts it away); the back button puts away a paused or finished one, and the corner says so.
+// Turning the knob sets the volume.
+const SETTLE_MS = 5000, ZOOM_MS = 350, FRAME_MS = 40;
+const focusId = ref('last');
+const timerView = ref('deck'); // 'deck' | 'timer'
+const zooming = ref(false);
+const instant = ref(false); // switching between the deck and the full-size timer with no fade
+const atPresets = ref(true); // resting on the presets (the first card beside them, in focus)
+const dragPosition = ref(null); // the stripe's position while a finger drags it
+let lastFocus = 0, settleTimer = null, zoomTimer = null, dragFrom = 0;
+const FLICK_PX_MS = 0.3;
+// Lifting the card in focus to remove it: how far it rests up (Remove showing), how far up it
+// must be let go to stay there, and how far the last length used gives before dropping back.
+const LIFT_PX = 160, LIFT_ARM_PX = 70, LAST_GIVE_PX = 24;
+const lift = ref(0), lifting = ref(false), removing = ref(false);
+let liftFrom = 0;
+function keepCard() {
+  removing.value = false;
+  lifting.value = false;
+  lift.value = 0;
+}
+function removeFocused() {
+  const card = focused.value;
+  keepCard();
+  removeCard(card);
+  settle();
+}
+const focusIndex = computed(() => {
+  const i = cards.value.findIndex(c => c.id === focusId.value);
+  return i >= 0 ? i : Math.min(lastFocus, cards.value.length - 1);
+});
+const focused = computed(() => cards.value[focusIndex.value]);
+// Where the deck rests: 0 on the presets, then 1, 2… with that card centred (TimerDeck.vue).
+const restPosition = computed(() => (atPresets.value ? 0 : focusIndex.value + 1));
+const deckPosition = computed(() => (dragPosition.value == null ? restPosition.value : dragPosition.value));
+// A card that's gone (a meeting over, a timer put away) leaves the focus on the one that took its
+// place, and the full-size view goes back to the deck. A meeting's countdown to its start, as the
+// meeting begins, carries on as its countdown to its end, full size if it was.
+watch(focusIndex, i => { lastFocus = i; });
+watch(() => focused.value.id, id => {
+  if (id === focusId.value) return;
+  const started = focusId.value.indexOf('start|') === 0 && cards.value.find(c => c.id === 'end|' + focusId.value.slice(6));
+  if (started) { focusId.value = started.id; return; }
+  focusId.value = id;
+  if (timerView.value === 'timer') timerView.value = 'deck';
+});
+watch(() => state.current === 'clock' && mode.value === 'timer', up => { timerOnScreen.value = up; }, { immediate: true });
+function focusOn(id) {
+  focusId.value = id;
+  atPresets.value = false;
+  timerView.value = 'deck';
+  settle();
+}
+function restOn(position) {
+  position = Math.max(0, Math.min(cards.value.length, position));
+  if (position) return focusOn(cards.value[position - 1].id);
+  clearTimeout(settleTimer);
+  focusId.value = cards.value[0].id;
+  atPresets.value = true;
+  timerView.value = 'deck';
+}
+// Staying on a card that's counting zooms it up to full size: the card grows as the deck fades.
+function settle() {
+  clearTimeout(settleTimer);
+  if (!atPresets.value && focused.value.kind !== 'last') settleTimer = setTimeout(zoom, SETTLE_MS);
+}
+// The card grows to fill the screen first (the rest of the deck fading away), then, at full size,
+// the full-size timer takes its place with no fade: it looks the same, so the swap can't be seen.
+// Back to the deck is the same in reverse.
+function zoom() {
+  clearTimeout(settleTimer);
+  if (mode.value !== 'timer' || timerView.value !== 'deck' || lift.value || zooming.value) return;
+  zooming.value = true;
+  clearTimeout(zoomTimer);
+  zoomTimer = setTimeout(() => {
+    instant.value = true;
+    timerView.value = 'timer';
+    zoomTimer = setTimeout(() => { zooming.value = false; instant.value = false; }, FRAME_MS);
+  }, ZOOM_MS);
+}
+function unzoom() {
+  clearTimeout(zoomTimer);
+  instant.value = true;
+  zooming.value = true;
+  timerView.value = 'deck';
+  zoomTimer = setTimeout(() => { instant.value = false; zooming.value = false; }, FRAME_MS);
+}
+/** Opening the timer: on the card asked for (full size); else back where it was left (the deck
+ *  where it rested, or that card full size), unless that card's gone or its timer has finished;
+ *  else on a timer of yours if one's going (full size), else the deck from its start. */
+let timerOpened = false;
+function openTimer(id) {
+  clearTimeout(settleTimer);
+  const left = !id && timerOpened && cards.value.some(c => c.id === focusId.value)
+    && !(focused.value.kind === 'timer' && focused.value.status === 'done');
+  timerOpened = true;
+  if (left) {
+    if (timerView.value === 'deck') settle();
+    return;
+  }
+  const mine = cards.value.filter(c => c.kind === 'timer');
+  if (id && cards.value.some(c => c.id === id)) focusId.value = id;
+  else if (mine.length) { if (focused.value.kind !== 'timer') focusId.value = mine[0].id; }
+  else return restOn(0);
+  atPresets.value = false;
+  timerView.value = 'timer';
+}
+function startFromPreset(minutes) {
+  focusOn(startTimer(minutes));
+}
+// The last length used, started from its card: full size, it stays full size, on the new timer.
+function startLast(minutes) {
+  if (timerView.value === 'timer') { focusId.value = startTimer(minutes); atPresets.value = false; }
+  else startFromPreset(minutes);
+}
+function pickCard(id) {
+  if (lift.value) return keepCard();
+  focusId.value = id;
+  atPresets.value = false;
+  zoom();
+}
+function backToDeck() {
+  if (mode.value !== 'timer' || timerView.value !== 'timer') return;
+  if (focused.value.kind === 'last') return startLast(focused.value.total / 60000);
+  unzoom();
+  atPresets.value = false;
+  settle();
+}
+const timerResets = computed(() => focused.value.kind === 'timer' && (focused.value.status === 'paused' || focused.value.status === 'done'));
 function timerBackPress() {
+  if (lift.value) return void keepCard();
   if (!timerResets.value) return false;
-  clearTimer();
+  removeTimer(focused.value.id);
 }
 // A usage that's been taken out of Settings → Usage while it's up gives way to the clock.
 watch(providers, list => { if (isUsage(mode.value) && !list.includes(mode.value)) mode.value = 'clock'; });
@@ -93,8 +231,13 @@ function usageRail(provider) {
     subtitleNote: '· ' + Math.round(u.week.percent) + '%'
   };
 }
+// The full-size timer (its rail and dial) is only drawn while it's what's showing, so it can't
+// show through as the deck, or another view, fades in or out over it. Under the deck, the rail
+// shows nothing.
+const timerFull = computed(() => mode.value === 'timer' && timerView.value === 'timer');
+const railView = computed(() => (mode.value === 'timer' && !timerFull.value ? 'deck' : mode.value));
 const railViews = computed(() => {
-  const views = { clock: { eyebrow: CT.MONTHS[parts.value.month], title: parts.value.date, subtitle: CT.DAYS[parts.value.day] }, timer: { eyebrow: timerLabel.value, title: timerTitle.value, subtitle: time.value.time } };
+  const views = { clock: { eyebrow: CT.MONTHS[parts.value.month], title: parts.value.date, subtitle: CT.DAYS[parts.value.day] }, timer: { eyebrow: focused.value.label, title: focused.value.title, subtitle: time.value.time }, deck: { title: '' } };
   providers.value.forEach(p => { views[p] = usageRail(p); });
   return views;
 });
@@ -104,13 +247,10 @@ const resets = computed(() => {
   const u = usageOf(state, mode.value);
   return u.status === 'ok' ? { session: untilText(u.session.resetsAt, state.now, SESSION_MS), week: untilText(u.week.resetsAt, state.now, WEEK_MS) } : null;
 });
-// While it's up and not started, a meeting that starts sets it too, as does one that turns up
-// when the calendar first loads (after a reload that reopened the timer). It never starts or comes
-// up by itself: that's the meeting alert's Start timer.
-watch(currentMeetingKey, key => { if (key && mode.value === 'timer') pickMeeting(); });
-// The meeting alert's start button: brings the timer up on the clock screen.
-CT.showTimer = () => {
+// The meeting alert's start button: brings that meeting's timer up, full size, on the clock screen.
+CT.showTimer = id => {
   mode.value = 'timer';
+  openTimer(id);
   CT.show('clock');
 };
 // Smart switching: brings a provider's usage up on the clock screen.
@@ -120,38 +260,62 @@ CT.showUsage = provider => {
   mode.value = provider;
   CT.show('clock');
 };
-// A finished timer counts up past its time until you leave it, then goes back to its preset.
-watch(() => mode.value === 'timer' && state.current === 'clock', up => { if (!up && timer.status === 'done') resetTimer(); });
-// A meeting's timer counts on past its end for ten minutes at most, then puts itself away.
-const MEETING_OVERRUN_MS = 10 * 60000;
-CT.onSecond(now => {
-  if (timer.status !== 'done' || !timer.meeting || now - timer.endsAt < MEETING_OVERRUN_MS) return;
-  resetTimer();
-  mode.value = 'clock';
+// A finished timer counts up past its time until you leave the timer (or ten minutes pass).
+watch(() => mode.value === 'timer' && state.current === 'clock', up => {
+  if (up) return;
+  clearTimeout(settleTimer);
+  keepCard();
+  removeDoneTimers();
 });
-screen.turn = steps => {
-  if (mode.value !== 'timer' || timer.status === 'running' || timer.status === 'paused') return false;
-  stepPreset(steps);
+screen.swipe = direction => {
+  if (mode.value !== 'timer') return false;
+  keepCard();
+  restOn(restPosition.value + direction);
+};
+// Dragging the deck: sideways, the stripe moves with the finger (a little past either end at
+// most); up and down, the card in focus lifts with it.
+screen.drag = (dx, dy, axis) => {
+  if (mode.value !== 'timer' || timerView.value !== 'deck') return false;
+  if (axis === 'y') {
+    if (!lifting.value) { lifting.value = true; liftFrom = lift.value; clearTimeout(settleTimer); }
+    const up = liftFrom - dy;
+    lift.value = focused.value.kind === 'last' ? Math.max(0, Math.min(LAST_GIVE_PX, up / 4)) : Math.max(0, Math.min(LIFT_PX + 24, up));
+    return;
+  }
+  if (lift.value) keepCard();
+  if (dragPosition.value == null) { dragFrom = restPosition.value; clearTimeout(settleTimer); }
+  dragPosition.value = Math.max(-0.2, Math.min(cards.value.length + 0.2, positionAt(firstCardAt(dragFrom) + dx)));
+};
+screen.dragEnd = (dx, vx, axis, dy, vy) => {
+  if (axis === 'y') {
+    const arm = focused.value.kind !== 'last' && (Math.abs(vy) > FLICK_PX_MS ? vy < 0 : lift.value > LIFT_ARM_PX);
+    lifting.value = false;
+    removing.value = arm;
+    lift.value = arm ? LIFT_PX : 0;
+    if (!arm) settle();
+    return;
+  }
+  const position = dragPosition.value == null ? restPosition.value : dragPosition.value;
+  dragPosition.value = null;
+  restOn(Math.abs(vx) > FLICK_PX_MS ? (vx < 0 ? Math.ceil(position) : Math.floor(position)) : Math.round(position));
 };
 let lastPress = 0;
 screen.press = () => {
   if (mode.value !== 'timer') return false;
-  const t = performance.now();
-  if (t - lastPress < (CT.config.multiClickMs || 350)) { clearTimer(); lastPress = 0; } else { toggleTimer(); lastPress = t; }
+  if (lift.value) return void keepCard();
+  const card = focused.value, t = performance.now();
+  const twice = t - lastPress < (CT.config.multiClickMs || 350);
+  lastPress = twice ? 0 : t;
+  if (card.kind === 'last') return void startLast(card.total / 60000);
+  if (card.kind !== 'timer') return void zoom(); // a meeting's countdown can't be paused
+  if (twice) removeTimer(card.id);
+  else toggleTimer(card.id);
+  if (timerView.value === 'deck') settle();
 };
-// Tapping the timer works it like a knob press: start, pause, and two quick taps reset.
-const root = ref(null);
-let removeGestures;
-onMounted(() => {
-  removeGestures = CT.gestures(root.value, {
-    tap: e => { if (state.current === 'clock' && mode.value === 'timer' && e.target.closest('.screen-stage')) CT.tap(() => screen.press()); },
-  });
-});
-onUnmounted(() => { if (removeGestures) removeGestures(); });
 </script>
 <template>
-  <section ref="root" id="screen-clock" class="screen fill flex" :class="{ active: state.current === 'clock', leaving: state.leaving === 'clock', timer: mode === 'timer' }">
-    <LeftRail :view="mode" :views="railViews" :truncate-lower="!resets">
+  <section id="screen-clock" class="screen fill flex" :class="{ active: state.current === 'clock', leaving: state.leaving === 'clock', timer: mode === 'timer', 'timer-deck': mode === 'timer' && timerView === 'deck', 'timer-instant': instant }">
+    <LeftRail :view="railView" :views="railViews" :truncate-lower="!resets" @click="backToDeck">
       <template #lower>
         <template v-if="resets"><div class="usage-resets">Resets: Session <b class="primary medium">{{ resets.session }}</b> · Week <b class="primary medium">{{ resets.week }}</b></div></template>
         <template v-else-if="next">{{ CT.timeText(next.start) }} <b class="primary medium">{{ next.title }}</b></template><template v-else-if="state.calendar.status === 'ok'">No events today</template>
@@ -160,12 +324,13 @@ onUnmounted(() => { if (removeGestures) removeGestures(); });
     <ScreenStage class="bg-panel">
       <!-- Every view stays drawn and only fades (see .fade-view), so a press doesn't have to build and
            paint the incoming one while the other is fading out. -->
-      <div class="fade-view c-view-timer fill" :class="{ on: mode === 'timer' }"><TimeTimer :remaining="remaining" :total="total" :idle="timer.status === 'set' && !timer.meeting" /><div v-if="timerResets" class="back-action font-small medium primary">reset <BackActionIcon name="refresh" /></div></div>
+      <div class="fade-view c-view-timer fill" :class="{ on: timerFull }" @click="backToDeck"><TimeTimer :remaining="focused.remaining" :total="focused.total" :idle="focused.status === 'set'" /><div v-if="timerResets" class="back-action font-small medium primary">reset <BackActionIcon name="refresh" /></div></div>
       <div v-for="p in providers" :key="p" class="fade-view fill" :class="{ on: mode === p }"><ClaudeUsage :provider="p" /></div>
       <div class="fade-view fill" :class="{ on: mode === 'clock' }">
         <AnalogClock v-if="face !== 'digital'" :numbers="face === 'numbers'" :now="state.current === 'clock' ? state.now : 0" />
         <div v-else class="c-digital fill"><span>{{ digits.hours }}</span><span class="c-digital-minutes"><span>:</span><span>{{ digits.minutes }}</span></span></div>
       </div>
     </ScreenStage>
+    <TimerDeck :cards="cards" :focus="focusIndex" :position="deckPosition" :dragging="dragPosition != null" :lift="lift" :lifting="lifting" :removing="removing" :on="mode === 'timer' && timerView === 'deck'" :zooming="zooming" :instant="instant" :clock="time.time" :next="next ? { time: CT.timeText(next.start), title: next.title } : null" @start="startFromPreset" @pick="pickCard" @remove="removeFocused" />
   </section>
 </template>
