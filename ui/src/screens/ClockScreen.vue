@@ -8,7 +8,7 @@ import TimeTimer from '../components/TimeTimer.vue';
 import ClaudeUsage from '../components/ClaudeUsage.vue';
 import BackActionIcon from '../components/BackActionIcon.vue';
 import { SESSION_MS, WEEK_MS, paceNumber, untilText, usageProviders, usageOf, usageName, usageUpdatedText } from '../usage.js';
-import { timer, total, remaining, timerLabel, timerTitle, timerUnit, stepPreset, currentMeetingKey, pickMeeting, toggleTimer, resetTimer, clearTimer } from '../timer.js';
+import { timer, total, remaining, timerLabel, timerTitle, stepPreset, currentMeetingKey, pickMeeting, toggleTimer, resetTimer, clearTimer } from '../timer.js';
 const parts = computed(() => CT.parts(state.now));
 const face = computed(() => state.settings.clockFace);
 const time = computed(() => CT.clockText(parts.value));
@@ -18,7 +18,7 @@ const next = computed(() => state.calendar.status === 'ok' ? state.calendar.even
 // The clock button, pressed on the clock, steps it to the timer, then each usage Settings → Usage
 // asks for (Claude, ChatGPT, both or none), then back. Knob and wheel work the timer only while
 // it's up: turn to pick a length, press to start or pause, press twice to reset. Past 60 minutes
-// there's a meeting stop: the end of the meeting going on now, or the start of the next one today.
+// there are meeting stops: the end of each meeting going on now, or the start of the next one today.
 // During a meeting the timer opens on it; reset there drops back to the preset, stopped. Opening a
 // usage asks the Mac for fresh numbers (Claude's at most once a minute).
 const providers = computed(() => usageProviders(state));
@@ -94,7 +94,7 @@ function usageRail(provider) {
   };
 }
 const railViews = computed(() => {
-  const views = { clock: { eyebrow: CT.MONTHS[parts.value.month], title: parts.value.date, subtitle: CT.DAYS[parts.value.day] }, timer: { eyebrow: timerLabel.value, title: timerTitle.value, unit: timerUnit.value, subtitle: time.value.time } };
+  const views = { clock: { eyebrow: CT.MONTHS[parts.value.month], title: parts.value.date, subtitle: CT.DAYS[parts.value.day] }, timer: { eyebrow: timerLabel.value, title: timerTitle.value, subtitle: time.value.time } };
   providers.value.forEach(p => { views[p] = usageRail(p); });
   return views;
 });

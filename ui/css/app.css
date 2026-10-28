@@ -1506,12 +1506,6 @@ h3 {
   font-weight: 600;
   white-space: nowrap;
 }
-/* A unit after a huge title (the timer's "24 min"): the title's serif, small, on its baseline. */
-.lr-unit {
-  margin-left: 12px;
-  font-size: 36px;
-  line-height: 1; /* or its own line box makes the title's line taller */
-}
 .weight-light {
   font-weight: 300;
 }
