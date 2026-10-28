@@ -10,7 +10,7 @@ import TimerDeck, { firstCardAt, positionAt } from '../components/TimerDeck.vue'
 import ClaudeUsage from '../components/ClaudeUsage.vue';
 import BackActionIcon from '../components/BackActionIcon.vue';
 import { SESSION_MS, WEEK_MS, paceNumber, untilText, usageProviders, usageOf, usageName, usageUpdatedText } from '../usage.js';
-import { cards, timerOnScreen, startTimer, toggleTimer, removeTimer, removeCard, removeDoneTimers } from '../timer.js';
+import { cards, timerOnScreen, startTimer, toggleTimer, resetTimer, removeTimer, removeCard, removeDoneTimers } from '../timer.js';
 const parts = computed(() => CT.parts(state.now));
 const face = computed(() => state.settings.clockFace);
 const time = computed(() => CT.clockText(parts.value));
@@ -83,7 +83,8 @@ screen.back = () => {
 // lifted far enough (or flicked) and it stays up, Remove showing; tap Remove to remove it, or swipe
 // it back down, tap it or press back to keep it. The last length used is always there: it lifts a
 // little and drops back. The knob press starts or pauses the timer you're on (twice:
-// puts it away); the back button puts away a paused or finished one, and the corner says so.
+// puts it away); the back button resets a paused or finished one to its whole length, counting
+// down again, and the corner says so (tap it for the same).
 // Turning the knob sets the volume.
 const SETTLE_MS = 5000, ZOOM_MS = 350, FRAME_MS = 40;
 const focusId = ref('last');
@@ -234,7 +235,7 @@ const timerResets = computed(() => focused.value.kind === 'timer' && (focused.va
 function timerBackPress() {
   if (lift.value) return void keepCard();
   if (!timerResets.value) return false;
-  removeTimer(focused.value.id);
+  resetTimer(focused.value.id);
 }
 // A usage that's been taken out of Settings → Usage while it's up gives way to the clock.
 watch(providers, list => { if (isUsage(mode.value) && !list.includes(mode.value)) mode.value = 'clock'; });

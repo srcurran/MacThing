@@ -135,6 +135,17 @@ export function toggleTimer(id) {
   } else return removeTimer(id);
   save();
 }
+/** Reset (the back button, or the corner's "reset"): the same timer back to its whole length,
+ *  counting down again. */
+export function resetTimer(id) {
+  const t = timers.find(t => t.id === id);
+  if (!t) return;
+  state.now = CT.now();
+  t.status = 'running';
+  t.endsAt = endOnHalfSecond(state.now + t.minutes * 60000);
+  t.left = 0;
+  save();
+}
 export function removeTimer(id) {
   const i = timers.findIndex(t => t.id === id);
   if (i >= 0) timers.splice(i, 1);
