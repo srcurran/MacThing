@@ -66,10 +66,13 @@ const event = computed(() => {
   if (started.length) return started.reduce(pick(true));
   return due.value.length ? due.value.reduce(pick(false)) : null;
 });
+// The card shows the meeting up, and the last one while it slides away once it's gone.
+let lastEvent = null;
+const card = computed(() => (lastEvent = event.value || lastEvent));
 // The back button's part, bottom right. Queued, the countdown's length is the meeting's, rounded up
 // to the minute. A zero-length reminder has nothing to time.
 const action = computed(() => {
-  const e = event.value;
+  const e = card.value;
   if (e.end <= e.start) return '';
   if (e.start > state.now) return queued.value === keyOf(e) ? 'Cancel timer' : 'Queue ' + minutesText(Math.ceil((e.end - e.start) / 60000)) + ' timer';
   return 'Show timer';
@@ -106,7 +109,7 @@ watch(() => queuedEvent.value && queuedEvent.value.start <= state.now, due => {
   save();
 }, { immediate: true });
 const when = computed(() => {
-  const minutes = Math.round((event.value.start - state.now) / 60000);
+  const minutes = Math.round((card.value.start - state.now) / 60000);
   if (minutes > 0) return 'In ' + minutes + ' min';
   if (minutes < 0) return -minutes + ' min ago';
   return 'Starting now';
@@ -114,8 +117,8 @@ const when = computed(() => {
 // "2:00 – 2:30 PM", keeping both AM/PMs only when the meeting spans noon or midnight; just
 // "2:00 PM" for a zero-length event.
 const range = computed(() => {
-  if (event.value.end <= event.value.start) return CT.timeText(event.value.start);
-  const start = CT.clockText(CT.parts(event.value.start)), end = CT.clockText(CT.parts(event.value.end));
+  if (card.value.end <= card.value.start) return CT.timeText(card.value.start);
+  const start = CT.clockText(CT.parts(card.value.start)), end = CT.clockText(CT.parts(card.value.end));
   return (start.ampm === end.ampm ? start.time : start.time + ' ' + start.ampm) + ' – ' + end.time + (end.ampm ? ' ' + end.ampm : '');
 });
 // A video call's location is its link (with a passcode in it, often): show the service instead.
@@ -129,15 +132,15 @@ function place(location) {
   return service ? service[1] : host;
 }
 // With no location, a call link from the event's URL or notes (the helper finds it) says where.
-const where = computed(() => place(event.value.location) || place(event.value.call));
+const where = computed(() => place(card.value.location) || place(card.value.call));
 </script>
 <template>
   <div class="meeting-alert fill flex" :class="{ on: !!event }" @click="tap('tap')">
-    <div v-if="event" class="m-card flex-col">
+    <div v-if="card" class="m-card flex-col">
       <div class="flex">
-        <div class="m-bar flex-none" :style="{ background: event.color }" />
+        <div class="m-bar flex-none" :style="{ background: card.color }" />
         <div class="flex-1 flex-col">
-          <div class="m-title clamp-2">{{ event.title || 'Untitled' }}</div>
+          <div class="m-title clamp-2">{{ card.title || 'Untitled' }}</div>
           <div class="m-range m-detail secondary tabular">{{ range }}</div>
           <div v-if="where" class="m-where m-detail muted truncate">{{ where }}</div>
         </div>

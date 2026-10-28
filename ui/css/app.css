@@ -828,7 +828,7 @@ h3 {
   background: var(--card);
   box-shadow: 0 -10px 60px var(--shadow);
   transform: translateY(100%);
-  transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1);
+  animation: m-card-down 0.3s cubic-bezier(0.4, 0, 1, 1);
 }
 #app.light .m-card {
   --card: var(--gray-850);
@@ -843,8 +843,19 @@ h3 {
 #app.ambient-on .m-when {
   color: var(--card); /* the pill is the text colour here */
 }
+/* It slides up from under the screen's bottom edge as the screen dims, and back down as it goes
+   (keyframes, not a transition: the card is new as it comes up, with no "before" to move from). */
 .meeting-alert.on .m-card {
   transform: none;
+  animation: m-card-up 0.45s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+@keyframes m-card-up {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+@keyframes m-card-down {
+  from { transform: none; }
+  to { transform: translateY(100%); }
 }
 /* The time until the meeting sits apart from the rest as a filled pill below the calendar
    colour bar, with its text lined up with the text above (bar 8 + 26 gap − its own 16
