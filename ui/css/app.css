@@ -1542,6 +1542,15 @@ h3 {
 .usage-resets {
   white-space: nowrap;
 }
+/* The clock's rail line (next event, or a usage view's resets): every view's line stays drawn in
+   one spot and crossfades with the rest of its view (.fade-view). */
+.rail-lower-views {
+  display: grid;
+}
+.rail-lower-views > * {
+  grid-area: 1 / 1;
+  min-width: 0;
+}
 .back-action {
   position: absolute;
   right: 24px;

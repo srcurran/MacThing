@@ -252,11 +252,17 @@ const railViews = computed(() => {
   return views;
 });
 // On a usage, the line at the bottom is when its windows reset instead of the next event.
-const resets = computed(() => {
-  if (!isUsage(mode.value)) return null;
-  const u = usageOf(state, mode.value);
-  return u.status === 'ok' ? { session: untilText(u.session.resetsAt, state.now, SESSION_MS), week: untilText(u.week.resetsAt, state.now, WEEK_MS) } : null;
+// Each usage view's reset times (null until it has a reading), all kept so the rail's bottom line
+// can crossfade with the rest of the view instead of swapping as the swap starts.
+const resetsByProvider = computed(() => {
+  const out = {}; // no Object.fromEntries on the device's Chromium 69
+  for (const p of providers.value) {
+    const u = usageOf(state, p);
+    out[p] = u.status === 'ok' ? { session: untilText(u.session.resetsAt, state.now, SESSION_MS), week: untilText(u.week.resetsAt, state.now, WEEK_MS) } : null;
+  }
+  return out;
 });
+const resets = computed(() => (isUsage(mode.value) && resetsByProvider.value[mode.value]) || null);
 // The meeting alert's start button: brings that meeting's timer up, full size, on the clock screen.
 CT.showTimer = id => {
   mode.value = 'timer';
@@ -414,10 +420,12 @@ screen.press = () => {
 </script>
 <template>
   <section id="screen-clock" class="screen fill flex" :class="{ active: state.current === 'clock', leaving: state.leaving === 'clock', timer: mode === 'timer', 'timer-deck': mode === 'timer' && timerView === 'deck', 'timer-instant': instant }">
-    <LeftRail :view="railView" :views="railViews" :truncate-lower="!resets" @click="backToDeck">
+    <LeftRail :view="railView" :views="railViews" :truncate-lower="false" @click="backToDeck">
       <template #lower>
-        <template v-if="resets"><div class="usage-resets">Resets: Session <b class="primary medium">{{ resets.session }}</b> · Week <b class="primary medium">{{ resets.week }}</b></div></template>
-        <template v-else-if="next">{{ CT.timeText(next.start) }} <b class="primary medium">{{ next.title }}</b></template><template v-else-if="state.calendar.status === 'ok'">No events today</template>
+        <div class="rail-lower-views">
+          <div v-for="p in providers" :key="p" class="fade-view" :class="{ on: mode === p && !!resetsByProvider[p] }"><div v-if="resetsByProvider[p]" class="usage-resets">Resets: Session <b class="primary medium">{{ resetsByProvider[p].session }}</b> · Week <b class="primary medium">{{ resetsByProvider[p].week }}</b></div></div>
+          <div class="fade-view truncate" :class="{ on: !resets }"><template v-if="next">{{ CT.timeText(next.start) }} <b class="primary medium">{{ next.title }}</b></template><template v-else-if="state.calendar.status === 'ok'">No events today</template></div>
+        </div>
       </template>
     </LeftRail>
     <ScreenStage class="bg-panel">
