@@ -257,7 +257,7 @@ function usageRail(provider) {
 const timerFull = computed(() => mode.value === 'timer' && timerView.value === 'timer');
 const railView = computed(() => (mode.value === 'timer' && !timerFull.value ? 'deck' : mode.value));
 const railViews = computed(() => {
-  const views = { clock: { eyebrow: CT.MONTHS[parts.value.month], title: parts.value.date, subtitle: CT.DAYS[parts.value.day] }, timer: { eyebrow: focused.value.label, title: focused.value.title, subtitle: time.value.time }, deck: { title: '' } };
+  const views = { clock: { eyebrow: CT.MONTHS[parts.value.month], title: parts.value.date, subtitle: CT.DAYS[parts.value.day] }, timer: { eyebrow: focused.value.railLabel || focused.value.label, title: focused.value.title, subtitle: time.value.time }, deck: { title: '' } };
   providers.value.forEach(p => { views[p] = usageRail(p); });
   return views;
 });
