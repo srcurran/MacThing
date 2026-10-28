@@ -16,6 +16,9 @@ CT.on('reminder', msg => {
 const meetingOpen = CT.modalOpen || (() => false);
 const meetingDismiss = CT.dismissModal || (() => false);
 const reminder = computed(() => (meetingOpen() ? null : queue.value[0] || null));
+// The card shows the reminder up, and the last one while it slides away once it's gone.
+let lastReminder = null;
+const card = computed(() => (lastReminder = reminder.value || lastReminder));
 function done() {
   queue.value = queue.value.slice(1);
 }
@@ -35,15 +38,15 @@ CT.dismissModal = key => {
 };
 // The pill: "Every 45 min", or the time it was set for ("3:00 PM").
 const every = computed(() => {
-  if (reminder.value.repeat === 'times') return CT.timeText(reminder.value.at);
-  const m = reminder.value.every;
+  if (card.value.repeat === 'times') return CT.timeText(card.value.at);
+  const m = card.value.every;
   return 'Every ' + (m % 60 ? m + ' min' : m / 60 + (m === 60 ? ' hour' : ' hours'));
 });
 </script>
 <template>
   <div class="meeting-alert reminder-alert fill flex" :class="{ on: !!reminder }" @click="CT.tap(() => CT.dismissModal('tap'))">
-    <div v-if="reminder" class="m-card flex-col">
-      <div class="m-title clamp-2">{{ reminder.text }}</div>
+    <div v-if="card" class="m-card flex-col">
+      <div class="m-title clamp-2">{{ card.text }}</div>
       <div class="m-foot flex">
         <div class="m-when r-every">{{ every }}</div>
         <div class="m-start">Done</div>
