@@ -1,7 +1,7 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue';
 import { state, CT } from '../state.js';
-import { meetingCardId, minutesText } from '../timer.js';
+import { meetingCardId, minutesText, askForMeeting } from '../timer.js';
 // Settings → Meeting alerts: a sheet over the bottom of every screen from a timed event's alert
 // (its own, from the Mac's Calendar, or a fixed few minutes before) until the meeting ends. The
 // back button under the knob brings up the meeting's countdown on the clock's timer (every meeting
@@ -83,9 +83,12 @@ CT.dismissModal = key => {
   const e = event.value;
   if (key === 'Escape' && action.value) {
     if (e.start > state.now) { // queue it, or cancel that; the card stays
-      setQueued(queued.value === keyOf(e) ? '' : keyOf(e));
+      const queue = queued.value !== keyOf(e);
+      setQueued(queue ? keyOf(e) : '');
+      askForMeeting(e, queue);
       return true;
     }
+    askForMeeting(e);
     CT.showTimer(meetingCardId(e));
   }
   // A press dismisses only this card. Before the meeting starts, it comes back as it does.

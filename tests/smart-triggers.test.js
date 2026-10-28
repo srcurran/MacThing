@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { usageWatch, weatherWatch, wetSoon, wetNote, heat } from '../ui/src/smart-triggers.js';
+import { usageWatch, weatherWatch, wetSoon, wetNote, heat, timerWatch } from '../ui/src/smart-triggers.js';
 
 const HOUR = 3600000, MIN = 60000;
 const T0 = Date.UTC(2026, 9, 23, 12);
@@ -163,4 +163,41 @@ test('usage: a session that is still hot when the next one starts does not switc
   const second = first + 5 * HOUR;
   assert.equal(check(usage(95, first), first), 'reset');
   assert.equal(check(usage(10, second), first + 5 * MIN), ''); // 10% in 5 minutes: still hot
+});
+
+test('timer: comes up once, a minute before it ends', () => {
+  const check = timerWatch();
+  const t = { id: 'a', endsAt: T0 + 5 * MIN };
+  assert.equal(check([t], T0), null);
+  assert.equal(check([t], T0 + 3 * MIN), null);
+  assert.equal(check([t], T0 + 4 * MIN), t); // 1:00 left
+  assert.equal(check([t], T0 + 4 * MIN + 1000), null); // only once
+  assert.equal(check([t], T0 + 5 * MIN), null);
+});
+
+test('timer: one first seen in its last minute (a page load) is left be', () => {
+  const check = timerWatch();
+  const t = { id: 'a', endsAt: T0 + 30000 };
+  assert.equal(check([t], T0), null);
+  assert.equal(check([t], T0 + 1000), null);
+});
+
+test('timer: paused and started again, it can come up again', () => {
+  const check = timerWatch();
+  assert.equal(check([{ id: 'a', endsAt: T0 + 2 * MIN }], T0), null);
+  assert.equal(check([{ id: 'a', endsAt: T0 + 2 * MIN }], T0 + MIN).id, 'a');
+  assert.equal(check([], T0 + MIN + 1000), null); // paused at 0:59
+  assert.equal(check([{ id: 'a', endsAt: T0 + 3 * MIN }], T0 + 2 * MIN), null); // resumed with 0:59: too late
+  assert.equal(check([], T0 + 2 * MIN), null);
+  assert.equal(check([{ id: 'a', endsAt: T0 + 5 * MIN }], T0 + 3 * MIN), null); // later, with 2:00
+  assert.equal(check([{ id: 'a', endsAt: T0 + 5 * MIN }], T0 + 4 * MIN).id, 'a');
+});
+
+test('timer: two reaching their last minute together come up in turn, the first to end first', () => {
+  const check = timerWatch();
+  const a = { id: 'a', endsAt: T0 + 5 * MIN + 500 }, b = { id: 'b', endsAt: T0 + 5 * MIN };
+  assert.equal(check([a, b], T0), null);
+  assert.equal(check([a, b], T0 + 4 * MIN + 600), b);
+  assert.equal(check([a, b], T0 + 4 * MIN + 1600), a);
+  assert.equal(check([a, b], T0 + 4 * MIN + 2600), null);
 });

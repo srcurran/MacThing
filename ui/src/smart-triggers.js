@@ -103,3 +103,31 @@ export function weatherWatch() {
     return fire ? wetNote(soon.code) : '';
   };
 }
+
+// A countdown you started comes up this long before it ends.
+export const TIMER_LEAD_MS = 60000;
+
+/**
+ * check(countdowns, now), with countdowns the ones you started that are running ({ id, endsAt }),
+ * returns the one that has just come within TIMER_LEAD_MS of its end, else null. Each comes up
+ * once, and only if it was seen with more than that left (one started with less, or first seen
+ * after a page load in its last minute, is left be).
+ */
+export function timerWatch() {
+  const seen = {}; // id → 'early' (more than the lead left when seen), 'done' (came up, or never will)
+  return function check(countdowns, now) {
+    const live = {};
+    let due = null;
+    (countdowns || []).forEach(c => {
+      live[c.id] = true;
+      const left = c.endsAt - now;
+      if (left > TIMER_LEAD_MS) { if (!seen[c.id]) seen[c.id] = 'early'; return; }
+      if (seen[c.id] !== 'early' || left <= 0) seen[c.id] = 'done';
+      else if (!due || c.endsAt < due.endsAt) due = c; // two at once: the one ending first, the other next second
+    });
+    if (due) seen[due.id] = 'done';
+    // A paused timer drops out and comes back with a new end: it can come up again then.
+    Object.keys(seen).forEach(id => { if (!live[id]) delete seen[id]; });
+    return due;
+  };
+}

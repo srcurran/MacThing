@@ -1,14 +1,17 @@
 import { watch } from 'vue';
 import { state, CT } from './state.js';
-import { timerBusy } from './timer.js';
+import { timerBusy, startedCountdowns } from './timer.js';
 import { usageProviders, usageName } from './usage.js';
-import { usageWatch, weatherWatch } from './smart-triggers.js';
+import { usageWatch, weatherWatch, timerWatch } from './smart-triggers.js';
 
 // Settings → Smart switching: the screen moves by itself when something is worth a look.
 //   Claude or ChatGPT usage heats up (the Claude-o-meter gains a 🔥, a second 🔥 or the 💀, which
 //   follow the burn of the last 10–20 minutes; again when fires come back after 15 calm minutes)
 //   or comes back (a session or week that was well used resets): that usage, on the clock screen.
 //   Rain or snow is due within the hour: the weather's forecast.
+//   A timer you started (a preset, or a meeting's countdown you queued or showed from its alert)
+//   has a minute left: that timer, full size. This one goes even with the timer up (another
+//   timer, say), and nothing else takes its place while it waits.
 // Taken off Now Playing, it goes back there on the first song change after HOLD_MS, so the screen
 // it put up stays at least that long but not for as long as the music goes on. Moving the screen,
 // or pressing a top button, settles it where it is. (Meetings have their own alert, so the
@@ -19,7 +22,8 @@ const PENDING_MS = 3 * 60000; // something in the way for longer than this: let 
 
 const usageChecks = { claude: usageWatch(), chatgpt: usageWatch() };
 const weatherCheck = weatherWatch();
-let pending = null; // { show: () => void, note, until }
+const timerCheck = timerWatch();
+let pending = null; // { show: () => void, note, until, timer? }
 let placed = ''; // the screen this put up, until someone moves off it
 let returnTo = ''; // 'nowplaying' when that's where this took the screen from
 let holdUntil = 0;
@@ -27,16 +31,17 @@ let lastInput = -Infinity;
 
 const enabled = () => !!state.settings.smartSwitch;
 const timerUp = () => timerBusy.value;
-function busy() {
+function busy(forTimer) {
   return state.offline || state.asleep || !!CT.lockedTo || state.current === 'settings'
-    || (CT.modalOpen && CT.modalOpen()) || timerUp() || performance.now() - lastInput < QUIET_MS;
+    || (CT.modalOpen && CT.modalOpen()) || (!forTimer && timerUp()) || performance.now() - lastInput < QUIET_MS;
 }
 
 // How long the note saying why the screen moved stays up.
 const NOTE_MS = 5000;
 
-function want(show, note) {
-  if (enabled()) pending = { show, note, until: performance.now() + PENDING_MS };
+function want(show, note, timer) {
+  if (!enabled() || (pending && pending.timer && !timer)) return;
+  pending = { show, note, timer, until: performance.now() + PENDING_MS };
 }
 
 function go({ show, note }) {
@@ -64,9 +69,15 @@ CT.onSecond(now => {
   });
   const wet = weatherCheck(state.weather, now);
   if (wet) want(() => CT.showForecast && CT.showForecast(), wet);
+  const ending = timerCheck(startedCountdowns(), now);
+  if (ending) {
+    want(() => CT.showTimer && CT.showTimer(ending.id), 'Timer ends in 1 min', true);
+    // Once it's over there's nothing to warn about.
+    if (pending && pending.timer) pending.until = performance.now() + Math.max(0, ending.endsAt - now);
+  }
   if (!pending) return;
   if (!enabled() || performance.now() > pending.until) pending = null;
-  else if (!busy()) { const next = pending; pending = null; go(next); }
+  else if (!busy(pending.timer)) { const next = pending; pending = null; go(next); }
 });
 
 function settle() { placed = ''; returnTo = ''; }
