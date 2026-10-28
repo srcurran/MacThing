@@ -11,7 +11,9 @@ import { computed } from "vue";
 // (Figma 202:1439). Before it starts (idle) it's a full circle at half strength with only the
 // hub's hole in it; once it's running, it's solid, the hand's cut-out appears and the drawn hand
 // fades in over it, the two moving together.
-const props = defineProps({ remaining: Number, total: Number, idle: Boolean });
+// Paused, the hand and its cut-out go (the pause badge sits over the hub instead).
+const props = defineProps({ remaining: Number, total: Number, idle: Boolean, paused: Boolean });
+const handless = computed(() => props.idle || props.paused);
 // Several dials can be up at once (the timer cards), so each cuts with its own mask.
 const maskId = 't-hand-cut-' + (++dials);
 function point(r, degrees) {
@@ -74,13 +76,13 @@ const minutes = computed(() => {
       cx="240"
       cy="240"
       r="145"
-      :mask="'url(#' + maskId + (idle ? '-hub' : '') + ')'"
+      :mask="'url(#' + maskId + (handless ? '-hub' : '') + ')'"
     />
     <path
       v-else-if="degrees > 0"
       class="t-left"
       :d="wedge"
-      :mask="'url(#' + maskId + (idle ? '-hub' : '') + ')'"
+      :mask="'url(#' + maskId + (handless ? '-hub' : '') + ')'"
     />
     <circle
       v-for="(m, i) in minutes"
@@ -91,7 +93,7 @@ const minutes = computed(() => {
       class="t-minute"
       :class="{ left: m.left }"
     />
-    <g v-if="!idle" class="t-hand-in">
+    <g v-if="!handless" class="t-hand-in">
       <line class="t-hand" x1="240" y1="240" :x2="hand.x" :y2="hand.y" />
       <circle class="t-hub" cx="240" cy="240" r="17" />
     </g>
