@@ -111,6 +111,29 @@ export const cards = computed(() => {
   return list;
 });
 
+// Meeting countdowns you asked for (the meeting alert's Queue timer or Show timer): card id → the
+// meeting's end. Smart switching brings these up before they end, as it does your own timers.
+// Kept across page reloads.
+const ASKED_STORE = 'ct-timer-asked';
+const asked = reactive(load(ASKED_STORE, {}));
+function saveAsked() {
+  Object.keys(asked).forEach(id => { if (asked[id] < state.now) delete asked[id]; });
+  try { localStorage.setItem(ASKED_STORE, JSON.stringify(asked)); } catch (e) {}
+}
+/** A meeting's countdown (to its end) was asked for, or (with on false) no longer is. */
+export function askForMeeting(e, on = true) {
+  if (on) asked[meetingCardId(e)] = e.end;
+  else delete asked[meetingCardId(e)];
+  saveAsked();
+}
+/** The countdowns you started that are running, { id, endsAt }: your timers, and the meeting
+ *  countdowns you asked for while their card is up. */
+export function startedCountdowns() {
+  const list = timers.filter(t => t.status === 'running').map(t => ({ id: t.id, endsAt: t.endsAt }));
+  cards.value.forEach(c => { if (c.kind === 'meeting' && asked[c.id]) list.push({ id: c.id, endsAt: state.now + c.remaining }); });
+  return list;
+}
+
 /** Starts a new timer of that many minutes, ahead of any already going, so its card goes in by
  *  the presets and the deck only has to move one step to it. Returns its card's id. */
 export function startTimer(minutes) {
