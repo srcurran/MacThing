@@ -136,8 +136,9 @@ CT.on('command', action => {
       np.playing = !np.playing;
       np.rate = np.playing ? 1 : 0;
     }
-    // Pausing on Now Playing needs no flash: the paused badge shows the pause icon and stays.
-    if (state.current !== 'nowplaying' || !np.active || np.playing) CT.flash(!np.active || np.playing ? 'play' : 'pause');
+    // On Now Playing a track's play/pause needs no flash: the paused badge fades in with the pause
+    // icon, and out again (still showing it) on resume, the way the timer's does.
+    if (state.current !== 'nowplaying' || !np.active) CT.flash(!np.active || np.playing ? 'play' : 'pause');
   } else if (action === 'next' || action === 'previous') CT.flash(action);
 });
 // Skips made on the Mac (keyboard, Music, Spotify…) show here the same way.
