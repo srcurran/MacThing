@@ -1024,6 +1024,10 @@ h3 {
 .paused .paused-glyph {
   opacity: 1;
 }
+/* Over the timer's dial the badge is solid, so the wedge and hand don't show through it. */
+.c-view-timer .paused-glyph {
+  background: var(--black);
+}
 
 /* The playing app's icon, for sources other than Music. */
 .badge {
