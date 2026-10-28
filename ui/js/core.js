@@ -134,8 +134,9 @@ export function initializeRuntime(state) {
   CT.current = 'nowplaying';
   var beforeSettings = 'nowplaying';
 
-  /** Registers a screen. Optional hooks: show(), hide(), turn(steps), press(), and reselect()
-   * for its own button pressed while it's already showing. turn and press can return false to
+  /** Registers a screen. Optional hooks: show(), hide(), turn(steps), press(), and reselect(steps)
+   * for its own button pressed while it's already showing (steps 1), or a swipe up (1) or down (-1)
+   * through its views. turn and press can return false to
    * leave the input to the default (volume, and play/pause/next/previous). */
   CT.screen = function (name) {
     var def = { name: name };
@@ -248,7 +249,7 @@ export function initializeRuntime(state) {
     autoScreen = opening = false;
     Object.keys(saved.reselects || {}).forEach(function (name) {
       var screen = CT.screens[name];
-      for (var i = 0; screen && screen.reselect && i < saved.reselects[name]; i++) screen.reselect();
+      if (screen && screen.reselect && saved.reselects[name]) screen.reselect(saved.reselects[name]);
       if (screen && screen.reselect) reselects[name] = saved.reselects[name];
     });
     CT.show(saved.name);
@@ -495,9 +496,9 @@ export function initializeRuntime(state) {
     };
   };
 
-  // Swiping up or down anywhere moves between the pages in their top buttons' order: up to the
-  // next one, down to the previous, stopping at the ends. Not on Settings or over an alert card;
-  // with the screen dark, a swipe only wakes it.
+  // Swiping up or down steps through the screen's own views, the way its top button does pressed
+  // again (the clock: clock, timer, usage): up to the next, down back to the previous. Not over an
+  // alert card or while the Mac holds the screen; with the screen dark, a swipe only wakes it.
   var pageSwipe = null;
   window.addEventListener('pointerdown', function (e) {
     pageSwipe = { id: e.pointerId, x: e.clientX, y: e.clientY };
@@ -508,12 +509,15 @@ export function initializeRuntime(state) {
     if (!start || e.pointerId !== start.id) return;
     var dx = e.clientX - start.x, dy = e.clientY - start.y;
     if (Math.abs(dy) < SWIPE_PX || Math.abs(dy) <= Math.abs(dx) * 1.5) return;
-    var from = PAGES.indexOf(CT.current), to = from + (dy < 0 ? 1 : -1);
-    if (from < 0 || (CT.modalOpen && CT.modalOpen())) return;
+    var screen = CT.screens[CT.current], steps = dy < 0 ? 1 : -1;
+    if (!screen || !screen.reselect || CT.lockedTo || (CT.modalOpen && CT.modalOpen())) return;
     debugInput('swipe ' + (dy < 0 ? 'up' : 'down'));
     emit('input', 'tap');
-    if (wakeInstead() || to < 0 || to >= PAGES.length) return;
-    runButton('screen:' + PAGES[to]);
+    if (wakeInstead()) return;
+    autoScreen = false;
+    reselects[CT.current] = (reselects[CT.current] || 0) + steps;
+    saveDevScreen();
+    screen.reselect(steps);
   }, true);
   window.addEventListener('pointercancel', function () { pageSwipe = null; }, true);
 

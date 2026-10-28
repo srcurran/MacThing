@@ -26,8 +26,9 @@ const modes = computed(() => ['clock', 'timer', ...providers.value]);
 const isUsage = m => m === 'claude' || m === 'chatgpt';
 const mode = ref('clock');
 const screen = CT.screen('clock');
-screen.reselect = () => {
-  mode.value = modes.value[(modes.value.indexOf(mode.value) + 1) % modes.value.length];
+screen.reselect = (steps = 1) => {
+  const n = modes.value.length;
+  mode.value = modes.value[(((modes.value.indexOf(mode.value) + steps) % n) + n) % n];
   if (mode.value === 'timer') pickMeeting();
   if (isUsage(mode.value)) CT.send({ type: 'refreshUsage' });
 };

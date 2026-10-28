@@ -69,8 +69,8 @@ function fitTitle() {
 watch([() => np.value.active, () => np.value.artist, () => np.value.title, album, () => state.current], () => nextTick(fitTitle));
 watch(() => [state.np, state.npAt], updateProgress);
 // Touch: tapping anywhere on the screen plays or pauses, the same as a knob press. Swiping
-// sideways skips: left to the next track, right back to the previous one (up and down change
-// screens, in core.js). With nothing playing, tapping today's calendar cover has the Mac draw a random other one (until tomorrow's).
+// sideways skips: left to the next track, right back to the previous one (up and down step
+// through a screen's views, in core.js; Now Playing has none). With nothing playing, tapping today's calendar cover has the Mac draw a random other one (until tomorrow's).
 let removeGestures;
 function gesture(action) { if (state.current === 'nowplaying') CT.tap(action); }
 const screen = CT.screen('nowplaying');

@@ -115,8 +115,8 @@ screen.show = () => {
   nextTick(fitClock);
   fitEvents();
 };
-screen.reselect = () => {
-  view.value = view.value === "agenda" ? "month" : "agenda";
+screen.reselect = (steps = 1) => {
+  if (steps % 2) view.value = view.value === "agenda" ? "month" : "agenda";
 };
 onMounted(() => {
   fitClock();
