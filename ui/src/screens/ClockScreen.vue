@@ -151,6 +151,15 @@ function settle() {
 // The card grows to fill the screen first (the rest of the deck fading away), then, at full size,
 // the full-size timer takes its place with no fade: it looks the same, so the swap can't be seen.
 // Back to the deck is the same in reverse.
+// Turns the fades back on after a swap made with them off (instant). The device can take longer
+// than FRAME_MS to get to the swap, so first make it work out the swapped styles, fades still off:
+// otherwise the fades come back on first and play the swap, each at its own pace (the rail's
+// next-event line before its time and the dial, which wait 0.3s, see .fade-view.on).
+function endInstant() {
+  const el = document.getElementById('screen-clock');
+  if (el) void el.offsetHeight;
+  instant.value = false;
+}
 function zoom() {
   clearTimeout(settleTimer);
   if (mode.value !== 'timer' || timerView.value !== 'deck' || lift.value || zooming.value) return;
@@ -159,7 +168,7 @@ function zoom() {
   zoomTimer = setTimeout(() => {
     instant.value = true;
     timerView.value = 'timer';
-    zoomTimer = setTimeout(() => { zooming.value = false; instant.value = false; }, FRAME_MS);
+    zoomTimer = setTimeout(() => { endInstant(); zooming.value = false; }, FRAME_MS);
   }, ZOOM_MS);
 }
 // then runs once the card's starting to shrink, in the same frame (a swipe moves the deck then).
@@ -168,7 +177,7 @@ function unzoom(then) {
   instant.value = true;
   zooming.value = true;
   timerView.value = 'deck';
-  zoomTimer = setTimeout(() => { instant.value = false; zooming.value = false; if (then) then(); }, FRAME_MS);
+  zoomTimer = setTimeout(() => { endInstant(); zooming.value = false; if (then) then(); }, FRAME_MS);
 }
 /** Opening the timer: on the card asked for (full size); else back where it was left (the deck
  *  where it rested, or that card full size), unless that card's gone or its timer has finished;
@@ -302,7 +311,7 @@ function finishPage(done) {
   if (done && pg && cards.value.some(c => c.id === pg.to)) { focusId.value = pg.to; atPresets.value = false; }
   timerView.value = 'timer';
   clearTimeout(zoomTimer);
-  zoomTimer = setTimeout(() => { instant.value = false; }, FRAME_MS);
+  zoomTimer = setTimeout(endInstant, FRAME_MS);
 }
 const easeOut = x => 1 - Math.pow(1 - x, 3);
 const easeInOut = x => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
