@@ -23,6 +23,12 @@ test('only an unambiguous complete tab title can supply a thumbnail', () => {
   assert.equal(matchingUrl('Example\tfile:///private/example', 'Example'), null);
 });
 
+test('a YouTube unread count in the tab title still matches', () => {
+  const url = 'https://www.youtube.com/watch?v=abcdefghijk';
+  assert.equal(matchingUrl(`(2) Example - YouTube\t${url}`, 'Example'), url);
+  assert.equal(matchingUrl(`(99+) Example - YouTube\t${url}`, 'Example'), url);
+});
+
 test('the known Chromium icon is a placeholder only for browsers', () => {
   assert.equal(isBrowserPlaceholder('company.thebrowser.Browser', '8e5b3282f2d4863b'), true);
   assert.equal(isBrowserPlaceholder('com.apple.Music', '8e5b3282f2d4863b'), false);
