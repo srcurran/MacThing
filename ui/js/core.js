@@ -495,6 +495,28 @@ export function initializeRuntime(state) {
     };
   };
 
+  // Swiping up or down anywhere moves between the pages in their top buttons' order: up to the
+  // next one, down to the previous, stopping at the ends. Not on Settings or over an alert card;
+  // with the screen dark, a swipe only wakes it.
+  var pageSwipe = null;
+  window.addEventListener('pointerdown', function (e) {
+    pageSwipe = { id: e.pointerId, x: e.clientX, y: e.clientY };
+  }, true);
+  window.addEventListener('pointerup', function (e) {
+    var start = pageSwipe;
+    pageSwipe = null;
+    if (!start || e.pointerId !== start.id) return;
+    var dx = e.clientX - start.x, dy = e.clientY - start.y;
+    if (Math.abs(dy) < SWIPE_PX || Math.abs(dy) <= Math.abs(dx) * 1.5) return;
+    var from = PAGES.indexOf(CT.current), to = from + (dy < 0 ? 1 : -1);
+    if (from < 0 || (CT.modalOpen && CT.modalOpen())) return;
+    debugInput('swipe ' + (dy < 0 ? 'up' : 'down'));
+    emit('input', 'tap');
+    if (wakeInstead() || to < 0 || to >= PAGES.length) return;
+    runButton('screen:' + PAGES[to]);
+  }, true);
+  window.addEventListener('pointercancel', function () { pageSwipe = null; }, true);
+
   document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 
   // ---- Volume (knob turns anywhere but settings) --------------------------------------
