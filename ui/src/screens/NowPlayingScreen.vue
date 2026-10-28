@@ -68,9 +68,11 @@ function fitTitle() {
 // Now Playing message (every 15s, and with each play/pause) replaces state.np.
 watch([() => np.value.active, () => np.value.artist, () => np.value.title, album, () => state.current], () => nextTick(fitTitle));
 watch(() => [state.np, state.npAt], updateProgress);
-// Touch: tapping anywhere on the screen plays or pauses, the same as a knob press. Swiping
-// sideways skips: left to the next track, right back to the previous one (up and down step
-// through a screen's views, in core.js; Now Playing has none). With nothing playing, tapping today's calendar cover has the Mac draw a random other one (until tomorrow's).
+// Touch: tapping the media card (the art) plays or pauses, the same as a knob press; a tap
+// elsewhere on the screen does nothing. With nothing playing, tapping today's calendar cover has
+// the Mac draw a random other one (until tomorrow's). Swiping sideways anywhere on the screen
+// skips: left to the next track, right back to the previous one (up and down step through a
+// screen's views, in core.js; Now Playing has none).
 let removeGestures;
 function gesture(action) { if (state.current === 'nowplaying') CT.tap(action); }
 const screen = CT.screen('nowplaying');
@@ -79,7 +81,10 @@ let timer;
 onMounted(() => {
   fitTitle();
   removeGestures = CT.gestures(root.value, {
-    tap: e => gesture(!np.value.active && coverUrl.value && e.target.closest('.screen-stage') ? () => CT.send({ type: 'rerollCover' }) : 'playpause'),
+    tap: e => {
+      if (!e.target.closest('.screen-stage')) return;
+      gesture(!np.value.active && coverUrl.value ? () => CT.send({ type: 'rerollCover' }) : 'playpause');
+    },
     swipe: dir => gesture(dir === 'left' ? 'next' : 'previous'),
   });
   timer = setInterval(() => { if (state.current === 'nowplaying' && !state.asleep) updateProgress(); }, 250);
