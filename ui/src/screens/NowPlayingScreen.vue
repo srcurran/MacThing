@@ -5,6 +5,7 @@ import LeftRail from '../components/LeftRail.vue';
 import ScreenStage from '../components/ScreenStage.vue';
 import UiProgress from '../components/UiProgress.vue';
 import Artwork from '../components/Artwork.vue';
+import PauseDisc from '../components/PauseDisc.vue';
 const root = ref(null), rail = ref(null);
 const np = computed(() => state.np);
 const album = computed(() => !np.value.active ? '' : np.value.album || (np.value.kind !== 'music' && np.value.source ? np.value.source.name : '') || '');
@@ -103,7 +104,7 @@ onUnmounted(() => { clearInterval(timer); if (removeGestures) removeGestures(); 
     <ScreenStage :class="{ 'bg-panel': hasArt || coverUrl }"><!-- behind art: one continuous background, so nothing is left as a square when the art fades -->
       <Artwork :url="stageArt" />
       <div v-if="!hasArt && !coverUrl" class="np-placeholder fill flex center"><svg><use href="#i-note" /></svg></div><!-- the cover's stand-in, idle or for a track without art -->
-      <div class="paused-glyph disc fill flex center" :style="{ color: state.flashing ? state.flash.color : '' }"><svg><use :href="'#i-' + (state.flashing ? state.flash.icon : 'pause')" /></svg></div><!-- a flash here swaps its icon into this badge for a moment, in place of a second disc -->
+      <PauseDisc :paused="np.active && !np.playing" :icon="state.flashing ? state.flash.icon : 'pause'" :color="state.flashing ? state.flash.color : ''"><div class="art-img fill" :style="{ backgroundImage: stageArt ? 'url(' + JSON.stringify(stageArt) + ')' : 'none' }" /></PauseDisc><!-- a flash here swaps its icon into this badge for a moment, in place of a second disc -->
       <img v-if="icon" class="badge" :src="icon" alt="" />
     </ScreenStage>
   </section>
