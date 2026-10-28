@@ -470,6 +470,31 @@ export function initializeRuntime(state) {
     else CT.command(action);
   };
 
+  /** Taps and horizontal swipes on an element. on.tap(event) gets a touch that barely moved;
+   *  on.swipe('left' | 'right') one that travelled mostly sideways. Returns a function that
+   *  removes the listeners. Click events don't work for this: one still fires after a swipe. */
+  var TAP_PX = 20, SWIPE_PX = 60;
+  CT.gestures = function (el, on) {
+    var start = null;
+    function down(e) { start = { id: e.pointerId, x: e.clientX, y: e.clientY }; }
+    function up(e) {
+      if (!start || e.pointerId !== start.id) return;
+      var dx = e.clientX - start.x, dy = e.clientY - start.y;
+      start = null;
+      if (on.swipe && Math.abs(dx) >= SWIPE_PX && Math.abs(dx) > Math.abs(dy) * 1.5) on.swipe(dx < 0 ? 'left' : 'right');
+      else if (on.tap && Math.abs(dx) < TAP_PX && Math.abs(dy) < TAP_PX) on.tap(e);
+    }
+    function cancel() { start = null; }
+    el.addEventListener('pointerdown', down);
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', cancel);
+    return function () {
+      el.removeEventListener('pointerdown', down);
+      el.removeEventListener('pointerup', up);
+      el.removeEventListener('pointercancel', cancel);
+    };
+  };
+
   document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 
   // ---- Volume (knob turns anywhere but settings) --------------------------------------

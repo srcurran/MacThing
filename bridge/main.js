@@ -528,6 +528,8 @@ function onDeviceMessage(msg) {
       return openSettingsPage(msg.section);
     case 'retryWeather':
       return retryWeather(msg.quiet);
+    case 'rerollCover':
+      return perpetual.reroll();
     case 'refreshUsage':
       return Promise.allSettled([chatgptUsage.ask(), usage.ask()]).then(() => {
         if (msg.ack) link?.send({ type: 'usageRefreshed' });

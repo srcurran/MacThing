@@ -68,17 +68,24 @@ function fitTitle() {
 // Now Playing message (every 15s, and with each play/pause) replaces state.np.
 watch([() => np.value.active, () => np.value.artist, () => np.value.title, album, () => state.current], () => nextTick(fitTitle));
 watch(() => [state.np, state.npAt], updateProgress);
-// Tapping the art plays or pauses, the same as a knob press.
-function tapArt() { if (state.current === 'nowplaying') CT.tap('playpause'); }
+// Touch: tapping anywhere on the screen plays or pauses, the same as a knob press. Swiping
+// skips: left to the next track, right back to the previous one. With nothing playing, tapping
+// today's calendar cover has the Mac draw a random other one (until tomorrow's).
+let removeGestures;
+function gesture(action) { if (state.current === 'nowplaying') CT.tap(action); }
 const screen = CT.screen('nowplaying');
 screen.show = () => { updateProgress(); nextTick(fitTitle); };
 let timer;
 onMounted(() => {
   fitTitle();
+  removeGestures = CT.gestures(root.value, {
+    tap: e => gesture(idleCoverUrl.value && e.target.closest('.screen-stage') ? () => CT.send({ type: 'rerollCover' }) : 'playpause'),
+    swipe: dir => gesture(dir === 'left' ? 'next' : 'previous'),
+  });
   timer = setInterval(() => { if (state.current === 'nowplaying' && !state.asleep) updateProgress(); }, 250);
   if (document.fonts) document.fonts.ready.then(fitTitle);
 });
-onUnmounted(() => clearInterval(timer));
+onUnmounted(() => { clearInterval(timer); if (removeGestures) removeGestures(); });
 </script>
 <template>
   <section ref="root" id="screen-nowplaying" class="screen fill flex" :class="{ active: state.current === 'nowplaying', leaving: state.leaving === 'nowplaying', idle: !np.active, 'idle-cover': !!idleCoverUrl, paused: np.active && !np.playing, 'no-duration': np.active && !np.duration }">
@@ -88,7 +95,7 @@ onUnmounted(() => clearInterval(timer));
         <span v-else class="np-time">{{ time }}</span>
       </template>
     </LeftRail>
-    <ScreenStage :class="{ 'bg-panel': hasArt || idleCoverUrl }" @click="tapArt"><!-- behind art: one continuous background, so nothing is left as a square when the art fades -->
+    <ScreenStage :class="{ 'bg-panel': hasArt || idleCoverUrl }"><!-- behind art: one continuous background, so nothing is left as a square when the art fades -->
       <Artwork :url="stageArt" />
       <div v-if="!hasArt && !idleCoverUrl" class="np-placeholder fill flex center"><svg><use href="#i-note" /></svg></div><!-- the cover's stand-in, idle or for a track without art -->
       <div class="paused-glyph disc fill flex center" :style="{ color: state.flashing ? state.flash.color : '' }"><svg><use :href="'#i-' + (state.flashing ? state.flash.icon : 'pause')" /></svg></div><!-- a flash here swaps its icon into this badge for a moment, in place of a second disc -->
