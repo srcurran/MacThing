@@ -68,6 +68,8 @@ function fitTitle() {
 // Now Playing message (every 15s, and with each play/pause) replaces state.np.
 watch([() => np.value.active, () => np.value.artist, () => np.value.title, album, () => state.current], () => nextTick(fitTitle));
 watch(() => [state.np, state.npAt], updateProgress);
+// Tapping the art plays or pauses, the same as a knob press.
+function tapArt() { if (state.current === 'nowplaying') CT.tap('playpause'); }
 const screen = CT.screen('nowplaying');
 screen.show = () => { updateProgress(); nextTick(fitTitle); };
 let timer;
@@ -86,7 +88,7 @@ onUnmounted(() => clearInterval(timer));
         <span v-else class="np-time">{{ time }}</span>
       </template>
     </LeftRail>
-    <ScreenStage :class="{ 'bg-panel': hasArt || coverUrl }"><!-- behind art: one continuous background, so nothing is left as a square when the art fades -->
+    <ScreenStage :class="{ 'bg-panel': hasArt || coverUrl }" @click="tapArt"><!-- behind art: one continuous background, so nothing is left as a square when the art fades -->
       <Artwork :url="stageArt" />
       <div v-if="!hasArt && !coverUrl" class="np-placeholder fill flex center"><svg><use href="#i-note" /></svg></div><!-- the cover's stand-in, idle or for a track without art -->
       <div class="paused-glyph disc fill flex center" :style="{ color: state.flashing ? state.flash.color : '' }"><svg><use :href="'#i-' + (state.flashing ? state.flash.icon : 'pause')" /></svg></div><!-- a flash here swaps its icon into this badge for a moment, in place of a second disc -->

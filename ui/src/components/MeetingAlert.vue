@@ -93,6 +93,8 @@ CT.dismissModal = key => {
   save();
   return true;
 };
+// Taps: anywhere dismisses the card, as a press does; its timer link does what the back button does.
+const tap = key => CT.tap(() => CT.dismissModal(key));
 // A queued timer starts with its meeting, and comes up in place of the meeting's card. Gone from
 // the calendar, or over, the queue empties.
 const queuedEvent = computed(() => (queued.value && state.calendar.status === 'ok'
@@ -134,7 +136,7 @@ function place(location) {
 const where = computed(() => place(event.value.location) || place(event.value.call));
 </script>
 <template>
-  <div class="meeting-alert fill flex" :class="{ on: !!event }">
+  <div class="meeting-alert fill flex" :class="{ on: !!event }" @click="tap('tap')">
     <div v-if="event" class="m-card flex-col">
       <div class="flex">
         <div class="m-bar flex-none" :style="{ background: event.color }" />
@@ -146,7 +148,7 @@ const where = computed(() => place(event.value.location) || place(event.value.ca
       </div>
       <div class="m-foot flex">
         <div class="m-when">{{ when }}</div>
-        <div v-if="action" class="m-start" :class="{ cancel: action === 'Cancel timer' }">{{ action }}</div>
+        <div v-if="action" class="m-start" :class="{ cancel: action === 'Cancel timer' }" @click.stop="tap('Escape')">{{ action }}</div>
       </div>
     </div>
   </div>
