@@ -361,11 +361,15 @@ screen.swipe = direction => {
   restOn(restPosition.value + direction);
 };
 // Full size, a sideways drag pages; the page follows the finger, either way.
+// Past the last card there's nothing to page to: the page starts to go, slower and slower, and
+// stops short (at most END_GIVE of a page), then springs back when let go.
+const END_GIVE = 0.12;
 function dragPage(dx) {
   const dir = dx < 0 ? 1 : -1, to = pageNeighbour(dir);
-  if (!to) { if (page.value) page.value = { ...page.value, p: 0 }; return; }
+  if (!to && dir < 0) { if (page.value) page.value = { ...page.value, p: 0 }; return; } // the presets' way: dragPageEnd
   if (!page.value) startPage();
-  page.value = { from: focused.value.id, to, dir, p: Math.min(1, Math.abs(dx) / PAGE_SPAN) };
+  const share = Math.abs(dx) / PAGE_SPAN;
+  page.value = { from: focused.value.id, to, dir, p: to ? Math.min(1, share) : END_GIVE * (1 - Math.exp(-share / END_GIVE)) };
 }
 function dragPageEnd(dx, vx) {
   pageDrag = false;
@@ -374,6 +378,7 @@ function dragPageEnd(dx, vx) {
     if (dx > 50 && !pageNeighbour(-1)) unzoom(() => restOn(0));
     return;
   }
+  if (!pg.to) return settlePage(false);
   const along = -vx * pg.dir; // px/ms the page's way
   settlePage(Math.abs(vx) > FLICK_PX_MS ? along > 0 : pg.p > 0.5);
 }
@@ -441,7 +446,7 @@ screen.press = () => {
     <ScreenStage class="bg-panel">
       <!-- Every view stays drawn and only fades (see .fade-view), so a press doesn't have to build and
            paint the incoming one while the other is fading out. -->
-      <div class="fade-view c-view-timer fill" :class="{ on: timerFull }" @click.stop="tapTimer"><TimeTimer :remaining="focused.remaining" :total="focused.total" :idle="focused.status === 'set'" /><PauseDisc :paused="focused.kind === 'timer' && focused.status === 'paused'"><TimeTimer :remaining="focused.remaining" :total="focused.total" /></PauseDisc><!-- the pause badge Now Playing shows, over the dial's centre --><div v-if="timerResets" class="back-action font-small medium primary">reset <BackActionIcon name="refresh" /></div></div>
+      <div class="fade-view c-view-timer fill" :class="{ on: timerFull }" @click.stop="tapTimer"><TimeTimer :remaining="focused.remaining" :total="focused.total" :idle="focused.status === 'set'" /><PauseDisc :key="focused.id" :paused="focused.kind === 'timer' && focused.status === 'paused'" /><!-- the pause badge Now Playing shows, over the dial's centre; one per card, so paging to another card shows its own at once instead of fading this one --><div v-if="timerResets" class="back-action font-small medium primary">reset <BackActionIcon name="refresh" /></div></div>
       <div v-for="p in providers" :key="p" class="fade-view fill" :class="{ on: mode === p }"><ClaudeUsage :provider="p" /></div>
       <div class="fade-view fill" :class="{ on: mode === 'clock' }">
         <AnalogClock v-if="face !== 'digital'" :numbers="face === 'numbers'" :now="state.current === 'clock' ? state.now : 0" />

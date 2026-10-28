@@ -1025,31 +1025,13 @@ h3 {
 .paused .paused-glyph {
   opacity: 1;
 }
-/* On the timer's dial and Now Playing's art the badge is frosted (PauseDisc.vue): a blurred copy
-   of the 480x480 stage, lined up with it under the disc, then a dark tint. The flash that a press
-   anywhere else plays (App.vue's .flash) stays plain see-through. */
+/* On the timer's dial and Now Playing's art the badge is solid black (PauseDisc.vue). The flash
+   that a press anywhere else plays (App.vue's .flash) stays see-through. */
 .pause-disc {
-  overflow: hidden;
-  background: none;
+  background: var(--black);
 }
 .pause-disc.on {
   opacity: 1;
-}
-.pause-disc-blur {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 480px;
-  height: 480px;
-  margin: -240px 0 0 -240px;
-  background: var(--panel);
-  filter: blur(12px);
-}
-.pause-disc-tint {
-  background: var(--black-a50);
-}
-.pause-disc-icon {
-  position: relative;
 }
 
 /* The playing app's icon, for sources other than Music. */
