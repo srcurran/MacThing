@@ -86,7 +86,6 @@ const paged = computed(() => {
   if (left) out[left] = at(gap - GAP / 2 - w);
   if (right) out[right] = at(gap + GAP / 2);
   return out; // past the last card, `to` is null: only the one card, giving a little
-
 });
 function cardStyle(i) {
   const b = born.value;

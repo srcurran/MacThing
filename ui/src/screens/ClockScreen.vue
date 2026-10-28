@@ -366,7 +366,11 @@ screen.swipe = direction => {
 const END_GIVE = 0.12;
 function dragPage(dx) {
   const dir = dx < 0 ? 1 : -1, to = pageNeighbour(dir);
-  if (!to && dir < 0) { if (page.value) page.value = { ...page.value, p: 0 }; return; } // the presets' way: dragPageEnd
+  if (!to && dir < 0) { // the presets' way, which dragPageEnd handles: no page (a rubber band started the other way goes)
+    if (page.value && !page.value.to) finishPage(false);
+    else if (page.value) page.value = { ...page.value, p: 0 };
+    return;
+  }
   if (!page.value) startPage();
   const share = Math.abs(dx) / PAGE_SPAN;
   page.value = { from: focused.value.id, to, dir, p: to ? Math.min(1, share) : END_GIVE * (1 - Math.exp(-share / END_GIVE)) };
@@ -446,8 +450,8 @@ screen.press = () => {
     <ScreenStage class="bg-panel">
       <!-- Every view stays drawn and only fades (see .fade-view), so a press doesn't have to build and
            paint the incoming one while the other is fading out. -->
-      <div class="fade-view c-view-timer fill" :class="{ on: timerFull }" @click.stop="tapTimer"><TimeTimer :remaining="focused.remaining" :total="focused.total" :idle="focused.status === 'set'" /><PauseDisc :key="focused.id" :paused="focused.kind === 'timer' && focused.status === 'paused'" /><!-- the pause badge Now Playing shows, over the dial's centre; one per card, so paging to another card shows its own at once instead of fading this one --><div v-if="timerResets" class="back-action font-small medium primary">reset <BackActionIcon name="refresh" /></div></div>
-      <div v-for="p in providers" :key="p" class="fade-view fill" :class="{ on: mode === p }"><ClaudeUsage :provider="p" /></div>
+      <div class="fade-view c-view-timer fill" :class="{ on: timerFull }" @click="tapTimer"><TimeTimer :remaining="focused.remaining" :total="focused.total" :idle="focused.status === 'set'" /><PauseDisc :key="focused.id" :paused="focused.kind === 'timer' && focused.status === 'paused'" /><!-- the pause badge Now Playing shows, over the dial's centre; one per card, so paging to another card shows its own at once instead of fading this one --><div v-if="timerResets" class="back-action hit-target font-small medium primary" @click.stop="CT.tap(timerBackPress)">reset <BackActionIcon name="refresh" /></div><!-- the back button's part, and tappable for it --></div>
+      <div v-for="p in providers" :key="p" class="fade-view fill" :class="{ on: mode === p }"><ClaudeUsage :provider="p" @refresh="CT.tap(screen.back)" /></div>
       <div class="fade-view fill" :class="{ on: mode === 'clock' }">
         <AnalogClock v-if="face !== 'digital'" :numbers="face === 'numbers'" :now="state.current === 'clock' ? state.now : 0" />
         <div v-else class="c-digital fill"><span>{{ digits.hours }}</span><span class="c-digital-minutes"><span>:</span><span>{{ digits.minutes }}</span></span></div>
