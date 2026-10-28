@@ -134,8 +134,9 @@ export function initializeRuntime(state) {
   CT.current = 'nowplaying';
   var beforeSettings = 'nowplaying';
 
-  /** Registers a screen. Optional hooks: show(), hide(), turn(steps), press(), and reselect()
-   * for its own button pressed while it's already showing. turn and press can return false to
+  /** Registers a screen. Optional hooks: show(), hide(), turn(steps), press(), and reselect(steps)
+   * for its own button pressed while it's already showing (steps 1), or a swipe up (1) or down (-1)
+   * through its views. turn and press can return false to
    * leave the input to the default (volume, and play/pause/next/previous). */
   CT.screen = function (name) {
     var def = { name: name };
@@ -248,7 +249,7 @@ export function initializeRuntime(state) {
     autoScreen = opening = false;
     Object.keys(saved.reselects || {}).forEach(function (name) {
       var screen = CT.screens[name];
-      for (var i = 0; screen && screen.reselect && i < saved.reselects[name]; i++) screen.reselect();
+      if (screen && screen.reselect && saved.reselects[name]) screen.reselect(saved.reselects[name]);
       if (screen && screen.reselect) reselects[name] = saved.reselects[name];
     });
     CT.show(saved.name);
@@ -459,6 +460,66 @@ export function initializeRuntime(state) {
     var screen = CT.screens[CT.current];
     if (CT.lockedTo || !screen.turn || screen.turn(steps) === false) onKnobVolume(steps);
   }, { passive: false, capture: true });
+
+  /** A tap on the touchscreen: a media command, or a function to run. Like a button, a tap while
+   *  dark only wakes. */
+  CT.tap = function (action) {
+    debugInput('tap → ' + (typeof action === 'function' ? 'handler' : action));
+    emit('input', 'tap');
+    if (wakeInstead()) return;
+    if (typeof action === 'function') action();
+    else CT.command(action);
+  };
+
+  /** Taps and horizontal swipes on an element. on.tap(event) gets a touch that barely moved;
+   *  on.swipe('left' | 'right') one that travelled mostly sideways. Returns a function that
+   *  removes the listeners. Click events don't work for this: one still fires after a swipe. */
+  var TAP_PX = 20, SWIPE_PX = 60;
+  CT.gestures = function (el, on) {
+    var start = null;
+    function down(e) { start = { id: e.pointerId, x: e.clientX, y: e.clientY }; }
+    function up(e) {
+      if (!start || e.pointerId !== start.id) return;
+      var dx = e.clientX - start.x, dy = e.clientY - start.y;
+      start = null;
+      if (on.swipe && Math.abs(dx) >= SWIPE_PX && Math.abs(dx) > Math.abs(dy) * 1.5) on.swipe(dx < 0 ? 'left' : 'right');
+      else if (on.tap && Math.abs(dx) < TAP_PX && Math.abs(dy) < TAP_PX) on.tap(e);
+    }
+    function cancel() { start = null; }
+    el.addEventListener('pointerdown', down);
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', cancel);
+    return function () {
+      el.removeEventListener('pointerdown', down);
+      el.removeEventListener('pointerup', up);
+      el.removeEventListener('pointercancel', cancel);
+    };
+  };
+
+  // Swiping up or down steps through the screen's own views, the way its top button does pressed
+  // again (the clock: clock, timer, usage): up to the next, down back to the previous. Not over an
+  // alert card or while the Mac holds the screen; with the screen dark, a swipe only wakes it.
+  var pageSwipe = null;
+  window.addEventListener('pointerdown', function (e) {
+    pageSwipe = { id: e.pointerId, x: e.clientX, y: e.clientY };
+  }, true);
+  window.addEventListener('pointerup', function (e) {
+    var start = pageSwipe;
+    pageSwipe = null;
+    if (!start || e.pointerId !== start.id) return;
+    var dx = e.clientX - start.x, dy = e.clientY - start.y;
+    if (Math.abs(dy) < SWIPE_PX || Math.abs(dy) <= Math.abs(dx) * 1.5) return;
+    var screen = CT.screens[CT.current], steps = dy < 0 ? 1 : -1;
+    if (!screen || !screen.reselect || CT.lockedTo || (CT.modalOpen && CT.modalOpen())) return;
+    debugInput('swipe ' + (dy < 0 ? 'up' : 'down'));
+    emit('input', 'tap');
+    if (wakeInstead()) return;
+    autoScreen = false;
+    reselects[CT.current] = (reselects[CT.current] || 0) + steps;
+    saveDevScreen();
+    screen.reselect(steps);
+  }, true);
+  window.addEventListener('pointercancel', function () { pageSwipe = null; }, true);
 
   document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 

@@ -41,7 +41,7 @@ const every = computed(() => {
 });
 </script>
 <template>
-  <div class="meeting-alert reminder-alert fill flex" :class="{ on: !!reminder }">
+  <div class="meeting-alert reminder-alert fill flex" :class="{ on: !!reminder }" @click="CT.tap(() => CT.dismissModal('tap'))">
     <div v-if="reminder" class="m-card flex-col">
       <div class="m-title clamp-2">{{ reminder.text }}</div>
       <div class="m-foot flex">

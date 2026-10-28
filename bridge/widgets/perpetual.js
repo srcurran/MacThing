@@ -92,10 +92,12 @@ export function topIndex(day, length, salt) {
   return order[day - run * length];
 }
 
-/** The day's cover as SVG. */
-export function coverSvg(day) {
-  const next = random(day * 7919);
-  const topColour = topIndex(day, PALETTE.length, 1), topPanel = topIndex(day, PANELS.length, 2);
+/** The day's cover as SVG. A `reroll` seed (tapping the cover on the device) draws a random other
+ *  one instead: its top colour and panel come from the seed rather than taking their turn. */
+export function coverSvg(day, reroll = 0) {
+  const next = random(day * 7919 + reroll * 104723);
+  const topColour = reroll ? Math.floor(next() * PALETTE.length) : topIndex(day, PALETTE.length, 1);
+  const topPanel = reroll ? Math.floor(next() * PANELS.length) : topIndex(day, PANELS.length, 2);
   // The other five panels, below the top one in a shuffled order, each take a different one of
   // the colours left.
   const colours = shuffle(PALETTE.filter((_, i) => i !== topColour), next);
@@ -113,11 +115,11 @@ const run = (cmd, args) =>
   new Promise((resolve, reject) => execFile(cmd, args, { timeout: 15000 }, (err, stdout) => (err ? reject(err) : resolve(stdout))));
 
 /** Renders the day's cover to a PNG with Quick Look (qlmanage ships with every Mac). */
-export async function renderCover(day, dir) {
-  const svg = path.join(dir, `cover-${day}.svg`);
+export async function renderCover(day, dir, reroll = 0) {
+  const svg = path.join(dir, `cover-${day}-${reroll}.svg`);
   const png = svg + '.png'; // qlmanage names its thumbnail after the source
   try {
-    await fs.writeFile(svg, coverSvg(day));
+    await fs.writeFile(svg, coverSvg(day, reroll));
     await run('/usr/bin/qlmanage', ['-t', '-s', String(SIZE), '-o', dir, svg]);
     return await fs.readFile(png);
   } finally {
@@ -145,6 +147,14 @@ export class PerpetualCover extends EventEmitter {
     this.seq = 0;
     this.failing = false; // warn once per run of failures, not on every retry
     this.drawing = false;
+    this.rerolled = { day: null, seed: 0 }; // a tapped-for cover, until the day it was for is over
+  }
+
+  /** Tapped on the device: a random other cover for today. Tomorrow gets its own as usual. */
+  reroll() {
+    if (this.drawing) return; // one at a time: a drawing's temp files are named by the day
+    this.rerolled = { day: localDay(), seed: 1 + Math.floor(Math.random() * 1e6) };
+    return this.refresh();
   }
 
   start() {
@@ -160,10 +170,11 @@ export class PerpetualCover extends EventEmitter {
 
   async refresh() {
     const day = localDay(), seq = ++this.seq;
+    const seed = this.rerolled.day === day ? this.rerolled.seed : 0;
     this.drawing = true;
     try {
       this.dir ??= await fs.mkdtemp(path.join(os.tmpdir(), 'carthing-perpetual-'));
-      const png = await renderCover(day, this.dir);
+      const png = await renderCover(day, this.dir, seed);
       const encoded = await this.#encode(png, day).catch((err) => log.warn('[perpetual] sending the PNG:', err.message));
       if (seq !== this.seq) return; // a newer try started meanwhile
       this.failing = false;

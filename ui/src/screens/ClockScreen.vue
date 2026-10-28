@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { state, CT } from '../state.js';
 import LeftRail from '../components/LeftRail.vue';
 import ScreenStage from '../components/ScreenStage.vue';
@@ -26,8 +26,9 @@ const modes = computed(() => ['clock', 'timer', ...providers.value]);
 const isUsage = m => m === 'claude' || m === 'chatgpt';
 const mode = ref('clock');
 const screen = CT.screen('clock');
-screen.reselect = () => {
-  mode.value = modes.value[(modes.value.indexOf(mode.value) + 1) % modes.value.length];
+screen.reselect = (steps = 1) => {
+  const n = modes.value.length;
+  mode.value = modes.value[(((modes.value.indexOf(mode.value) + steps) % n) + n) % n];
   if (mode.value === 'timer') pickMeeting();
   if (isUsage(mode.value)) CT.send({ type: 'refreshUsage' });
 };
@@ -138,9 +139,18 @@ screen.press = () => {
   const t = performance.now();
   if (t - lastPress < (CT.config.multiClickMs || 350)) { clearTimer(); lastPress = 0; } else { toggleTimer(); lastPress = t; }
 };
+// Tapping the timer works it like a knob press: start, pause, and two quick taps reset.
+const root = ref(null);
+let removeGestures;
+onMounted(() => {
+  removeGestures = CT.gestures(root.value, {
+    tap: e => { if (state.current === 'clock' && mode.value === 'timer' && e.target.closest('.screen-stage')) CT.tap(() => screen.press()); },
+  });
+});
+onUnmounted(() => { if (removeGestures) removeGestures(); });
 </script>
 <template>
-  <section id="screen-clock" class="screen fill flex" :class="{ active: state.current === 'clock', leaving: state.leaving === 'clock', timer: mode === 'timer' }">
+  <section ref="root" id="screen-clock" class="screen fill flex" :class="{ active: state.current === 'clock', leaving: state.leaving === 'clock', timer: mode === 'timer' }">
     <LeftRail :view="mode" :views="railViews" :truncate-lower="!resets">
       <template #lower>
         <template v-if="resets"><div class="usage-resets">Resets: Session <b class="primary medium">{{ resets.session }}</b> · Week <b class="primary medium">{{ resets.week }}</b></div></template>
