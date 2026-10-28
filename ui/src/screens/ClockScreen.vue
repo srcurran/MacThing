@@ -77,8 +77,8 @@ screen.back = () => {
 // go moving, the next one that way. A swipe on the full-size timer pages to the next one, full
 // size (see "Paging" below). Resting on a card that's counting for 5 seconds zooms it up to full size. Tapping a
 // preset starts another timer and moves to its card; tapping a card zooms it up to full size.
-// Full size, the last length used starts with a tap (or the knob); any other full-size one goes
-// back to the deck. Swiping a card up lifts it off a Remove (Apple Watch faces' way): let go
+// Full size, a tap on the dial starts the last length used, and pauses or restarts a timer of
+// yours (as the knob does); a tap anywhere else on the screen goes back to the deck. Swiping a card up lifts it off a Remove (Apple Watch faces' way): let go
 // lifted far enough (or flicked) and it stays up, Remove showing; tap Remove to remove it, or swipe
 // it back down, tap it or press back to keep it. The last length used is always there: it lifts a
 // little and drops back. The knob press starts or pauses the timer you're on (twice:
@@ -215,10 +215,19 @@ function pickCard(id) {
 }
 function backToDeck() {
   if (mode.value !== 'timer' || timerView.value !== 'timer') return;
-  if (focused.value.kind === 'last') return startLast(focused.value.total / 60000);
   unzoom();
   atPresets.value = false;
   settle();
+}
+// Full size, a tap on the dial pauses or restarts a timer of yours, and starts the last length
+// used; on a meeting's countdown (which can't be paused) or a finished timer it goes back to the
+// deck, as a tap anywhere else on the screen does.
+function tapTimer() {
+  if (mode.value !== 'timer' || timerView.value !== 'timer') return;
+  const card = focused.value;
+  if (card.kind === 'last') return startLast(card.total / 60000);
+  if (card.kind === 'timer' && (card.status === 'running' || card.status === 'paused')) return toggleTimer(card.id);
+  backToDeck();
 }
 const timerResets = computed(() => focused.value.kind === 'timer' && (focused.value.status === 'paused' || focused.value.status === 'done'));
 function timerBackPress() {
@@ -431,7 +440,7 @@ screen.press = () => {
     <ScreenStage class="bg-panel">
       <!-- Every view stays drawn and only fades (see .fade-view), so a press doesn't have to build and
            paint the incoming one while the other is fading out. -->
-      <div class="fade-view c-view-timer fill" :class="{ on: timerFull }" @click="backToDeck"><TimeTimer :remaining="focused.remaining" :total="focused.total" :idle="focused.status === 'set'" /><div v-if="timerResets" class="back-action font-small medium primary">reset <BackActionIcon name="refresh" /></div></div>
+      <div class="fade-view c-view-timer fill" :class="{ on: timerFull }" @click.stop="tapTimer"><TimeTimer :remaining="focused.remaining" :total="focused.total" :idle="focused.status === 'set'" /><div v-if="timerResets" class="back-action font-small medium primary">reset <BackActionIcon name="refresh" /></div></div>
       <div v-for="p in providers" :key="p" class="fade-view fill" :class="{ on: mode === p }"><ClaudeUsage :provider="p" /></div>
       <div class="fade-view fill" :class="{ on: mode === 'clock' }">
         <AnalogClock v-if="face !== 'digital'" :numbers="face === 'numbers'" :now="state.current === 'clock' ? state.now : 0" />
