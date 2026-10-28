@@ -1,15 +1,13 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue';
 import { state, CT } from '../state.js';
-import { timer, startMeetingTimer, minutesText } from '../timer.js';
+import { meetingCardId, minutesText } from '../timer.js';
 // Settings → Meeting alerts: a sheet over the bottom of every screen from a timed event's alert
 // (its own, from the Mac's Calendar, or a fixed few minutes before) until the meeting ends. The
-// back button under the knob works the clock's timer: before the meeting, it queues a timer for
-// it (and, pressed again, cancels that: "Cancel timer", in red), leaving the card up; once it's started, it starts the
-// timer and dismisses the card. With the timer already running or paused (another meeting's,
-// say, as meetings overlap), the card doesn't offer to start one, so the back button only
-// dismisses it and doesn't take the timer over; the timer's knob has a stop for each meeting
-// going on to switch it. Any other press only dismisses it — until the meeting starts, if
+// back button under the knob brings up the meeting's countdown on the clock's timer (every meeting
+// going on has one, beside any timers you've started): before the meeting, it queues that for its
+// start (and, pressed again, cancels it: "Cancel timer", in red), leaving the card up; once it's
+// started, it shows it and dismisses the card. Any other press only dismisses it — until the meeting starts, if
 // it hasn't yet, so every meeting's card is up at its start time. Turning the knob still sets the
 // volume.
 // A zero-length event (a reminder at 6:34) has no end to wait for: its card stays five minutes.
@@ -68,17 +66,13 @@ const event = computed(() => {
   if (started.length) return started.reduce(pick(true));
   return due.value.length ? due.value.reduce(pick(false)) : null;
 });
-// Only once the meeting has started (and a zero-length reminder has nothing to time).
-// The back button's part, bottom right. The timer runs to the meeting's end, so its length is the
-// minutes from the start (queued) or from now (started) to then, rounded up as the timer's own
-// meeting stop shows them; with meetings at once, it says which one it's for. A zero-length
-// reminder has nothing to time.
+// The back button's part, bottom right. Queued, the countdown's length is the meeting's, rounded up
+// to the minute. A zero-length reminder has nothing to time.
 const action = computed(() => {
   const e = event.value;
   if (e.end <= e.start) return '';
   if (e.start > state.now) return queued.value === keyOf(e) ? 'Cancel timer' : 'Queue ' + minutesText(Math.ceil((e.end - e.start) / 60000)) + ' timer';
-  if (timer.status === 'running' || timer.status === 'paused') return '';
-  return 'Start ' + minutesText(Math.ceil((e.end - state.now) / 60000)) + ' timer';
+  return 'Show timer';
 });
 CT.modalOpen = () => !!event.value;
 CT.dismissModal = key => {
@@ -89,8 +83,7 @@ CT.dismissModal = key => {
       setQueued(queued.value === keyOf(e) ? '' : keyOf(e));
       return true;
     }
-    startMeetingTimer(e);
-    CT.showTimer();
+    CT.showTimer(meetingCardId(e));
   }
   // A press dismisses only this card. Before the meeting starts, it comes back as it does.
   dismissed[keyOf(e)] = e.start > state.now ? e.start : untilOf(e);
@@ -99,7 +92,7 @@ CT.dismissModal = key => {
 };
 // Taps: anywhere dismisses the card, as a press does; its timer link does what the back button does.
 const tap = key => CT.tap(() => CT.dismissModal(key));
-// A queued timer starts with its meeting, and comes up in place of the meeting's card. Gone from
+// A queued countdown comes up as its meeting starts, and comes up in place of the meeting's card. Gone from
 // the calendar, or over, the queue empties.
 const queuedEvent = computed(() => (queued.value && state.calendar.status === 'ok'
   ? state.calendar.events.find(e => keyOf(e) === queued.value) || null : undefined));
@@ -108,8 +101,7 @@ watch(() => queuedEvent.value && queuedEvent.value.start <= state.now, due => {
   if (e === null || (e && e.end <= state.now)) return setQueued('');
   if (!due) return;
   setQueued('');
-  startMeetingTimer(e);
-  CT.showTimer();
+  CT.showTimer(meetingCardId(e));
   dismissed[keyOf(e)] = untilOf(e);
   save();
 }, { immediate: true });
