@@ -589,7 +589,7 @@ h3 {
   border-radius: 50%;
   background: var(--disc);
 }
-.disc svg {
+.disc > svg {
   width: 48px;
   height: 48px;
 }
@@ -663,7 +663,7 @@ h3 {
 .show-volume .note-hud .note-pill {
   opacity: 0;
 }
-.show-volume .paused-glyph {
+.show-volume .pause-disc.on {
   opacity: 0;
 }
 .vol-icon {
@@ -877,6 +877,7 @@ h3 {
 /* Bottom right, by the back button under the knob that starts it. Any other press cancels. */
 .m-start {
   margin-left: auto;
+  position: relative;
   font-size: 26px;
   line-height: 34px;
   font-weight: 700;
@@ -1021,7 +1022,12 @@ h3 {
   opacity: 0;
   transition: opacity 0.3s ease;
 }
-.paused .paused-glyph {
+/* On the timer's dial and Now Playing's art the badge is solid black (PauseDisc.vue). The flash
+   that a press anywhere else plays (App.vue's .flash) stays see-through. */
+.pause-disc {
+  background: var(--black);
+}
+.pause-disc.on {
   opacity: 1;
 }
 
@@ -1567,6 +1573,23 @@ h3 {
   right: 24px;
   /* Align with the bottom line of the reset footer in the left rail. */
   bottom: var(--panel-inset-y);
+}
+/* A small label that's tapped for what the back button does (the corner hints, a meeting card's
+   timer link): its tap area reaches past the text, out to the screen's corner, so a fingertip
+   doesn't have to land on the letters. */
+.hit-target {
+  position: relative;
+}
+.back-action.hit-target {
+  position: absolute;
+}
+.hit-target::before {
+  content: '';
+  position: absolute;
+  left: -24px;
+  top: -24px;
+  right: -24px;
+  bottom: -24px;
 }
 .back-action-icon {
   /* Phosphor draws inside 12.5% padding, so this box puts the glyph at cap height, centred on it. */

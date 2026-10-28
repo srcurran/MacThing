@@ -214,7 +214,11 @@ try {
   assert.match(await rail(), /^Time's up\s*\d+:\d\d\+/, 'the older 10 minutes, which are up');
   await press('Escape');
   await pause(100);
-  assert.equal(await timersKept(), 1, 'The back button puts a finished timer away');
+  assert.equal(await timersKept(), 2, 'The back button resets a finished timer, keeping its card');
+  assert.match(await rail(), /^10 minute timer\s*(10:00|9:5\d)/, 'back to its whole length, counting down');
+  await press('Enter'); await press('Enter');
+  await pause(100);
+  assert.equal(await timersKept(), 1, 'A double press puts it away');
   await message({ type: 'usage', usage: { status: 'ok', session: { percent: 42, resetsAt: now + 754000 + 133 * 60000 }, week: { percent: 86, resetsAt: Date.UTC(2026, 8, 24, 9) }, updatedAt: now + 754000 } });
   await press('4');
   await pause(400); // the timer fades out (0.3 s)

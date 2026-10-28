@@ -82,15 +82,17 @@ function timerCard(t) {
   const name = lengthLabel(t.minutes);
   return {
     id: t.id, kind: 'timer', status: t.status, remaining, total,
-    // Paused goes first, so a long label cut short doesn't take it with it.
-    label: t.status === 'paused' ? 'Paused · ' + name : t.status === 'done' ? "Time's up" : name,
+    // A paused one says so with the pause badge on its dial, so the label is only its name.
+    label: t.status === 'done' ? "Time's up" : name,
     // Once the time is up it counts on past it, 1:23+, until it's put away.
     title: t.status === 'done' ? timerText(now - t.endsAt) + '+' : t.status === 'paused' ? countdownText(t.left) : countdownText(remaining)
   };
 }
-/** Every card, left to right: the meetings, your timers (newest first), then the last length used. */
+/** Every card, left to right: your timers (newest first), the meetings, then the last length used.
+ *  Timers go first so a new one's card goes in right by the presets it grows out of, and doesn't
+ *  fly across a meeting's card to get to its place. */
 export const cards = computed(() => {
-  const now = state.now, list = [];
+  const now = state.now, list = timers.map(timerCard);
   currentMeetings.value.filter(e => shown(meetingCardId(e), e.end)).forEach(e => list.push({
     id: meetingCardId(e), kind: 'meeting', status: 'running', remaining: e.end - now, total: e.end - e.start,
     label: e.title || 'Meeting ends in', title: countdownText(e.end - now)
@@ -104,7 +106,6 @@ export const cards = computed(() => {
       label: 'Next meeting in', title: countdownText(next.start - now)
     });
   }
-  timers.forEach(t => list.push(timerCard(t)));
   const minutes = lastMinutes.value;
   list.push({ id: 'last', kind: 'last', status: 'set', remaining: minutes * 60000, total: minutes * 60000,
     label: lengthLabel(minutes), title: timerText(minutes * 60000) });
@@ -133,6 +134,17 @@ export function toggleTimer(id) {
     t.endsAt = endOnHalfSecond(state.now + t.left);
     t.status = 'running';
   } else return removeTimer(id);
+  save();
+}
+/** Reset (the back button, or the corner's "reset"): the same timer back to its whole length,
+ *  counting down again. */
+export function resetTimer(id) {
+  const t = timers.find(t => t.id === id);
+  if (!t) return;
+  state.now = CT.now();
+  t.status = 'running';
+  t.endsAt = endOnHalfSecond(state.now + t.minutes * 60000);
+  t.left = 0;
   save();
 }
 export function removeTimer(id) {

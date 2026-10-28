@@ -147,7 +147,7 @@ const where = computed(() => place(card.value.location) || place(card.value.call
       </div>
       <div class="m-foot flex">
         <div class="m-when">{{ when }}</div>
-        <div v-if="action" class="m-start" :class="{ cancel: action === 'Cancel timer' }" @click.stop="tap('Escape')">{{ action }}</div>
+        <div v-if="action" class="m-start hit-target" :class="{ cancel: action === 'Cancel timer' }" @click.stop="tap('Escape')">{{ action }}</div>
       </div>
     </div>
   </div>

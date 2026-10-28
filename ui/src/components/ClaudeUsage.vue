@@ -15,6 +15,8 @@ import { SESSION_MS, WEEK_MS, elapsed, usageOf, usageMessage, usageName, usageSt
 // numbers come from the Mac (bridge/widgets/usage.js, codex-usage.js), and the provider's mark
 // sits in the middle.
 const props = defineProps({ provider: { type: String, default: 'claude' } });
+// The stale-age hint, bottom right, is the back button's part: tapped, it asks for a refresh.
+defineEmits(['refresh']);
 const usage = computed(() => usageOf(state, props.provider));
 // The Claude and OpenAI marks (simple-icons, CC0), drawn on a 24px grid.
 const LOGOS = {
@@ -72,7 +74,7 @@ const message = computed(() => usageMessage(usage.value, props.provider, state.n
         </g>
       </svg>
     </template>
-    <div v-if="usageStaleAge(usage, state.now)" class="back-action font-small medium primary" :aria-label="'Usage updated ' + usageAge(usage.updatedAt, state.now)"><template v-if="state.usageRefreshWait">{{ state.usageRefreshWait }}</template><template v-else>{{ usageStaleAge(usage, state.now) }} <template v-if="state.usageRefresh === 'pending'">•••</template><BackActionIcon v-else :name="state.usageRefresh === 'failed' ? 'x' : 'refresh'" :spinning="state.usageRefresh === 'spin'" /></template></div>
+    <div v-if="usageStaleAge(usage, state.now)" class="back-action hit-target font-small medium primary" @click="$emit('refresh')" :aria-label="'Usage updated ' + usageAge(usage.updatedAt, state.now)"><template v-if="state.usageRefreshWait">{{ state.usageRefreshWait }}</template><template v-else>{{ usageStaleAge(usage, state.now) }} <template v-if="state.usageRefresh === 'pending'">•••</template><BackActionIcon v-else :name="state.usageRefresh === 'failed' ? 'x' : 'refresh'" :spinning="state.usageRefresh === 'spin'" /></template></div>
     <StageMessage :title="message.title" :detail="message.detail">
       <template #icon><svg class="u-logo u-status-logo" viewBox="0 0 24 24" role="img" :aria-label="usageName(provider) + ' logo'"><path :d="LOGOS[provider]" /></svg></template>
     </StageMessage>

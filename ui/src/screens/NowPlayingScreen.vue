@@ -5,6 +5,7 @@ import LeftRail from '../components/LeftRail.vue';
 import ScreenStage from '../components/ScreenStage.vue';
 import UiProgress from '../components/UiProgress.vue';
 import Artwork from '../components/Artwork.vue';
+import PauseDisc from '../components/PauseDisc.vue';
 const root = ref(null), rail = ref(null);
 const np = computed(() => state.np);
 const album = computed(() => !np.value.active ? '' : np.value.album || (np.value.kind !== 'music' && np.value.source ? np.value.source.name : '') || '');
@@ -68,9 +69,11 @@ function fitTitle() {
 // Now Playing message (every 15s, and with each play/pause) replaces state.np.
 watch([() => np.value.active, () => np.value.artist, () => np.value.title, album, () => state.current], () => nextTick(fitTitle));
 watch(() => [state.np, state.npAt], updateProgress);
-// Touch: tapping anywhere on the screen plays or pauses, the same as a knob press. Swiping
-// sideways skips: left to the next track, right back to the previous one (up and down step
-// through a screen's views, in core.js; Now Playing has none). With nothing playing, tapping today's calendar cover has the Mac draw a random other one (until tomorrow's).
+// Touch: tapping the media card (the art) plays or pauses, the same as a knob press; a tap
+// elsewhere on the screen does nothing. With nothing playing, tapping today's calendar cover has
+// the Mac draw a random other one (until tomorrow's). Swiping sideways anywhere on the screen
+// skips: left to the next track, right back to the previous one (up and down step through a
+// screen's views, in core.js; Now Playing has none).
 let removeGestures;
 function gesture(action) { if (state.current === 'nowplaying') CT.tap(action); }
 const screen = CT.screen('nowplaying');
@@ -79,7 +82,10 @@ let timer;
 onMounted(() => {
   fitTitle();
   removeGestures = CT.gestures(root.value, {
-    tap: e => gesture(!np.value.active && coverUrl.value && e.target.closest('.screen-stage') ? () => CT.send({ type: 'rerollCover' }) : 'playpause'),
+    tap: e => {
+      if (!e.target.closest('.screen-stage')) return;
+      gesture(!np.value.active && coverUrl.value ? () => CT.send({ type: 'rerollCover' }) : 'playpause');
+    },
     swipe: dir => gesture(dir === 'left' ? 'next' : 'previous'),
   });
   timer = setInterval(() => { if (state.current === 'nowplaying' && !state.asleep) updateProgress(); }, 250);
@@ -98,7 +104,7 @@ onUnmounted(() => { clearInterval(timer); if (removeGestures) removeGestures(); 
     <ScreenStage :class="{ 'bg-panel': hasArt || coverUrl }"><!-- behind art: one continuous background, so nothing is left as a square when the art fades -->
       <Artwork :url="stageArt" />
       <div v-if="!hasArt && !coverUrl" class="np-placeholder fill flex center"><svg><use href="#i-note" /></svg></div><!-- the cover's stand-in, idle or for a track without art -->
-      <div class="paused-glyph disc fill flex center" :style="{ color: state.flashing ? state.flash.color : '' }"><svg><use :href="'#i-' + (state.flashing ? state.flash.icon : 'pause')" /></svg></div><!-- a flash here swaps its icon into this badge for a moment, in place of a second disc -->
+      <PauseDisc :paused="np.active && !np.playing" :icon="state.flashing ? state.flash.icon : 'pause'" :color="state.flashing ? state.flash.color : ''" /><!-- a flash here swaps its icon into this badge for a moment, in place of a second disc -->
       <img v-if="icon" class="badge" :src="icon" alt="" />
     </ScreenStage>
   </section>

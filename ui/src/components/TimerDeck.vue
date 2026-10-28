@@ -22,6 +22,7 @@ export function positionAt(x) {
 <script setup>
 import { computed, ref, watch } from 'vue';
 import TimeTimer from './TimeTimer.vue';
+import PauseDisc from './PauseDisc.vue';
 import { PRESETS } from '../timer.js';
 // The timer's overview, over the whole clock screen (Figma: time timer → "Timer deck · no timers"
 // and "Swiping"). One stripe that slides as a whole: "Set a timer" and the presets in the rail's
@@ -81,7 +82,10 @@ const paged = computed(() => {
   const share = (FULL - s) / (FULL - 1);
   const at = x => ({ transform: 'translate(' + x + 'px, ' + ty + 'px) scale(' + s + ')', borderRadius: 24 * share + 'px', '--fill': share });
   const left = pg.dir > 0 ? pg.from : pg.to, right = pg.dir > 0 ? pg.to : pg.from;
-  return { [left]: at(gap - GAP / 2 - w), [right]: at(gap + GAP / 2) };
+  const out = {};
+  if (left) out[left] = at(gap - GAP / 2 - w);
+  if (right) out[right] = at(gap + GAP / 2);
+  return out; // past the last card, `to` is null: only the one card, giving a little
 });
 function cardStyle(i) {
   const b = born.value;
@@ -117,7 +121,7 @@ function cardStyle(i) {
           </div>
           <div class="font-small medium truncate"><template v-if="next"><span class="muted">{{ next.time }}</span> {{ next.title }}</template><span v-else class="muted">No events today</span></div>
         </div>
-        <div class="td-stage"><TimeTimer :remaining="c.remaining" :total="c.total" :idle="c.status === 'set'" /></div>
+        <div class="td-stage"><TimeTimer :remaining="c.remaining" :total="c.total" :idle="c.status === 'set'" /><PauseDisc :paused="c.kind === 'timer' && c.status === 'paused'" /></div>
       </div>
     </div>
   </div>
