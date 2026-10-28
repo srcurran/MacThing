@@ -281,6 +281,16 @@ export function initializeRuntime(state) {
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function () { state.toast = ''; }, 1800);
   };
+
+  // A note in the middle of the display, the volume pill's size: why the screen just moved
+  // (Smart switching). The text stays while it fades out.
+  var noteTimer = null;
+  CT.note = function (text, ms) {
+    state.note = text;
+    state.showNote = true;
+    clearTimeout(noteTimer);
+    noteTimer = setTimeout(function () { state.showNote = false; }, ms || 5000);
+  };
   CT.on('toast', function (msg) { CT.toast(msg.text); });
 
   // ---- Screen sleep ----------------------------------------------------------------------

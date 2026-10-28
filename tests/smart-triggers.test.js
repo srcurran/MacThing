@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { usageWatch, weatherWatch, wetSoon, heat } from '../ui/src/smart-triggers.js';
+import { usageWatch, weatherWatch, wetSoon, wetNote, heat } from '../ui/src/smart-triggers.js';
 
 const HOUR = 3600000, MIN = 60000;
 const T0 = Date.UTC(2026, 9, 23, 12);
@@ -55,7 +55,7 @@ test('usage: switches once for each new fire as the pace climbs', () => {
   assert.equal(check(usage(55, resets), T0 + 5 * MIN), 'hot'); // 🔥
   assert.equal(check(usage(70, resets), T0 + 10 * MIN), 'hot'); // 🔥🔥
   assert.equal(check(usage(72, resets), T0 + 15 * MIN), ''); // still 🔥🔥
-  assert.equal(check(usage(100, resets), T0 + 20 * MIN), 'hot'); // the limit
+  assert.equal(check(usage(100, resets), T0 + 20 * MIN), 'limit');
   assert.equal(check(usage(100, resets), T0 + 25 * MIN), '');
 });
 
@@ -96,24 +96,49 @@ test('usage: a new session starts its tiers again', () => {
 const hour = (t, code, pop) => ({ t, code, pop, temp: 50, isDay: true });
 const weather = (currentCode, hourly) => ({ status: 'ok', current: { code: currentCode }, hourly });
 
+test('usage: the limit is told once a session, however long it lasts', () => {
+  const check = usageWatch();
+  const resets = T0 + 2.5 * HOUR;
+  check(usage(60, resets), T0);
+  assert.equal(check(usage(100, resets), T0 + 5 * MIN), 'limit');
+  // Locked out: nothing burns, and the reading wobbles between 99% and 100% for an hour.
+  for (let m = 10; m <= 70; m += 5) assert.equal(check(usage(m % 10 ? 99 : 100, resets), T0 + m * MIN), '', m + ' min');
+  const next = resets + 5 * HOUR;
+  assert.equal(check(usage(0, null), resets + MIN), 'reset'); // it ended well used: the allowance is back
+  assert.equal(check(usage(100, next), resets + 2 * HOUR), 'limit'); // a new session can hit it again
+});
+
+test('usage: hitting the limit after its reset is announced does not hide the reset', () => {
+  const check = usageWatch();
+  const resets = T0 + 10 * MIN;
+  check(usage(90, resets), T0);
+  assert.equal(check(usage(100, resets), T0 + 5 * MIN), 'limit');
+  assert.equal(check(usage(100, resets), resets), 'reset');
+});
+
 test('weather: rain due next hour counts, rain already falling does not', () => {
   const now = T0 + 20 * MIN;
   const rainNext = [hour(T0, 2, 10), hour(T0 + HOUR, 61, 70), hour(T0 + 2 * HOUR, 61, 80)];
-  assert.equal(wetSoon(weather(2, rainNext), now), true);
-  assert.equal(wetSoon(weather(63, rainNext), now), false);
-  assert.equal(wetSoon(weather(2, [hour(T0, 2, 10), hour(T0 + HOUR, 61, 30)]), now), false); // unlikely
-  assert.equal(wetSoon(weather(2, [hour(T0, 2, 10), hour(T0 + HOUR, 2, 0), hour(T0 + 2 * HOUR, 73, 90)]), now), false); // too far off
-  assert.equal(wetSoon(weather(1, [hour(T0, 2, 10), hour(T0 + HOUR, 71, 60)]), now), true); // snow
+  assert.equal(!!wetSoon(weather(2, rainNext), now), true);
+  assert.equal(!!wetSoon(weather(63, rainNext), now), false);
+  assert.equal(!!wetSoon(weather(2, [hour(T0, 2, 10), hour(T0 + HOUR, 61, 30)]), now), false); // unlikely
+  assert.equal(!!wetSoon(weather(2, [hour(T0, 2, 10), hour(T0 + HOUR, 2, 0), hour(T0 + 2 * HOUR, 73, 90)]), now), false); // too far off
+  assert.equal(!!wetSoon(weather(1, [hour(T0, 2, 10), hour(T0 + HOUR, 71, 60)]), now), true); // snow
 });
 
 test('weather: fires when rain becomes due, once, and not on the first reading', () => {
   const check = weatherWatch();
   const dry = weather(2, [hour(T0, 2, 10), hour(T0 + HOUR, 2, 10)]);
   const wet = weather(2, [hour(T0, 2, 10), hour(T0 + HOUR, 61, 70)]);
-  assert.equal(weatherWatch()(wet, T0), false); // already due at load
-  assert.equal(check(dry, T0), false);
-  assert.equal(check(wet, T0 + 15 * MIN), true);
-  assert.equal(check(wet, T0 + 30 * MIN), false);
-  assert.equal(check(dry, T0 + 45 * MIN), false);
-  assert.equal(check(wet, T0 + 50 * MIN), true);
+  assert.equal(weatherWatch()(wet, T0), ''); // already due at load
+  assert.equal(check(dry, T0), '');
+  assert.equal(check(wet, T0 + 15 * MIN), 'Rain in next hour');
+  assert.equal(check(wet, T0 + 30 * MIN), '');
+  assert.equal(check(dry, T0 + 45 * MIN), '');
+  assert.equal(check(wet, T0 + 50 * MIN), 'Rain in next hour');
+});
+
+test('weather: the note names what is coming', () => {
+  assert.deepEqual([61, 53, 81, 73, 85, 95].map(wetNote),
+    ['Rain in next hour', 'Rain in next hour', 'Rain in next hour', 'Snow in next hour', 'Snow in next hour', 'Storms in next hour']);
 });
