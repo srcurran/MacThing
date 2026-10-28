@@ -1024,8 +1024,10 @@ h3 {
 .paused .paused-glyph {
   opacity: 1;
 }
-/* Over the timer's dial the badge is solid, so the wedge and hand don't show through it. */
-.c-view-timer .paused-glyph {
+/* On the timer's dial and Now Playing's art the badge is solid, so nothing shows through it.
+   The flash that a press anywhere else plays (App.vue's .flash) stays see-through. */
+.c-view-timer .paused-glyph,
+#screen-nowplaying .paused-glyph {
   background: var(--black);
 }
 
