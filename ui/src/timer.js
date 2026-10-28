@@ -88,9 +88,11 @@ function timerCard(t) {
     title: t.status === 'done' ? timerText(now - t.endsAt) + '+' : t.status === 'paused' ? countdownText(t.left) : countdownText(remaining)
   };
 }
-/** Every card, left to right: the meetings, your timers (newest first), then the last length used. */
+/** Every card, left to right: your timers (newest first), the meetings, then the last length used.
+ *  Timers go first so a new one's card goes in right by the presets it grows out of, and doesn't
+ *  fly across a meeting's card to get to its place. */
 export const cards = computed(() => {
-  const now = state.now, list = [];
+  const now = state.now, list = timers.map(timerCard);
   currentMeetings.value.filter(e => shown(meetingCardId(e), e.end)).forEach(e => list.push({
     id: meetingCardId(e), kind: 'meeting', status: 'running', remaining: e.end - now, total: e.end - e.start,
     label: e.title || 'Meeting ends in', title: countdownText(e.end - now)
@@ -104,7 +106,6 @@ export const cards = computed(() => {
       label: 'Next meeting in', title: countdownText(next.start - now)
     });
   }
-  timers.forEach(t => list.push(timerCard(t)));
   const minutes = lastMinutes.value;
   list.push({ id: 'last', kind: 'last', status: 'set', remaining: minutes * 60000, total: minutes * 60000,
     label: lengthLabel(minutes), title: timerText(minutes * 60000) });
