@@ -199,7 +199,7 @@ try {
   await tap(preset(10));
   assert.match(await focusedCard(), /^10 minute timer 9:5\d /, 'Tapping a preset starts a timer, on its own card');
   await tap(preset(30));
-  assert.equal(await timersKept(), 2, 'and another, beside it');
+  assert.equal(await timersKept(), 2, 'and another, ahead of it (newest first)');
   assert.equal(await evaluate('document.querySelectorAll(".td-card").length'), 4, 'each with its card');
   assert.match(await focusedCard(), /^30 minute timer 29:5\d/, 'on the new one');
   await pause(5300);
@@ -208,9 +208,10 @@ try {
   await pause(1100);
   assert.match(await rail(), /30 minute timer1[67]:\d\d/, 'Timer counts down');
   await capture('timer');
-  await swipe(-1);
-  assert.equal(await deckOn(), true, 'A swipe goes back to the deck');
-  assert.match(await focusedCard(), /^10 minute timer 0:00|^Time's up/, 'and along it: the 10 minutes are up');
+  await swipe(1);
+  await pause(600);
+  assert.equal(await deckOn(), false, 'A swipe pages to the next timer, full size');
+  assert.match(await rail(), /^Time's up\s*\d+:\d\d\+/, 'the older 10 minutes, which are up');
   await press('Escape');
   await pause(100);
   assert.equal(await timersKept(), 1, 'The back button puts a finished timer away');

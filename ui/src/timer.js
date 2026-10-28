@@ -88,7 +88,7 @@ function timerCard(t) {
     title: t.status === 'done' ? timerText(now - t.endsAt) + '+' : t.status === 'paused' ? countdownText(t.left) : countdownText(remaining)
   };
 }
-/** Every card, left to right: the meetings, your timers, then the last length used. */
+/** Every card, left to right: the meetings, your timers (newest first), then the last length used. */
 export const cards = computed(() => {
   const now = state.now, list = [];
   currentMeetings.value.filter(e => shown(meetingCardId(e), e.end)).forEach(e => list.push({
@@ -111,11 +111,12 @@ export const cards = computed(() => {
   return list;
 });
 
-/** Starts a new timer of that many minutes, beside any already going. Returns its card's id. */
+/** Starts a new timer of that many minutes, ahead of any already going, so its card goes in by
+ *  the presets and the deck only has to move one step to it. Returns its card's id. */
 export function startTimer(minutes) {
   state.now = CT.now();
   const id = 't' + state.now.toString(36) + Math.floor(Math.random() * 1e4).toString(36);
-  timers.push({ id, minutes, status: 'running', endsAt: endOnHalfSecond(state.now + minutes * 60000), left: 0 });
+  timers.unshift({ id, minutes, status: 'running', endsAt: endOnHalfSecond(state.now + minutes * 60000), left: 0 });
   lastMinutes.value = minutes;
   save();
   return id;

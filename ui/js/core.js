@@ -536,7 +536,7 @@ export function initializeRuntime(state) {
   // A swipe is one finger moving mostly sideways, far enough. Left (to the next, as a page turns)
   // is swipe(1), right is swipe(-1). It acts once, as the finger lifts. A screen with drag()
   // follows the finger instead: once it's moved past a tap, the way it went most (axis 'x'
-  // sideways, 'y' up and down) holds for the rest of the touch, and drag(dx, dy, axis) says how
+  // sideways, 'y' up and down) holds for the rest of the touch, and drag(dx, dy, axis, target) says how
   // far it's gone as it goes, then dragEnd(dx, vx, axis, dy, vy) as it lifts (vx, vy: px/ms, its
   // speed at the end). drag() returning false leaves a sideways one to swipe(). An alert over the
   // screen and a locked screen ignore it.
@@ -550,7 +550,7 @@ export function initializeRuntime(state) {
   }
   window.addEventListener('touchstart', function (e) {
     var t = e.touches[0];
-    touchStart = e.touches.length === 1 ? { x: t.clientX, y: t.clientY, axis: '', dragging: false, last: [] } : null;
+    touchStart = e.touches.length === 1 ? { x: t.clientX, y: t.clientY, target: e.target, axis: '', dragging: false, last: [] } : null;
     dragHeld = false;
   }, { passive: true, capture: true });
   window.addEventListener('touchmove', function (e) {
@@ -567,7 +567,7 @@ export function initializeRuntime(state) {
     }
     if (!start.dragging) return;
     var s = touchScreen();
-    if (!s || !s.drag || s.drag(dx, dy, start.axis) === false) start.dragging = false;
+    if (!s || !s.drag || s.drag(dx, dy, start.axis, start.target) === false) start.dragging = false;
     dragHeld = start.dragging;
   }, { passive: true, capture: true });
   window.addEventListener('touchend', function (e) {

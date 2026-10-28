@@ -74,8 +74,8 @@ screen.back = () => {
 // full size (the rail and the dial, like the other views). With no timer of yours going it opens
 // on the deck, resting on the presets; with one, on that timer. The deck's stripe follows a
 // dragging finger and, let go, rests on the presets or with a card centred: the nearest, or, let
-// go moving, the next one that way. A swipe on the full-size timer goes back to the deck, a card
-// along. Resting on a card that's counting for 5 seconds zooms it up to full size. Tapping a
+// go moving, the next one that way. A swipe on the full-size timer pages to the next one, full
+// size (see "Paging" below). Resting on a card that's counting for 5 seconds zooms it up to full size. Tapping a
 // preset starts another timer and moves to its card; tapping a card zooms it up to full size.
 // Full size, the last length used starts with a tap (or the knob); any other full-size one goes
 // back to the deck. Swiping a card up lifts it off a Remove (Apple Watch faces' way): let go
@@ -151,6 +151,15 @@ function settle() {
 // The card grows to fill the screen first (the rest of the deck fading away), then, at full size,
 // the full-size timer takes its place with no fade: it looks the same, so the swap can't be seen.
 // Back to the deck is the same in reverse.
+// Turns the fades back on after a swap made with them off (instant). The device can take longer
+// than FRAME_MS to get to the swap, so first make it work out the swapped styles, fades still off:
+// otherwise the fades come back on first and play the swap, each at its own pace (the rail's
+// next-event line before its time and the dial, which wait 0.3s, see .fade-view.on).
+function endInstant() {
+  const el = document.getElementById('screen-clock');
+  if (el) void el.offsetHeight;
+  instant.value = false;
+}
 function zoom() {
   clearTimeout(settleTimer);
   if (mode.value !== 'timer' || timerView.value !== 'deck' || lift.value || zooming.value) return;
@@ -159,15 +168,16 @@ function zoom() {
   zoomTimer = setTimeout(() => {
     instant.value = true;
     timerView.value = 'timer';
-    zoomTimer = setTimeout(() => { zooming.value = false; instant.value = false; }, FRAME_MS);
+    zoomTimer = setTimeout(() => { endInstant(); zooming.value = false; }, FRAME_MS);
   }, ZOOM_MS);
 }
-function unzoom() {
+// then runs once the card's starting to shrink, in the same frame (a swipe moves the deck then).
+function unzoom(then) {
   clearTimeout(zoomTimer);
   instant.value = true;
   zooming.value = true;
   timerView.value = 'deck';
-  zoomTimer = setTimeout(() => { instant.value = false; zooming.value = false; }, FRAME_MS);
+  zoomTimer = setTimeout(() => { endInstant(); zooming.value = false; if (then) then(); }, FRAME_MS);
 }
 /** Opening the timer: on the card asked for (full size); else back where it was left (the deck
  *  where it rested, or that card full size), unless that card's gone or its timer has finished;
@@ -242,11 +252,17 @@ const railViews = computed(() => {
   return views;
 });
 // On a usage, the line at the bottom is when its windows reset instead of the next event.
-const resets = computed(() => {
-  if (!isUsage(mode.value)) return null;
-  const u = usageOf(state, mode.value);
-  return u.status === 'ok' ? { session: untilText(u.session.resetsAt, state.now, SESSION_MS), week: untilText(u.week.resetsAt, state.now, WEEK_MS) } : null;
+// Each usage view's reset times (null until it has a reading), all kept so the rail's bottom line
+// can crossfade with the rest of the view instead of swapping as the swap starts.
+const resetsByProvider = computed(() => {
+  const out = {}; // no Object.fromEntries on the device's Chromium 69
+  for (const p of providers.value) {
+    const u = usageOf(state, p);
+    out[p] = u.status === 'ok' ? { session: untilText(u.session.resetsAt, state.now, SESSION_MS), week: untilText(u.week.resetsAt, state.now, WEEK_MS) } : null;
+  }
+  return out;
 });
+const resets = computed(() => (isUsage(mode.value) && resetsByProvider.value[mode.value]) || null);
 // The meeting alert's start button: brings that meeting's timer up, full size, on the clock screen.
 CT.showTimer = id => {
   mode.value = 'timer';
@@ -263,20 +279,108 @@ CT.showUsage = provider => {
 // A finished timer counts up past its time until you leave the timer (or ten minutes pass).
 watch(() => mode.value === 'timer' && state.current === 'clock', up => {
   if (up) return;
+  if (page.value || pageSettling) { pageDrag = false; finishPage(false); }
   clearTimeout(settleTimer);
   keepCard();
   removeDoneTimers();
 });
-screen.swipe = direction => {
-  if (mode.value !== 'timer') return false;
+// ---- Paging between full-size timers (Figma 483:3135) --------------------------------------
+// Swiped sideways, the full-size timer gives way to the next card's, full size too: the two
+// cards' own copies take over (they look the same full size), and as the finger moves, the one
+// going shrinks to card size and slides off while the next comes in beside it and grows back to
+// full size (TimerDeck.vue draws it). Let go past halfway, or flicked, it carries on; otherwise
+// it goes back. At the end, the full-size timer takes over again with no fade. Swiping towards the
+// presets from the first card has nothing to page to: it goes back to the deck, on the presets.
+const PAGE_MS = 450, PAGE_SPAN = 800 + 32; // a whole page: the screen and the gap between cards
+const page = ref(null); // { from, to, dir, p }: card ids, +1 to the next (finger going left), 0–1
+let pageFrame = 0, pageDrag = false, pageSettling = false;
+function pageNeighbour(dir) {
+  const j = focusIndex.value + dir;
+  return j >= 0 && j < cards.value.length ? cards.value[j].id : null;
+}
+// The deck takes over from the full-size timer with nothing in between, then holds still
+// (instant) while the frames are drawn here.
+function startPage() {
+  cancelAnimationFrame(pageFrame);
+  clearTimeout(zoomTimer);
+  clearTimeout(settleTimer);
   keepCard();
+  zooming.value = false;
+  instant.value = true;
+  timerView.value = 'deck';
+}
+function finishPage(done) {
+  cancelAnimationFrame(pageFrame);
+  pageSettling = false;
+  const pg = page.value;
+  page.value = null;
+  if (done && pg && cards.value.some(c => c.id === pg.to)) { focusId.value = pg.to; atPresets.value = false; }
+  timerView.value = 'timer';
+  clearTimeout(zoomTimer);
+  zoomTimer = setTimeout(endInstant, FRAME_MS);
+}
+const easeOut = x => 1 - Math.pow(1 - x, 3);
+const easeInOut = x => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+// Carries the page on to the end (done) or back to the start, from wherever the finger left it.
+function settlePage(done, ease) {
+  const pg = page.value;
+  if (!pg) return finishPage(false);
+  const from = pg.p, to = done ? 1 : 0, ms = Math.max(150, PAGE_MS * Math.abs(to - from)), t0 = performance.now();
+  pageSettling = true;
+  cancelAnimationFrame(pageFrame);
+  const step = now => {
+    const x = Math.min(1, (now - t0) / ms);
+    page.value = { ...pg, p: from + (to - from) * (ease || easeOut)(x) };
+    if (x < 1) pageFrame = requestAnimationFrame(step);
+    else finishPage(done);
+  };
+  pageFrame = requestAnimationFrame(step);
+}
+/** One whole page on, as a swipe without a drag does (or nothing that way: back to the deck). */
+function pageBy(dir) {
+  const to = pageNeighbour(dir);
+  if (!to) return void unzoom(() => restOn(restPosition.value + dir));
+  startPage();
+  page.value = { from: focused.value.id, to, dir, p: 0 };
+  settlePage(true, easeInOut);
+}
+screen.swipe = direction => {
+  if (mode.value !== 'timer' || pageSettling) return false;
+  keepCard();
+  if (timerView.value === 'timer') return void pageBy(direction);
   restOn(restPosition.value + direction);
 };
+// Full size, a sideways drag pages; the page follows the finger, either way.
+function dragPage(dx) {
+  const dir = dx < 0 ? 1 : -1, to = pageNeighbour(dir);
+  if (!to) { if (page.value) page.value = { ...page.value, p: 0 }; return; }
+  if (!page.value) startPage();
+  page.value = { from: focused.value.id, to, dir, p: Math.min(1, Math.abs(dx) / PAGE_SPAN) };
+}
+function dragPageEnd(dx, vx) {
+  pageDrag = false;
+  const pg = page.value;
+  if (!pg) {
+    if (dx > 50 && !pageNeighbour(-1)) unzoom(() => restOn(0));
+    return;
+  }
+  const along = -vx * pg.dir; // px/ms the page's way
+  settlePage(Math.abs(vx) > FLICK_PX_MS ? along > 0 : pg.p > 0.5);
+}
 // Dragging the deck: sideways, the stripe moves with the finger (a little past either end at
 // most); up and down, the card in focus lifts with it.
-screen.drag = (dx, dy, axis) => {
-  if (mode.value !== 'timer' || timerView.value !== 'deck') return false;
+// Up and down lifts a card only when the finger started on one (or on the bin under it); anywhere
+// else, it's left to core.js, which steps through the clock's views as on the other screens.
+screen.drag = (dx, dy, axis, target) => {
+  if (mode.value !== 'timer' || pageSettling) return false;
+  if (pageDrag || timerView.value === 'timer') {
+    if (axis !== 'x') return false;
+    pageDrag = true;
+    return void dragPage(dx);
+  }
+  if (timerView.value !== 'deck') return false;
   if (axis === 'y') {
+    if (!lifting.value && !(target && target.closest && target.closest('.td-card, .td-remove'))) return false;
     if (!lifting.value) { lifting.value = true; liftFrom = lift.value; clearTimeout(settleTimer); }
     const up = liftFrom - dy;
     lift.value = focused.value.kind === 'last' ? Math.max(0, Math.min(LAST_GIVE_PX, up / 4)) : Math.max(0, Math.min(LIFT_PX + 24, up));
@@ -287,6 +391,7 @@ screen.drag = (dx, dy, axis) => {
   dragPosition.value = Math.max(-0.2, Math.min(cards.value.length + 0.2, positionAt(firstCardAt(dragFrom) + dx)));
 };
 screen.dragEnd = (dx, vx, axis, dy, vy) => {
+  if (pageDrag) return dragPageEnd(dx, vx);
   if (axis === 'y') {
     const arm = focused.value.kind !== 'last' && (Math.abs(vy) > FLICK_PX_MS ? vy < 0 : lift.value > LIFT_ARM_PX);
     lifting.value = false;
@@ -315,10 +420,12 @@ screen.press = () => {
 </script>
 <template>
   <section id="screen-clock" class="screen fill flex" :class="{ active: state.current === 'clock', leaving: state.leaving === 'clock', timer: mode === 'timer', 'timer-deck': mode === 'timer' && timerView === 'deck', 'timer-instant': instant }">
-    <LeftRail :view="railView" :views="railViews" :truncate-lower="!resets" @click="backToDeck">
+    <LeftRail :view="railView" :views="railViews" :truncate-lower="false" @click="backToDeck">
       <template #lower>
-        <template v-if="resets"><div class="usage-resets">Resets: Session <b class="primary medium">{{ resets.session }}</b> · Week <b class="primary medium">{{ resets.week }}</b></div></template>
-        <template v-else-if="next">{{ CT.timeText(next.start) }} <b class="primary medium">{{ next.title }}</b></template><template v-else-if="state.calendar.status === 'ok'">No events today</template>
+        <div class="rail-lower-views">
+          <div v-for="p in providers" :key="p" class="fade-view" :class="{ on: mode === p && !!resetsByProvider[p] }"><div v-if="resetsByProvider[p]" class="usage-resets">Resets: Session <b class="primary medium">{{ resetsByProvider[p].session }}</b> · Week <b class="primary medium">{{ resetsByProvider[p].week }}</b></div></div>
+          <div class="fade-view truncate" :class="{ on: !resets }"><template v-if="next">{{ CT.timeText(next.start) }} <b class="primary medium">{{ next.title }}</b></template><template v-else-if="state.calendar.status === 'ok'">No events today</template></div>
+        </div>
       </template>
     </LeftRail>
     <ScreenStage class="bg-panel">
@@ -331,6 +438,6 @@ screen.press = () => {
         <div v-else class="c-digital fill"><span>{{ digits.hours }}</span><span class="c-digital-minutes"><span>:</span><span>{{ digits.minutes }}</span></span></div>
       </div>
     </ScreenStage>
-    <TimerDeck :cards="cards" :focus="focusIndex" :position="deckPosition" :dragging="dragPosition != null" :lift="lift" :lifting="lifting" :removing="removing" :on="mode === 'timer' && timerView === 'deck'" :zooming="zooming" :instant="instant" :clock="time.time" :next="next ? { time: CT.timeText(next.start), title: next.title } : null" @start="startFromPreset" @pick="pickCard" @remove="removeFocused" />
+    <TimerDeck :cards="cards" :focus="focusIndex" :position="deckPosition" :dragging="dragPosition != null" :lift="lift" :lifting="lifting" :removing="removing" :on="mode === 'timer' && timerView === 'deck'" :zooming="zooming" :instant="instant" :page="page" :clock="time.time" :next="next ? { time: CT.timeText(next.start), title: next.title } : null" @start="startFromPreset" @pick="pickCard" @remove="removeFocused" />
   </section>
 </template>
