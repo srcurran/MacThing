@@ -41,3 +41,11 @@ test('Quick Look renders the cover as a stage-sized PNG', { skip: process.platfo
     await fs.rm(dir, { recursive: true, force: true });
   }
 });
+
+test('a reroll draws another cover for the day, the same one for the same seed', () => {
+  assert.notEqual(coverSvg(20746, 7), coverSvg(20746));
+  assert.notEqual(coverSvg(20746, 7), coverSvg(20746, 8));
+  assert.equal(coverSvg(20746, 7), coverSvg(20746, 7));
+  const fills = coverSvg(20746, 7).match(/fill="(#[^"]+)"/g);
+  assert.equal(new Set(fills.slice(1)).size, 6); // six panels, six different colours
+});
