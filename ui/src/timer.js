@@ -82,10 +82,8 @@ function timerCard(t) {
   const name = lengthLabel(t.minutes);
   return {
     id: t.id, kind: 'timer', status: t.status, remaining, total,
-    // On a deck card, Paused goes first, so a long label cut short doesn't take it with it. Full
-    // size the pause badge says it, so the rail has only the name (railLabel).
-    label: t.status === 'paused' ? 'Paused · ' + name : t.status === 'done' ? "Time's up" : name,
-    railLabel: t.status === 'done' ? "Time's up" : name,
+    // A paused one says so with the pause badge on its dial, so the label is only its name.
+    label: t.status === 'done' ? "Time's up" : name,
     // Once the time is up it counts on past it, 1:23+, until it's put away.
     title: t.status === 'done' ? timerText(now - t.endsAt) + '+' : t.status === 'paused' ? countdownText(t.left) : countdownText(remaining)
   };

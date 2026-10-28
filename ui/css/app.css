@@ -589,7 +589,7 @@ h3 {
   border-radius: 50%;
   background: var(--disc);
 }
-.disc svg {
+.disc > svg {
   width: 48px;
   height: 48px;
 }
@@ -663,7 +663,8 @@ h3 {
 .show-volume .note-hud .note-pill {
   opacity: 0;
 }
-.show-volume .paused-glyph {
+.show-volume .paused-glyph,
+.show-volume .pause-disc.on {
   opacity: 0;
 }
 .vol-icon {
@@ -1030,6 +1031,9 @@ h3 {
 .pause-disc {
   overflow: hidden;
   background: none;
+}
+.pause-disc.on {
+  opacity: 1;
 }
 .pause-disc-blur {
   position: absolute;

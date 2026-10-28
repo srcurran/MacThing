@@ -17,7 +17,7 @@ watch(() => props.paused, paused => {
 onUnmounted(() => clearTimeout(timer));
 </script>
 <template>
-  <div class="paused-glyph pause-disc disc fill flex center" :style="{ color }">
+  <div class="paused-glyph pause-disc disc fill flex center" :class="{ on: paused }" :style="{ color }">
     <div v-if="blur" class="pause-disc-blur"><slot /></div>
     <div class="pause-disc-tint fill" />
     <svg class="pause-disc-icon"><use :href="'#i-' + icon" /></svg>

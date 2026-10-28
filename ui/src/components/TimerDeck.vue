@@ -22,6 +22,7 @@ export function positionAt(x) {
 <script setup>
 import { computed, ref, watch } from 'vue';
 import TimeTimer from './TimeTimer.vue';
+import PauseDisc from './PauseDisc.vue';
 import { PRESETS } from '../timer.js';
 // The timer's overview, over the whole clock screen (Figma: time timer → "Timer deck · no timers"
 // and "Swiping"). One stripe that slides as a whole: "Set a timer" and the presets in the rail's
@@ -117,7 +118,7 @@ function cardStyle(i) {
           </div>
           <div class="font-small medium truncate"><template v-if="next"><span class="muted">{{ next.time }}</span> {{ next.title }}</template><span v-else class="muted">No events today</span></div>
         </div>
-        <div class="td-stage"><TimeTimer :remaining="c.remaining" :total="c.total" :idle="c.status === 'set'" /></div>
+        <div class="td-stage"><TimeTimer :remaining="c.remaining" :total="c.total" :idle="c.status === 'set'" /><PauseDisc :paused="c.kind === 'timer' && c.status === 'paused'"><TimeTimer :remaining="c.remaining" :total="c.total" /></PauseDisc></div>
       </div>
     </div>
   </div>

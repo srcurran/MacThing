@@ -257,7 +257,7 @@ function usageRail(provider) {
 const timerFull = computed(() => mode.value === 'timer' && timerView.value === 'timer');
 const railView = computed(() => (mode.value === 'timer' && !timerFull.value ? 'deck' : mode.value));
 const railViews = computed(() => {
-  const views = { clock: { eyebrow: CT.MONTHS[parts.value.month], title: parts.value.date, subtitle: CT.DAYS[parts.value.day] }, timer: { eyebrow: focused.value.railLabel || focused.value.label, title: focused.value.title, subtitle: time.value.time }, deck: { title: '' } };
+  const views = { clock: { eyebrow: CT.MONTHS[parts.value.month], title: parts.value.date, subtitle: CT.DAYS[parts.value.day] }, timer: { eyebrow: focused.value.label, title: focused.value.title, subtitle: time.value.time }, deck: { title: '' } };
   providers.value.forEach(p => { views[p] = usageRail(p); });
   return views;
 });
@@ -441,7 +441,7 @@ screen.press = () => {
     <ScreenStage class="bg-panel">
       <!-- Every view stays drawn and only fades (see .fade-view), so a press doesn't have to build and
            paint the incoming one while the other is fading out. -->
-      <div class="fade-view c-view-timer fill" :class="{ on: timerFull, paused: focused.kind === 'timer' && focused.status === 'paused' }" @click.stop="tapTimer"><TimeTimer :remaining="focused.remaining" :total="focused.total" :idle="focused.status === 'set'" /><PauseDisc :paused="focused.kind === 'timer' && focused.status === 'paused'"><TimeTimer :remaining="focused.remaining" :total="focused.total" /></PauseDisc><!-- the pause badge Now Playing shows, over the dial's centre --><div v-if="timerResets" class="back-action font-small medium primary">reset <BackActionIcon name="refresh" /></div></div>
+      <div class="fade-view c-view-timer fill" :class="{ on: timerFull }" @click.stop="tapTimer"><TimeTimer :remaining="focused.remaining" :total="focused.total" :idle="focused.status === 'set'" /><PauseDisc :paused="focused.kind === 'timer' && focused.status === 'paused'"><TimeTimer :remaining="focused.remaining" :total="focused.total" /></PauseDisc><!-- the pause badge Now Playing shows, over the dial's centre --><div v-if="timerResets" class="back-action font-small medium primary">reset <BackActionIcon name="refresh" /></div></div>
       <div v-for="p in providers" :key="p" class="fade-view fill" :class="{ on: mode === p }"><ClaudeUsage :provider="p" /></div>
       <div class="fade-view fill" :class="{ on: mode === 'clock' }">
         <AnalogClock v-if="face !== 'digital'" :numbers="face === 'numbers'" :now="state.current === 'clock' ? state.now : 0" />
