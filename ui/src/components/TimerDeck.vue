@@ -20,7 +20,7 @@ export function positionAt(x) {
 }
 </script>
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import TimeTimer from './TimeTimer.vue';
 import { PRESETS } from '../timer.js';
 // The timer's overview, over the whole clock screen (Figma: time timer → "Timer deck · no timers"
@@ -34,7 +34,27 @@ import { PRESETS } from '../timer.js';
 // bin and "Remove" in the space it leaves (tap it: remove). lifting: a finger has it (no easing).
 const LIFT_PX = 160;
 const props = defineProps({ cards: Array, focus: Number, position: Number, dragging: Boolean, lift: Number, lifting: Boolean, removing: Boolean, on: Boolean, zooming: Boolean, instant: Boolean, page: Object, clock: String, next: Object });
-defineEmits(['start', 'pick', 'remove']);
+const emit = defineEmits(['start', 'pick', 'remove']);
+// A new timer's card grows out of the preset tapped for it: it starts small and round over the
+// preset, then (a frame later, so that's drawn first) the card's own transitions take it to its
+// place in the row, as the row slides over to it.
+const root = ref(null);
+const BORN_SCALE = 0.15; // about the preset's width
+let bornFrom = null;
+const born = ref(null); // { id, x, y }: the new card's centre, at first, in the deck's coordinates
+function startAt(minutes, e) {
+  const r = e.currentTarget.getBoundingClientRect(), deck = root.value.getBoundingClientRect();
+  bornFrom = { x: r.left - deck.left + r.width / 2, y: r.top - deck.top + r.height / 2 };
+  emit('start', minutes);
+  requestAnimationFrame(() => { bornFrom = null; }); // the watch below runs after this returns
+}
+watch(() => props.cards.map(c => c.id), (ids, old) => {
+  const id = bornFrom && ids.find(i => !old.includes(i));
+  if (!id) return;
+  born.value = { id, ...bornFrom };
+  bornFrom = null;
+  requestAnimationFrame(() => requestAnimationFrame(() => { born.value = null; }));
+});
 const firstCard = computed(() => firstCardAt(props.position));
 const column = computed(() => columnAt(props.position));
 // Zooming, the card in focus grows from where it sits to the whole screen, where the full-size
@@ -64,6 +84,11 @@ const paged = computed(() => {
   return { [left]: at(gap - GAP / 2 - w), [right]: at(gap + GAP / 2) };
 });
 function cardStyle(i) {
+  const b = born.value;
+  if (b && props.cards[i].id === b.id) {
+    const card = root.value && root.value.querySelector('.td-card'), top = card ? card.offsetTop : 48;
+    return { transform: 'translate(' + (b.x - CARD_W / 2 * BORN_SCALE) + 'px, ' + (b.y - top - 192 * BORN_SCALE) + 'px) scale(' + BORN_SCALE + ')', opacity: 0, borderRadius: '192px' };
+  }
   if (paged.value) return paged.value[props.cards[i].id] || {};
   const style = { transform: cardTransform(i) };
   if (i === props.focus && props.lift) style.opacity = 1 - liftShare.value / 2;
@@ -71,7 +96,7 @@ function cardStyle(i) {
 }
 </script>
 <template>
-  <div class="td fill" :class="{ on, zooming, instant, dragging, lifting, paging: !!page }">
+  <div ref="root" class="td fill" :class="{ on, zooming, instant, dragging, lifting, paging: !!page }">
     <div v-if="canRemove" class="td-remove flex-col items-center" :style="{ transform: 'translateX(' + (firstCard + focus * STEP) + 'px)', opacity: liftShare }" @click="$emit('remove')">
       <svg class="td-bin" aria-hidden="true"><use href="#i-trash" /></svg>
       <span class="font-medium semibold">Remove</span>
@@ -79,7 +104,7 @@ function cardStyle(i) {
     <div class="td-set" :style="{ transform: 'translateX(' + column + 'px)' }">
       <p class="font-small bold">Set a timer</p>
       <div class="td-presets">
-        <div v-for="m in PRESETS" :key="m" class="td-preset" @click="$emit('start', m)"><span class="td-minutes font-medium semibold tabular">{{ m }}</span><span class="td-unit bold muted">MIN</span></div>
+        <div v-for="m in PRESETS" :key="m" class="td-preset" @click="startAt(m, $event)"><span class="td-minutes font-medium semibold tabular">{{ m }}</span><span class="td-unit bold muted">MIN</span></div>
       </div>
     </div>
     <div v-for="(c, i) in cards" :key="c.id" class="td-card" :class="{ focus: i === focus, paged: paged && paged[c.id] }" :style="cardStyle(i)" :data-card="c.id" @click="$emit('pick', c.id)">
