@@ -27,7 +27,7 @@ export const DEFAULTS = {
   // monitor) the playing app's if it's Spotify or Music | 'system' | 'spotify' | 'music'
   knobVolume: 'auto',
   idleMinutes: 0, // once nothing has played this long on Now Playing, show idleScreen (0 = never)
-  idleScreen: 'clock', // 'clock' | 'calendar' | 'weather'
+  idleScreen: 'clock', // 'clock' (the face) | 'timer' | 'claude' | 'chatgpt' (usage) | 'calendar' | 'weather'
   // Smart switching: the screen moves to Claude or ChatGPT usage when it speeds up or resets, and
   // to the weather before rain or snow, then back to Now Playing if it came from there (ui/src/smart.js)
   smartSwitch: false,
@@ -64,7 +64,7 @@ const VALID = {
   usageSource: (v) => ['claude', 'chatgpt', 'both', 'none'].includes(v),
   knobVolume: (v) => ['auto', 'system', 'spotify', 'music'].includes(v),
   idleMinutes: (v) => [0, 1, 2, 5, 10].includes(v),
-  idleScreen: (v) => ['clock', 'calendar', 'weather'].includes(v),
+  idleScreen: (v) => ['clock', 'timer', 'claude', 'chatgpt', 'calendar', 'weather'].includes(v),
   smartSwitch: (v) => typeof v === 'boolean',
   screenSleep: (v) => ['mac', 30, 60, 120, 240, 'never'].includes(v),
   whenLocked: (v) => ['unlocked', 'nowplaying', 'weather', 'calendar', 'clock'].includes(v),

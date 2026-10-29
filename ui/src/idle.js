@@ -3,9 +3,10 @@ import { state, CT } from './state.js';
 import { timerBusy } from './timer.js';
 
 // Settings → When idle: once nothing has played for idleMinutes while Now Playing is up, show
-// idleScreen instead (the clock, by default). Music starting again brings Now Playing back, as
-// long as nobody has moved off the screen this put up. Only ever leaves Now Playing, and never
-// over Settings, a meeting alert or a timer that's going.
+// idleScreen instead (the clock face, by default; also the timers, a usage, the weather or the
+// calendar). Music starting again brings Now Playing back, as long as nobody has moved off the
+// screen this put up. Only ever leaves Now Playing, and never over Settings, a meeting alert or a
+// timer that's going (unless the timers are what it shows).
 const RETRY_MS = 30000; // something was in the way: look again in a bit
 
 var countdown = null;
@@ -24,13 +25,23 @@ function arm() {
 function fire() {
   countdown = null;
   if (playing() || state.current !== 'nowplaying' || !state.settings.idleMinutes) return;
-  var busy = (CT.modalOpen && CT.modalOpen()) || timerBusy.value;
-  if (busy) { countdown = setTimeout(fire, RETRY_MS); return; }
   var target = state.settings.idleScreen || 'clock';
-  if (!CT.screens[target]) return;
-  autoScreen = target;
-  CT.show(target);
+  var busy = (CT.modalOpen && CT.modalOpen()) || (timerBusy.value && target !== 'timer');
+  if (busy) { countdown = setTimeout(fire, RETRY_MS); return; }
+  showIdleScreen();
 }
+
+// The clock's views (its face, the timers, a usage) are all the clock screen.
+var CLOCK_VIEWS = ['clock', 'timer', 'claude', 'chatgpt'];
+function showIdleScreen(fade) {
+  var target = state.settings.idleScreen || 'clock';
+  var screen = CLOCK_VIEWS.includes(target) ? 'clock' : target;
+  if (!CT.screens[screen]) return;
+  autoScreen = screen;
+  if (screen === 'clock' && CT.showClockView) CT.showClockView(target, fade);
+  else CT.show(screen, fade);
+}
+CT.showIdleScreen = showIdleScreen; // core.js: the page opening with nothing playing
 
 watch(playing, function (on) {
   if (on && autoScreen && state.current === autoScreen) CT.show('nowplaying');

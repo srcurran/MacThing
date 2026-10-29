@@ -180,7 +180,7 @@
       <section>
         <h3 class="subhead">When no music is playing</h3>
         <div class="row"><div><div class="label">Show</div><div class="note">Now Playing comes back when music starts</div></div>
-          <span class="seg" data-key="idleScreen" id="idleScreen"><button data-v="weather">Weather</button><button data-v="clock">Clock</button><button data-v="calendar">Calendar</button><button data-v="none">Date</button></span></div>
+          <select id="idleScreen" data-key="idleScreen"><option value="none">Do nothing</option><option value="clock">Clock</option><option value="timer">Timers</option><option value="claude">Claude usage</option><option value="chatgpt">ChatGPT usage</option><option value="weather">Weather</option><option value="calendar">Calendar</option></select></div>
         <div class="row" id="idleAfterRow"><label class="label" for="idleMinutes">After</label>
           <select id="idleMinutes" data-key="idleMinutes" data-type="number"><option value="0" hidden>—</option><option value="1">1 min</option><option value="2">2 min</option><option value="5">5 min</option><option value="10">10 min</option></select></div>
       </section>
@@ -317,9 +317,12 @@
       seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === String(s[seg.dataset.key]))));
     });
     document.querySelectorAll('select[data-key]').forEach((select) => { select.value = String(s[select.dataset.key]); });
-    // "Date" (value none) is When idle's Never (idleMinutes 0): Now Playing stays, showing the date; Show after is the rest of idleMinutes.
+    // "Do nothing" (value none) is When idle's Never (idleMinutes 0): Now Playing stays, showing the date; After is the rest of idleMinutes.
+    // A usage the clock doesn't show (Show usage) isn't offered, unless it's the one already picked.
     const idleOff = !s.idleMinutes;
-    if (idleOff) $('#idleScreen').querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === 'none')));
+    const usages = { claude: ['claude'], chatgpt: ['chatgpt'], both: ['claude', 'chatgpt'], none: [] }[s.usageSource] || ['claude'];
+    $('#idleScreen').querySelectorAll('option').forEach((o) => { if (o.value === 'claude' || o.value === 'chatgpt') o.hidden = !usages.includes(o.value) && s.idleScreen !== o.value; });
+    if (idleOff) $('#idleScreen').value = 'none';
     $('#idleMinutes').disabled = idleOff;
     $('#idleAfterRow').classList.toggle('off', idleOff);
     const sleepsWhenLocked = s.screenSleep === 'mac';
@@ -654,7 +657,7 @@
 
   function saveChoice(control, value) {
     if (control.dataset.key === 'idleScreen') {
-      // Date (none) turns the idle switch off; picking a screen while it's off turns it back on at 5 minutes.
+      // Do nothing (none) turns the idle switch off; picking a screen while it's off turns it back on at 5 minutes.
       return save(value === 'none' ? { idleMinutes: 0 } : { idleScreen: value, ...(state.settings.idleMinutes ? {} : { idleMinutes: 5 }) });
     }
     save({ [control.dataset.key]: value === 'true' ? true : value === 'false' ? false : control.dataset.type === 'number' && value !== '' && !isNaN(value) ? Number(value) : value });
