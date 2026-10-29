@@ -71,6 +71,10 @@ CT.showForecast = () => {
   view.value = "forecast";
   CT.show("weather");
 };
+// When idle: the forecast, today's hours or the week.
+screen.showView = (v) => {
+  if (VIEWS.includes(v)) view.value = v;
+};
 screen.reselect = (steps = 1) => {
   if (data.value.status === "error") return CT.send({ type: "retryWeather" });
   const n = VIEWS.length;

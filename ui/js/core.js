@@ -134,7 +134,8 @@ export function initializeRuntime(state) {
   CT.current = 'nowplaying';
   var beforeSettings = 'nowplaying';
 
-  /** Registers a screen. Optional hooks: show(), hide(), turn(steps), press(), and reselect(steps)
+  /** Registers a screen. Optional hooks: show(), hide(), turn(steps), press(), showView(view) to
+   * put it on one of its views before it's shown (When idle), and reselect(steps)
    * for its own button pressed while it's already showing (steps 1), or a swipe up (1) or down (-1)
    * through its views. turn and press can return false to
    * leave the input to the default (volume, and play/pause/next/previous). */

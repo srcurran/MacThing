@@ -27,7 +27,9 @@ export const DEFAULTS = {
   // monitor) the playing app's if it's Spotify or Music | 'system' | 'spotify' | 'music'
   knobVolume: 'auto',
   idleMinutes: 0, // once nothing has played this long on Now Playing, show idleScreen (0 = never)
-  idleScreen: 'clock', // 'clock' (the face) | 'timer' | 'claude' | 'chatgpt' (usage) | 'calendar' | 'weather'
+  // 'clock' (the face) | 'timer' | 'claude' | 'chatgpt' (usage) | 'weather' (the forecast) |
+  // 'weather-today' | 'weather-week' | 'month' (the calendar) | 'schedule' (the agenda)
+  idleScreen: 'clock',
   // Smart switching: the screen moves to Claude or ChatGPT usage when it speeds up or resets, and
   // to the weather before rain or snow, then back to Now Playing if it came from there (ui/src/smart.js)
   smartSwitch: false,
@@ -64,7 +66,7 @@ const VALID = {
   usageSource: (v) => ['claude', 'chatgpt', 'both', 'none'].includes(v),
   knobVolume: (v) => ['auto', 'system', 'spotify', 'music'].includes(v),
   idleMinutes: (v) => [0, 1, 2, 5, 10].includes(v),
-  idleScreen: (v) => ['clock', 'timer', 'claude', 'chatgpt', 'calendar', 'weather'].includes(v),
+  idleScreen: (v) => ['clock', 'timer', 'claude', 'chatgpt', 'weather', 'weather-today', 'weather-week', 'month', 'schedule'].includes(v),
   smartSwitch: (v) => typeof v === 'boolean',
   screenSleep: (v) => ['mac', 30, 60, 120, 240, 'never'].includes(v),
   whenLocked: (v) => ['unlocked', 'nowplaying', 'weather', 'calendar', 'clock'].includes(v),
@@ -106,6 +108,7 @@ class Settings extends EventEmitter {
     try {
       const raw = JSON.parse(fs.readFileSync(FILE, 'utf8'));
       if (raw.sleepWithMac === false && raw.screenSleep === undefined) raw.screenSleep = 'never'; // the old on/off setting
+      if (raw.idleScreen === 'calendar') raw.idleScreen = 'schedule'; // the calendar screen opens on its agenda
       return Object.fromEntries(Object.entries(raw).filter(([k, v]) => VALID[k]?.(v)));
     } catch {
       return {};

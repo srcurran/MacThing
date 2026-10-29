@@ -3,10 +3,10 @@ import { state, CT } from './state.js';
 import { timerBusy } from './timer.js';
 
 // Settings → When idle: once nothing has played for idleMinutes while Now Playing is up, show
-// idleScreen instead (the clock face, by default; also the timers, a usage, the weather or the
-// calendar). Music starting again brings Now Playing back, as long as nobody has moved off the
-// screen this put up. Only ever leaves Now Playing, and never over Settings, a meeting alert or a
-// timer that's going (unless the timers are what it shows).
+// idleScreen instead: the clock face by default, or the timers, a usage, one of the weather's
+// views, or the calendar's month or agenda. Music starting again brings Now Playing back, as long
+// as nobody has moved off the screen this put up. Only ever leaves Now Playing, and never over
+// Settings, a meeting alert or a timer that's going (unless the timers are what it shows).
 const RETRY_MS = 30000; // something was in the way: look again in a bit
 
 var countdown = null;
@@ -31,15 +31,19 @@ function fire() {
   showIdleScreen();
 }
 
-// The clock's views (its face, the timers, a usage) are all the clock screen.
-var CLOCK_VIEWS = ['clock', 'timer', 'claude', 'chatgpt'];
+// Each pick: [screen, the view it opens on].
+var TARGETS = {
+  clock: ['clock', 'clock'], timer: ['clock', 'timer'], claude: ['clock', 'claude'], chatgpt: ['clock', 'chatgpt'],
+  weather: ['weather', 'forecast'], 'weather-today': ['weather', 'today'], 'weather-week': ['weather', 'week'],
+  month: ['calendar', 'month'], schedule: ['calendar', 'agenda'], calendar: ['calendar', 'agenda'],
+};
 function showIdleScreen(fade) {
-  var target = state.settings.idleScreen || 'clock';
-  var screen = CLOCK_VIEWS.includes(target) ? 'clock' : target;
-  if (!CT.screens[screen]) return;
-  autoScreen = screen;
-  if (screen === 'clock' && CT.showClockView) CT.showClockView(target, fade);
-  else CT.show(screen, fade);
+  var target = TARGETS[state.settings.idleScreen] || TARGETS.clock;
+  var screen = CT.screens[target[0]];
+  if (!screen) return;
+  autoScreen = target[0];
+  if (screen.showView) screen.showView(target[1]);
+  CT.show(target[0], fade);
 }
 CT.showIdleScreen = showIdleScreen; // core.js: the page opening with nothing playing
 
