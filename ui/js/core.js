@@ -134,7 +134,8 @@ export function initializeRuntime(state) {
   CT.current = 'nowplaying';
   var beforeSettings = 'nowplaying';
 
-  /** Registers a screen. Optional hooks: show(), hide(), turn(steps), press(), and reselect(steps)
+  /** Registers a screen. Optional hooks: show(), hide(), turn(steps), press(), showView(view) to
+   * put it on one of its views before it's shown (When idle), and reselect(steps)
    * for its own button pressed while it's already showing (steps 1), or a swipe up (1) or down (-1)
    * through its views. turn and press can return false to
    * leave the input to the default (volume, and play/pause/next/previous). */
@@ -221,10 +222,9 @@ export function initializeRuntime(state) {
     opening = false;
     // Settings → When idle governs this: Never keeps the (placeholder) Now Playing up; otherwise
     // the page opens on the Idle screen (the Clock by default). Settings arrive before Now Playing.
-    var idleTarget = CT.settings.idleScreen || 'clock';
-    if (first && !msg.np.active && CT.current === 'nowplaying' && CT.settings.idleMinutes && CT.screens[idleTarget]) {
+    if (first && !msg.np.active && CT.current === 'nowplaying' && CT.settings.idleMinutes && CT.showIdleScreen) {
       autoScreen = true;
-      return CT.show(idleTarget, true); // under "Waiting for your Mac" as it fades
+      return CT.showIdleScreen(true); // under "Waiting for your Mac" as it fades
     }
     if (autoScreen && msg.np.active) {
       autoScreen = false;

@@ -287,6 +287,13 @@ CT.showUsage = provider => {
   mode.value = provider;
   CT.show('clock');
 };
+// When idle: one of the clock's views — the face, the timer, or a usage (the face when Settings →
+// Usage doesn't show that one).
+screen.showView = view => {
+  if (isUsage(view) && !providers.value.includes(view)) view = 'clock';
+  mode.value = view;
+  if (view === 'timer') openTimer();
+};
 // A finished timer counts up past its time until you leave the timer (or ten minutes pass).
 watch(() => mode.value === 'timer' && state.current === 'clock', up => {
   if (up) return;
