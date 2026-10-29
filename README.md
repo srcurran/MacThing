@@ -142,7 +142,21 @@ npm run dev     # rebuilds Vue and redeploys on source changes; logs raw knob/bu
 
 Don't run a manual copy while the agent is running, because both would fight over the device. Run `npm run uninstall-agent` first, and `npm run install-agent` when you're done.
 
-### After pulling updates
+### Updating
+
+When a new version is released, the settings page (http://127.0.0.1:4747) shows a banner with what's new and an **Update now** button, and the device's Settings screen shows **Update available** at the top. The bridge checks GitHub for a newer release about a minute after it starts and every 12 hours after that.
+
+**Update now** moves your copy to the latest release, installs dependencies, rebuilds, and restarts the bridge. It takes a minute or two, and the device shows "Waiting for your Mac" briefly while the bridge restarts. Helpers whose source didn't change keep their macOS permissions. If any step fails, your copy goes back to the version you had, and the details are in `~/Library/Logs/macthing-update.log`.
+
+To do the same thing from Terminal:
+
+```bash
+npm run update        # not `npm update`, which is npm's own command for upgrading dependencies
+```
+
+Both need a copy installed with `git clone`, on the `main` branch, with no local changes. If yours doesn't qualify, the banner says why. The button also needs the bridge running as the login agent (`npm run install-agent`). A release that changes how the device itself is set up says so in its notes; run `npm run setup-device` again for those.
+
+### After pulling updates yourself
 
 ```bash
 npm ci                # install dependency updates from the lockfile
@@ -320,6 +334,7 @@ bridge/           Mac-side Node app (config.js: buttons, knob, volume…; settin
   widgets/        weather (Open-Meteo) and calendar feeds
   mac/            CarThingHelper wrapper, Mac light/dark detection
   settings-page/  the http://127.0.0.1:4747 page
+  update.js       checks GitHub for a newer release and runs scripts/update.sh for Update now
   audio/          MacThingVolume wrapper
   device/         adb, minimal CDP client, UI sync, connection lifecycle
 native/           Swift helpers + build script (output in native/bin, git-ignored)
@@ -331,10 +346,10 @@ ui/               device UI source (Vue 3, 800×480)
 dist/ui/          generated device bundle and local assets (git-ignored)
 vite.config.js    Vue compiler and Chromium 69 classic-script build
 device/           sleepd.sh (sleep watchdog) and dimmerd.sh (auto-brightness), installed by setup-device
-scripts/          device setup/restore, screenshots, LaunchAgent
+scripts/          device setup/restore, screenshots, LaunchAgent, update.sh (npm run update)
   util/           one-off comparisons (art-compare.js: album art background versions side by side)
 vendor/           mediaremote-adapter source (cloned by native/build.sh, git-ignored)
-.github/workflows release.yml: a version bump in package.json merged to main publishes release v<version>
+.github/workflows release.yml: a version bump in package.json merged to main publishes release v<version>. Every running bridge finds the new release within 12 hours and offers it on the settings page
 ```
 
 ## Contributing

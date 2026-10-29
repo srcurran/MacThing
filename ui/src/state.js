@@ -9,6 +9,8 @@ export const state = reactive({
   weather: { status: 'loading' }, calendar: { status: 'loading' }, perpetual: { status: 'loading' }, usage: { status: 'loading' }, chatgptUsage: { status: 'loading' },
   // The Mac's Apple emoji as data URLs, {'🔥': …, '💀': …, '🕶️': …}; empty until the Mac sends them.
   emoji: {},
+  // A newer MacThing release than the Mac is running: { available, latest } (bridge/update.js).
+  update: { available: false, latest: null },
   volume: 0, volumeUnsupported: false, volumeNote: '', volumeIcon: '', showVolume: false,
   flash: { icon: 'play', color: '', key: 0 }, flashing: false, toast: '', note: '', showNote: false,
   // The back button's usage refresh: '' idle, 'spin' (the ⟳ turns once), 'pending' (••• until the
@@ -115,6 +117,7 @@ CT.on('perpetual', msg => { state.perpetual = msg.perpetual; });
 CT.on('emoji', msg => { state.emoji = msg.emoji || {}; });
 CT.on('usage', msg => { state.usage = msg.usage; });
 CT.on('chatgptUsage', msg => { state.chatgptUsage = msg.usage; });
+CT.on('update', msg => { state.update = msg.update; });
 
 export function elapsed() {
   const np = state.np;

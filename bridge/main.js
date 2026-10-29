@@ -30,6 +30,7 @@ import { CodexUsage } from './widgets/codex-usage.js';
 import { macEmoji } from './widgets/emoji.js';
 import { Weather } from './widgets/weather.js';
 import { SkipDetector } from './nowplaying/skips.js';
+import { Updater } from './update.js';
 
 const source = new MediaRemoteSource(paths.bin);
 const skips = new SkipDetector();
@@ -49,6 +50,10 @@ const wantsUsage = (provider) => [provider, 'both'].includes(settings.get().usag
 const usage = new ClaudeUsage({ enabled: () => wantsUsage('claude') });
 const chatgptUsage = new CodexUsage({ enabled: () => wantsUsage('chatgpt') });
 const appearance = new MacAppearance();
+// Checks GitHub for a newer release; "Update now" on the settings page installs it, and the bridge
+// then exits so the login agent starts the new version.
+const updater = new Updater({ dev: process.argv.includes('--watch'), onUpdated: () => shutdown() });
+const updateMessage = () => ({ type: 'update', update: { available: updater.state.available, latest: updater.state.latest } });
 const power = new MacPower(paths.bin);
 // You're at the Mac: awake, unlocked, display on, and some input in the last few minutes.
 const reminders = new Reminders({
@@ -184,6 +189,7 @@ function pushAll(target) {
   target.send({ type: 'emoji', emoji });
   target.send({ type: 'usage', usage: usage.state });
   target.send({ type: 'chatgptUsage', usage: chatgptUsage.state });
+  target.send(updateMessage());
   target.send({ type: 'screen', on: screenOn !== false }); // the page may have gone dark by itself
   pushLock(target);
 }
@@ -663,6 +669,7 @@ perpetual.on('change', (state) => link?.send({ type: 'perpetual', perpetual: sta
 usage.on('change', (state) => link?.send({ type: 'usage', usage: state }));
 chatgptUsage.on('change', (state) => link?.send({ type: 'chatgptUsage', usage: state }));
 appearance.on('change', (dark) => link?.send({ type: 'appearance', dark }));
+updater.on('change', () => link?.send(updateMessage()));
 reminders.on('due', (reminder) => {
   log.info(`[reminders] ${reminder.text}`);
   link?.send({ type: 'reminder', reminder });
@@ -697,7 +704,8 @@ chatgptUsage.start();
 appearance.start();
 power.start();
 reminders.start();
-startSettingsPage({ port: config.settingsPort, settings, status: macStatus, reminders, dev: process.argv.includes('--watch') });
+updater.start();
+startSettingsPage({ port: config.settingsPort, settings, status: macStatus, reminders, updater, dev: process.argv.includes('--watch') });
 
 trackDevices(debounce(refreshDevices, 400));
 setInterval(refreshDevices, 30 * 1000); // a stale adb server sends no events; look anyway
