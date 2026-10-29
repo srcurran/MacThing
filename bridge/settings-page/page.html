@@ -178,10 +178,10 @@
           <select id="whenLocked" data-key="whenLocked"><option value="unlocked">Everything works</option><option value="nowplaying">Now Playing only</option><option value="weather">Weather only</option><option value="calendar">Calendar only</option><option value="clock">Clock only</option></select></div>
       </section>
       <section>
-        <h3 class="subhead">When no music is playing</h3>
-        <div class="row"><div><div class="label">Show</div><div class="note">Now Playing comes back when music starts</div></div>
-          <select id="idleScreen" data-key="idleScreen"><option value="none">Do nothing</option><option value="clock">Clock</option><option value="timer">Timers</option><option value="claude">Claude usage</option><option value="chatgpt">ChatGPT usage</option><option value="weather">Weather</option><option value="calendar">Calendar</option></select></div>
-        <div class="row" id="idleAfterRow"><label class="label" for="idleMinutes">After</label>
+        <h3 class="subhead">When nothing is playing</h3>
+        <div class="row"><div><label class="label" for="idleScreen">Switch to</label><div class="note">Only from Now Playing, when nothing’s playing or it’s paused. Now Playing comes back when music starts</div></div>
+          <select id="idleScreen" data-key="idleScreen"><option value="none">Don’t switch</option><option value="clock">Clock</option><option value="timer">Timers</option><option value="claude">Claude usage</option><option value="chatgpt">ChatGPT usage</option><option value="weather">Weather</option><option value="calendar">Calendar</option></select></div>
+        <div class="row" id="idleAfterRow"><div><label class="label" for="idleMinutes">After</label><div class="note">Of nothing playing. A button press or knob turn starts it over</div></div>
           <select id="idleMinutes" data-key="idleMinutes" data-type="number"><option value="0" hidden>—</option><option value="1">1 min</option><option value="2">2 min</option><option value="5">5 min</option><option value="10">10 min</option></select></div>
       </section>
       <section>
@@ -317,7 +317,7 @@
       seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === String(s[seg.dataset.key]))));
     });
     document.querySelectorAll('select[data-key]').forEach((select) => { select.value = String(s[select.dataset.key]); });
-    // "Do nothing" (value none) is When idle's Never (idleMinutes 0): Now Playing stays, showing the date; After is the rest of idleMinutes.
+    // "Don't switch" (value none) is When idle's Never (idleMinutes 0): Now Playing stays, showing the date; After is the rest of idleMinutes.
     // A usage the clock doesn't show (Show usage) isn't offered, unless it's the one already picked.
     const idleOff = !s.idleMinutes;
     const usages = { claude: ['claude'], chatgpt: ['chatgpt'], both: ['claude', 'chatgpt'], none: [] }[s.usageSource] || ['claude'];
@@ -657,7 +657,7 @@
 
   function saveChoice(control, value) {
     if (control.dataset.key === 'idleScreen') {
-      // Do nothing (none) turns the idle switch off; picking a screen while it's off turns it back on at 5 minutes.
+      // Don't switch (none) turns the idle switch off; picking a screen while it's off turns it back on at 5 minutes.
       return save(value === 'none' ? { idleMinutes: 0 } : { idleScreen: value, ...(state.settings.idleMinutes ? {} : { idleMinutes: 5 }) });
     }
     save({ [control.dataset.key]: value === 'true' ? true : value === 'false' ? false : control.dataset.type === 'number' && value !== '' && !isNaN(value) ? Number(value) : value });
