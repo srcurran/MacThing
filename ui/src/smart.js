@@ -1,7 +1,7 @@
 import { watch } from 'vue';
 import { state, CT } from './state.js';
 import { timerBusy, startedCountdowns } from './timer.js';
-import { usageProviders, usageName } from './usage.js';
+import { usageProviders, usageName, paceNumber, SESSION_MS, WEEK_MS } from './usage.js';
 import { usageWatch, weatherWatch, timerWatch } from './smart-triggers.js';
 
 // Settings → Smart switching: the screen moves by itself when something is worth a look.
@@ -30,6 +30,17 @@ let holdUntil = 0;
 let lastInput = -Infinity;
 
 const enabled = () => !!state.settings.smartSwitch;
+const logEvent = text => CT.logEvent && CT.logEvent('[smart switch] ' + text);
+
+/** The numbers behind a usage switch, for the log: "session 10% 1.0x 🔥 · week 23% 0.4x". */
+function usageDetail(usage, now) {
+  if (!usage || usage.status !== 'ok') return usage ? usage.status : 'no reading';
+  const s = usage.session, w = usage.week;
+  return 'session ' + s.percent + '% ' + paceNumber(s, SESSION_MS, now, { updatedAt: usage.updatedAt })
+    + ' · week ' + w.percent + '% ' + paceNumber(w, WEEK_MS, now, { maxFires: 0 })
+    + (usage.stale ? ' (stale)' : '');
+}
+
 const timerUp = () => timerBusy.value;
 function busy(forTimer) {
   return state.offline || state.asleep || !!CT.lockedTo || state.current === 'settings'
@@ -39,8 +50,9 @@ function busy(forTimer) {
 // How long the note saying why the screen moved stays up.
 const NOTE_MS = 5000;
 
-function want(show, note, timer) {
+function want(show, note, timer, detail) {
   if (!enabled() || (pending && pending.timer && !timer)) return;
+  logEvent('wants to show: ' + note + (detail ? ' — ' + detail : ''));
   pending = { show, note, timer, until: performance.now() + PENDING_MS };
 }
 
@@ -48,6 +60,7 @@ function go({ show, note }) {
   const from = state.current;
   show();
   CT.note(note, NOTE_MS);
+  logEvent('showed: ' + note + ' (on ' + state.current + ', was ' + from + ')');
   if (state.current === from) return; // already there, or the screen wouldn't move
   if (from === 'nowplaying') returnTo = 'nowplaying';
   placed = state.current;
@@ -64,7 +77,8 @@ CT.onSecond(now => {
     if (event && shown.includes(provider)) {
       want(() => CT.showUsage && CT.showUsage(provider),
         event === 'limit' ? 'Out of ' + usageName(provider) + ' usage'
-          : usageName(provider) + (event === 'hot' ? ' usage is speeding up' : ' usage is reset'));
+          : usageName(provider) + (event === 'hot' ? ' usage is speeding up' : ' usage is reset'),
+        false, usageDetail(usage, now));
     }
   });
   const wet = weatherCheck(state.weather, now);
@@ -76,7 +90,10 @@ CT.onSecond(now => {
     if (pending && pending.timer) pending.until = performance.now() + Math.max(0, ending.endsAt - now);
   }
   if (!pending) return;
-  if (!enabled() || performance.now() > pending.until) pending = null;
+  if (!enabled() || performance.now() > pending.until) {
+    if (enabled()) logEvent('gave up on: ' + pending.note + ' (something was in the way until it was too late)');
+    pending = null;
+  }
   else if (!busy(pending.timer)) { const next = pending; pending = null; go(next); }
 });
 
@@ -94,5 +111,6 @@ watch(() => trackOf(state.np), track => {
   if (!track || !returnTo || state.current !== placed || performance.now() < holdUntil) return;
   if (CT.lockedTo || (CT.modalOpen && CT.modalOpen())) return;
   CT.show(returnTo);
+  logEvent('back to ' + returnTo + ' on the song change');
   settle();
 });

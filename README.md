@@ -162,6 +162,8 @@ A few of them change how the device behaves:
 - **Sleep and lock → Sleep:** *With Mac* (the default) turns the screen off while the Mac's display sleeps or the Mac is locked. *Mac idle 30 min* to *Mac idle 4 hr* turn it off once the Mac has gone that long without keyboard or mouse input, like a screen saver (and while the Mac sleeps). *Never* keeps it on. A button or knob press wakes it for a minute. The device's own sleep when the Mac goes away is separate (`deviceSleepSeconds`).
 - **Sleep and lock → When Mac is locked** (with Sleep set to anything but *With Mac*): *Everything works* leaves the device as it is; *Now Playing only*, *Weather only*, *Calendar only* or *Clock only* hold the device on that screen until the Mac unlocks, with the top buttons and Settings off and the knob and back button only working the volume and playback.
 
+**Local flags.** Options for one Mac that aren't in Settings or the repo go in `~/Library/Application Support/carthing-now-playing/flags.json`, read when the bridge starts (`npm run restart` after changing it). `{ "logEvents": true }` adds a line to the bridge's log (`npm run logs`) each time the device moves its own screen, with the reason: Smart switching (with the usage numbers behind a usage switch, and when it gives up because something was in the way) and When idle. A dev run (`npm run dev`) logs these too.
+
 **Hardware mapping and behavior.** Edit `bridge/config.js`, then `npm run restart`:
 
 - `buttons`: what each button does (`screen:<name>`, `settings`, or a media command)

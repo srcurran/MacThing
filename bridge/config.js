@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -99,3 +101,18 @@ export const config = {
   // false: the device blurs the cover itself with CSS, which takes it ~1.7s of drawing per cover.
   ambientBlurOnMac: true,
 };
+
+// Flags for this Mac only, kept out of the repo and Settings:
+// ~/Library/Application Support/carthing-now-playing/flags.json, read when the bridge starts.
+//   logEvents: true — the device logs to the bridge's log each time its screen moves by itself
+//   (Smart switching, When idle), and why.
+function readFlags() {
+  const file = path.join(os.homedir(), 'Library', 'Application Support', 'carthing-now-playing', 'flags.json');
+  try {
+    const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
+    return { logEvents: raw?.logEvents === true };
+  } catch {
+    return { logEvents: false };
+  }
+}
+export const flags = readFlags();
