@@ -334,6 +334,11 @@ export function initializeRuntime(state) {
   function debugInput(text) {
     if (CT.config.debug) CT.send({ type: 'log', message: text });
   }
+  /** A line in the Mac's log about something the page did by itself, with flags.json's logEvents
+   *  (or in a dev run). */
+  CT.logEvent = function (text) {
+    if (CT.config.debug || CT.config.logEvents) CT.send({ type: 'log', message: text });
+  };
 
   function runButton(action) {
     if (!action) return;

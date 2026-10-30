@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { APP_VOLUME, AppVolume } from './audio/app-volume.js';
 import { Volume } from './audio/volume.js';
-import { config, paths } from './config.js';
+import { config, flags, paths } from './config.js';
 import { listCarThings, listDevices, onUsbBus, restartServer, trackDevices } from './device/adb.js';
 import { DeviceLink } from './device/link.js';
 import { log } from './log.js';
@@ -170,6 +170,7 @@ function pushAll(target) {
       volumeStep: config.volumeStep,
       knobDirection: config.knobDirection,
       debug: Boolean(process.env.DEBUG), // page reports raw key/wheel events to the log
+      logEvents: flags.logEvents, // page logs why its screen moved by itself (flags.json)
     },
   });
   target.send(tickMessage());

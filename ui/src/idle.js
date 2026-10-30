@@ -28,6 +28,7 @@ function fire() {
   var target = state.settings.idleScreen || 'clock';
   var busy = (CT.modalOpen && CT.modalOpen()) || (timerBusy.value && target !== 'timer');
   if (busy) { countdown = setTimeout(fire, RETRY_MS); return; }
+  if (CT.logEvent) CT.logEvent('[when idle] nothing played for ' + state.settings.idleMinutes + ' min: showing ' + target);
   showIdleScreen();
 }
 
