@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { state, CT } from '../state.js';
 // Settings → Reminders (on the Mac): "Drink water" every so often or "Stretch" at 3:00, as a card
 // like the meeting alert's. The Mac decides when one is due and sends it here. First pass:
@@ -19,21 +19,27 @@ const reminder = computed(() => (meetingOpen() ? null : queue.value[0] || null))
 // The card shows the reminder up, and the last one while it slides away once it's gone.
 let lastReminder = null;
 const card = computed(() => (lastReminder = reminder.value || lastReminder));
-function done() {
+function done(why) {
+  logEvent('done: "' + queue.value[0].text + '" (' + why + ')');
   queue.value = queue.value.slice(1);
 }
+// With flags.json's logEvents: when a card covers the screen and how it goes (see core.js).
+const logEvent = text => CT.logEvent && CT.logEvent('[reminder] ' + text);
+watch(() => reminder.value && reminder.value.id, id => {
+  if (id) logEvent('up: "' + reminder.value.text + '" (over ' + state.current + ')');
+});
 // The clock ticks once a second; a card left alone that long goes by itself.
 CT.onSecond(now => {
   const r = queue.value[0];
   if (!r || meetingOpen()) return;
   if (!r.shownAt) r.shownAt = now;
-  else if (now - r.shownAt >= SHOW_MS) done();
+  else if (now - r.shownAt >= SHOW_MS) done('left alone ' + SHOW_MS / 1000 + 's');
 });
 CT.modalOpen = () => meetingOpen() || !!reminder.value;
 CT.dismissModal = key => {
   if (meetingDismiss(key)) return true;
   if (!reminder.value) return false;
-  done();
+  done(key);
   return true;
 };
 // The pill: "Every 45 min", or the time it was set for ("3:00 PM").

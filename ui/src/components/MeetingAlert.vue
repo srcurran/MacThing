@@ -78,6 +78,12 @@ const action = computed(() => {
   return 'Show timer';
 });
 CT.modalOpen = () => !!event.value;
+// With flags.json's logEvents: when a card covers the screen and how it goes (see core.js).
+const logEvent = text => CT.logEvent && CT.logEvent('[meeting alert] ' + text);
+watch(() => event.value && keyOf(event.value), (key, was) => {
+  if (key) logEvent('up: "' + event.value.title + '" (over ' + state.current + ')');
+  else if (was) logEvent('gone');
+});
 CT.dismissModal = key => {
   if (!event.value) return false;
   const e = event.value;
@@ -86,11 +92,14 @@ CT.dismissModal = key => {
       const queue = queued.value !== keyOf(e);
       setQueued(queue ? keyOf(e) : '');
       askForMeeting(e, queue);
+      logEvent((queue ? 'queued' : 'cancelled') + ' its timer');
       return true;
     }
     askForMeeting(e);
     CT.showTimer(meetingCardId(e));
+    logEvent('showed its timer');
   }
+  logEvent('dismissed (' + key + ')');
   // A press dismisses only this card. Before the meeting starts, it comes back as it does.
   dismissed[keyOf(e)] = e.start > state.now ? e.start : untilOf(e);
   save();
