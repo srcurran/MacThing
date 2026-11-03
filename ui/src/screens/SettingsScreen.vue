@@ -4,7 +4,7 @@ import { state, CT } from '../state.js';
 import LeftRail from '../components/LeftRail.vue';
 import ScreenStage from '../components/ScreenStage.vue';
 import SettingsRow from '../components/SettingsRow.vue';
-const rows = [
+const baseRows = [
   { key: 'theme', label: 'Appearance', options: [['dark', 'Dark'], ['light', 'Light'], ['auto', 'Match Mac']] },
   { key: 'artBackground', label: 'Album art background', options: [[false, 'Off'], [true, 'On']] },
   { key: 'meetingAlert', label: 'Meeting alerts', options: [[0, 'Off'], ['event', 'Event’s alert'], [1, '1 min before'], [5, '5 min before'], [10, '10 min before']] },
@@ -12,6 +12,11 @@ const rows = [
   { spacer: true }, // an empty slot that sets "More settings on Mac" apart; the knob skips it
   { label: 'More settings on Mac', page: '', value: () => '' }
 ];
+// A newer release goes at the top, where it's seen first; pressing it opens the Mac page, which has
+// the Update now button.
+const rows = computed(() => state.update.available
+  ? [{ label: 'Update available', page: '', value: () => state.update.latest }, ...baseRows]
+  : baseRows);
 const selected = ref(0);
 // Six rows fit the stage; past that the list scrolls to keep the selection in view.
 const VISIBLE = 6;
@@ -21,8 +26,9 @@ const value = row => row.value ? row.value(state.settings) : row.options[index(r
 const screen = CT.screen('settings');
 screen.show = () => { selected.value = 0; };
 screen.turn = steps => {
-  let next = Math.max(0, Math.min(rows.length - 1, selected.value + steps));
-  if (rows[next].spacer) next = Math.max(0, Math.min(rows.length - 1, next + Math.sign(steps)));
+  const list = rows.value;
+  let next = Math.max(0, Math.min(list.length - 1, selected.value + steps));
+  if (list[next].spacer) next = Math.max(0, Math.min(list.length - 1, next + Math.sign(steps)));
   selected.value = next;
 };
 function openOnMac(section) {
@@ -30,9 +36,9 @@ function openOnMac(section) {
   CT.toast('Opened on your Mac');
 }
 // The back button opens the settings page on the Mac, at the selected row's section if it has one.
-screen.back = () => openOnMac(rows[selected.value].page || '');
+screen.back = () => openOnMac(rows.value[selected.value].page || '');
 screen.press = () => {
-  const row = rows[selected.value];
+  const row = rows.value[selected.value];
   if (row.page != null) return openOnMac(row.page);
   const next = row.options[(index(row) + 1) % row.options.length][0];
   state.settings[row.key] = next;

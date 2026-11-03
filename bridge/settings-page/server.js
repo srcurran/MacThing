@@ -10,10 +10,10 @@ const page = fs.readFileSync(new URL('./page.html', import.meta.url));
  * plus the same toggles as the device's settings screen. Loopback only; requests must carry a
  * loopback Host (DNS-rebinding guard), and writes must be same-origin JSON (CSRF guard).
  *
- * @param {{port: number, settings: import('../settings.js').settings, status: () => Promise<object>, reminders?: import('../widgets/reminders.js').Reminders, dev?: boolean}} opts
+ * @param {{port: number, settings: import('../settings.js').settings, status: () => Promise<object>, reminders?: import('../widgets/reminders.js').Reminders, updater?: import('../update.js').Updater, dev?: boolean}} opts
  *   dev: a dev run (`npm run dev`); the page then shows testing buttons such as Show now.
  */
-export function startSettingsPage({ port, settings, status, reminders, dev = false }) {
+export function startSettingsPage({ port, settings, status, reminders, updater, dev = false }) {
   const origins = [`http://127.0.0.1:${port}`, `http://localhost:${port}`];
 
   const server = http.createServer(async (req, res) => {
@@ -30,15 +30,20 @@ export function startSettingsPage({ port, settings, status, reminders, dev = fal
         return res.end(page);
       }
       if (req.method === 'GET' && url.pathname === '/api/state') {
-        return json(200, { settings: settings.get(), ...(await status()), dev });
+        return json(200, { settings: settings.get(), ...(await status()), update: updater?.state ?? null, dev });
       }
       if (req.method === 'GET' && url.pathname === '/api/places') {
         const q = (url.searchParams.get('q') || '').trim();
         return json(200, { places: q.length < 2 ? [] : await searchPlaces(q) });
       }
-      const isPost = req.method === 'POST' && ['/api/settings', '/api/reminders/test'].includes(url.pathname);
+      const isPost = req.method === 'POST' && ['/api/settings', '/api/reminders/test', '/api/update'].includes(url.pathname);
       if (isPost && (!origins.includes(req.headers.origin) || !req.headers['content-type']?.startsWith('application/json'))) {
         return json(403, { error: 'forbidden' });
+      }
+      if (isPost && url.pathname === '/api/update') {
+        if (!updater) return json(404, { error: 'not found' });
+        updater.install(); // runs in the background; the page follows it through /api/state
+        return json(200, { update: updater.state });
       }
       if (isPost && url.pathname === '/api/reminders/test') {
         let body = '';
