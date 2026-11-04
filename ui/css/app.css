@@ -1042,23 +1042,17 @@ h3 {
   filter: drop-shadow(0 2px 6px var(--shadow));
 }
 
-/* The playing Music track is a favorite: a star in a see-through square, the badge's size and
-   place, shaded like the paused disc. */
+/* The playing Music track is a favorite: a see-through square with the star cut out of it
+   (IconSymbols.vue), the badge's size and place, shaded like the paused disc. */
 .fav-star {
   position: absolute;
   right: 16px;
   bottom: 16px;
   width: 48px;
   height: 48px;
-  border-radius: 11px;
-  background: var(--disc);
-  color: var(--disc-ink);
+  color: var(--disc);
   opacity: 0;
   transition: opacity 0.3s ease;
-}
-.fav-star svg {
-  width: 26px;
-  height: 26px;
 }
 .fav-star.on {
   opacity: 1;
