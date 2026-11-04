@@ -145,4 +145,5 @@ CT.on('command', action => {
 CT.on('skip', msg => { if (msg.action === 'next' || msg.action === 'previous') CT.flash(msg.action); });
 CT.on('favorite', msg => {
   CT.flash(msg.favorited ? 'heart' : 'heart-break');
+  if (state.np.active) state.np.favorited = msg.favorited; // the star now; the bridge's update follows
 });

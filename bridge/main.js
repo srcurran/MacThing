@@ -95,6 +95,7 @@ async function onNowPlaying(snapshot) {
 
   if (link) pushNowPlaying(link);
   refreshKnobTarget(); // under 'auto', the playing app decides what the knob turns
+  checkFavorite();
 
   // Browser video art is often a small thumbnail. Look for a bigger one once per cover.
   if (!art || largerArt.has(key) || Math.min(art.width, art.height) >= 360) return;
@@ -140,8 +141,40 @@ function nowPlayingMessage() {
         icon: config.unbadgedApps.includes(np.bundleId) ? null : app?.icon || null,
       },
       artworkKey: art?.key || null,
+      favorited: favorite.key != null && favorite.key === favoriteKey(np) && favorite.value,
     },
   };
+}
+
+// Whether the playing Apple Music track is a favorite, for the star on Now Playing. MediaRemote
+// doesn't carry it, so Music is asked (musicctl favorited) when the track changes, and again on
+// later updates for the same track at most every FAVORITE_RECHECK_MS, which picks up a favorite
+// made on the Mac by the next pause or seek.
+const FAVORITE_RECHECK_MS = 10000;
+let favorite = { key: null, value: false, at: 0 };
+let favoriteChecking = false;
+let favoriteUnsupported = false; // an older musicctl without the favorited command
+const favoriteKey = (np) =>
+  np.active && np.bundleId === 'com.apple.Music' ? JSON.stringify([np.title, np.artist, np.album]) : null;
+
+async function checkFavorite() {
+  const key = favoriteKey(current.np);
+  if (!key || favoriteChecking || favoriteUnsupported) return;
+  if (favorite.key === key && Date.now() - favorite.at < FAVORITE_RECHECK_MS) return;
+  favoriteChecking = true;
+  const r = await musicctl('favorited');
+  favoriteChecking = false;
+  if (!r.ok) {
+    if (/usage/.test(r.error || '')) {
+      favoriteUnsupported = true;
+      log.info('[favorite] musicctl can’t read favorites yet (rebuild it with ./native/build.sh)');
+    } else log.debug('[favorite] read failed:', r.error);
+    return;
+  }
+  if (favoriteKey(current.np) !== key) return checkFavorite(); // the track changed meanwhile
+  const changed = favorite.key !== key || favorite.value !== r.favorited;
+  favorite = { key, value: r.favorited, at: Date.now() };
+  if (changed && link) pushNowPlaying(link);
 }
 
 function pushNowPlaying(target) {
@@ -306,7 +339,9 @@ async function setFavorite(command) {
   const r = await musicctl(command);
   if (r.ok) {
     log.info(`[favorite] ${np.title}: ${r.favorited ? 'added' : 'removed'}`);
+    favorite = { key: favoriteKey(np), value: r.favorited, at: Date.now() };
     link?.send({ type: 'favorite', favorited: r.favorited });
+    if (link) pushNowPlaying(link);
   } else {
     log.warn('[favorite]', r.error);
     // -1743: the user said no to "musicctl wants to control Music".

@@ -1042,6 +1042,23 @@ h3 {
   filter: drop-shadow(0 2px 6px var(--shadow));
 }
 
+/* The playing Music track is a favorite: a small star where the badge goes. */
+.fav-star {
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+  width: 32px;
+  height: 32px;
+  color: var(--white);
+  -webkit-filter: drop-shadow(0 2px 6px var(--shadow));
+  filter: drop-shadow(0 2px 6px var(--shadow));
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.fav-star.on {
+  opacity: 1;
+}
+
 /* No cover: a note where the art goes (the stage's own shade keeps the square). Nothing playing:
    the perpetual calendar, after pketh's perpetual-calendar: the month, date and day on the rail,
    the time at its foot, and today's cover (drawn on the Mac) in the art's place, once it's here. */

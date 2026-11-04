@@ -3,6 +3,7 @@
 //
 //   musicctl favorite    set "favorited" on the current track   → {"ok":true,"favorited":true}
 //   musicctl unfavorite  clear it                                → {"ok":true,"favorited":false}
+//   musicctl favorited   read it, changing nothing                → {"ok":true,"favorited":true}
 //   musicctl play        start playback                          → {"ok":true}
 // Failures print {"ok":false,"error":"…","code":N} and exit 1.
 
@@ -46,13 +47,19 @@ let scripts = [
       return false
     end tell
     """,
+  "favorited": """
+    tell application id "com.apple.Music"
+      if player state is stopped then error "Nothing is playing in Music" number 1
+      return favorited of current track
+    end tell
+    """,
   "play": """
     tell application id "com.apple.Music" to play
     """,
 ]
 
 guard let command = CommandLine.arguments.dropFirst().first, let source = scripts[command] else {
-  FileHandle.standardError.write("usage: musicctl favorite|unfavorite|play\n".data(using: .utf8)!)
+  FileHandle.standardError.write("usage: musicctl favorite|unfavorite|favorited|play\n".data(using: .utf8)!)
   exit(2)
 }
 
