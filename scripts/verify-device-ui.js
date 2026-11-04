@@ -86,7 +86,7 @@ try {
   assert.equal(await evaluate('document.getElementById("screen-nowplaying").classList.contains("paused")'), false);
   await message({ type: 'favorite', favorited: true });
   await capture('favorite');
-  assert.equal(await evaluate('document.querySelector(".flash use").getAttribute("href")'), '#i-heart', 'Favoriting flashes the heart, with no toast');
+  assert.equal(await evaluate('document.querySelector(".flash use").getAttribute("href")'), '#i-star', 'Favoriting flashes the star, with no toast');
   assert.equal(await evaluate('document.querySelector(".toast").textContent'), '');
   await message({ type: 'skip', action: 'next' });
   assert.equal(await evaluate('document.querySelector(".flash use").getAttribute("href")'), '#i-next', 'A skip made on the Mac flashes on the device');
