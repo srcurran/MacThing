@@ -106,7 +106,7 @@ onUnmounted(() => { clearInterval(timer); if (removeGestures) removeGestures(); 
       <div v-if="!hasArt && !coverUrl" class="np-placeholder fill flex center"><svg><use href="#i-note" /></svg></div><!-- the cover's stand-in, idle or for a track without art -->
       <PauseDisc :paused="np.active && !np.playing" :icon="state.flashing ? state.flash.icon : 'pause'" :color="state.flashing ? state.flash.color : ''" /><!-- a flash here swaps its icon into this badge for a moment, in place of a second disc -->
       <img v-if="icon" class="badge" :src="icon" alt="" />
-      <svg v-else class="fav-star" :class="{ on: np.active && np.favorited }"><use href="#i-star" /></svg><!-- a favorite in Music, in the corner other apps' icons take -->
+      <div v-else class="fav-star flex center" :class="{ on: np.active && np.favorited }"><svg><use href="#i-star" /></svg></div><!-- a favorite in Music, in the corner other apps' icons take -->
     </ScreenStage>
   </section>
 </template>

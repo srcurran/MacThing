@@ -1042,18 +1042,23 @@ h3 {
   filter: drop-shadow(0 2px 6px var(--shadow));
 }
 
-/* The playing Music track is a favorite: a small star where the badge goes. */
+/* The playing Music track is a favorite: a star in a see-through square, the badge's size and
+   place, shaded like the paused disc. */
 .fav-star {
   position: absolute;
-  right: 20px;
-  bottom: 20px;
-  width: 32px;
-  height: 32px;
-  color: var(--white);
-  -webkit-filter: drop-shadow(0 2px 6px var(--shadow));
-  filter: drop-shadow(0 2px 6px var(--shadow));
+  right: 16px;
+  bottom: 16px;
+  width: 48px;
+  height: 48px;
+  border-radius: 11px;
+  background: var(--disc);
+  color: var(--disc-ink);
   opacity: 0;
   transition: opacity 0.3s ease;
+}
+.fav-star svg {
+  width: 26px;
+  height: 26px;
 }
 .fav-star.on {
   opacity: 1;
