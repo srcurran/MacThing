@@ -6,8 +6,9 @@ import play from '@phosphor-icons/core/assets/fill/play-fill.svg?raw';
 import pause from '@phosphor-icons/core/assets/fill/pause-fill.svg?raw';
 import next from '@phosphor-icons/core/assets/fill/skip-forward-fill.svg?raw';
 import previous from '@phosphor-icons/core/assets/fill/skip-back-fill.svg?raw';
+import heart from '@phosphor-icons/core/assets/fill/heart-fill.svg?raw';
 import star from '@phosphor-icons/core/assets/fill/star-fill.svg?raw';
-import starOff from '@phosphor-icons/core/assets/bold/star-bold.svg?raw';
+import heartBreak from '@phosphor-icons/core/assets/bold/heart-break-bold.svg?raw';
 import note from '@phosphor-icons/core/assets/fill/music-notes-fill.svg?raw';
 import speaker from '@phosphor-icons/core/assets/fill/speaker-high-fill.svg?raw';
 import muted from '@phosphor-icons/core/assets/fill/speaker-x-fill.svg?raw';
@@ -19,7 +20,7 @@ import trash from '@phosphor-icons/core/assets/fill/trash-fill.svg?raw';
 
 const ICONS = {
   'i-play': play, 'i-pause': pause, 'i-next': next, 'i-previous': previous,
-  'i-star': star, 'i-star-off': starOff, 'i-note': note,
+  'i-heart': heart, 'i-heart-break': heartBreak, 'i-star': star, 'i-note': note,
   'i-speaker': speaker, 'i-muted': muted, 'i-spotify': spotify, 'i-open-on-mac': openOnMac, 'i-refresh': refresh, 'i-x': x,
   'i-trash': trash
 };

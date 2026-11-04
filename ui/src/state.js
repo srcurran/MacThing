@@ -144,6 +144,6 @@ CT.on('command', action => {
 // Skips made on the Mac (keyboard, Music, Spotify…) show here the same way.
 CT.on('skip', msg => { if (msg.action === 'next' || msg.action === 'previous') CT.flash(msg.action); });
 CT.on('favorite', msg => {
-  CT.flash(msg.favorited ? 'star' : 'star-off'); // Music's own favorite is a star
+  CT.flash(msg.favorited ? 'heart' : 'heart-break');
   if (state.np.active) state.np.favorited = msg.favorited; // the star now; the bridge's update follows
 });
