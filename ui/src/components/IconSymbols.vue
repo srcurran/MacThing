@@ -20,7 +20,7 @@ import trash from '@phosphor-icons/core/assets/fill/trash-fill.svg?raw';
 
 const ICONS = {
   'i-play': play, 'i-pause': pause, 'i-next': next, 'i-previous': previous,
-  'i-heart': heart, 'i-heart-break': heartBreak, 'i-note': note,
+  'i-heart': heart, 'i-heart-break': heartBreak, 'i-star': star, 'i-note': note,
   'i-speaker': speaker, 'i-muted': muted, 'i-spotify': spotify, 'i-open-on-mac': openOnMac, 'i-refresh': refresh, 'i-x': x,
   'i-trash': trash
 };
@@ -28,7 +28,6 @@ const inner = svg => svg.replace(/^<svg[^>]*>|<\/svg>\s*$/g, '');
 const symbols = Object.entries(ICONS).map(([id, svg]) => ({ id, body: inner(svg) }));
 // Apple Music (Phosphor has no logo for it): the beamed notes cut out of a rounded square, like the app's icon.
 const notesPath = (note.match(/ d="([^"]+)"/) || [])[1];
-const starPath = (star.match(/ d="([^"]+)"/) || [])[1];
 </script>
 <template>
   <svg width="0" height="0" style="position: absolute">
@@ -38,12 +37,6 @@ const starPath = (star.match(/ d="([^"]+)"/) || [])[1];
       <path :d="notesPath" fill="#000" transform="translate(126 128) scale(0.58 0.68) translate(-116 -124)" />
     </mask>
     <symbol id="i-apple-music" viewBox="0 0 256 256"><rect x="20" y="20" width="216" height="216" rx="54" mask="url(#m-apple-music)" /></symbol>
-    <!-- Now Playing's favorite badge: a rounded square with the star cut out of it, so the art shows through. -->
-    <mask id="m-star-tile" maskUnits="userSpaceOnUse" x="0" y="0" width="256" height="256">
-      <rect width="256" height="256" fill="#fff" />
-      <path :d="starPath" fill="#000" transform="translate(128 128) scale(0.56) translate(-128 -125)" />
-    </mask>
-    <symbol id="i-star-tile" viewBox="0 0 256 256"><rect width="256" height="256" rx="59" mask="url(#m-star-tile)" /></symbol>
     <!-- Weather icons (64×64, full colour) -->
     <symbol id="w-cloud-shape" viewBox="0 0 64 64">
       <circle cx="24" cy="40" r="10" />
