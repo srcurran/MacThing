@@ -123,6 +123,7 @@
   .cal input { margin: 4px 0 0; }
   .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; margin-left: -4px; }
   .note.warn { color: var(--warn); }
+  .note code { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--text, inherit); user-select: all; }
   input[type=search] { width: 100%; margin-top: 10px; padding: 9px 12px; font: inherit; color: var(--text);
     background: var(--bg); border: 1px solid var(--line); border-radius: 9px; outline-color: var(--accent); }
   ul { list-style: none; margin: 6px 0 0; padding: 0; }
@@ -249,6 +250,7 @@
         <h3 class="subhead">Usage view</h3>
         <div class="row"><div><label class="label" for="usageSource">Show usage</label><div class="note">Whose plan the clock's usage view shows (ChatGPT: asks Codex on this Mac)</div></div>
           <select id="usageSource" data-key="usageSource"><option value="claude">Claude</option><option value="chatgpt">ChatGPT</option><option value="both">Both</option><option value="none">None</option></select></div>
+        <div class="row"><div><div class="label">If Claude usage stops showing</div><div class="note">It reads the <code>claude</code> command’s sign-in, not the Claude app’s. Open Terminal, run <code>claude auth login</code>, and sign in in the browser. Usage comes back within a few minutes</div></div></div>
       </section>
     </div>
 
