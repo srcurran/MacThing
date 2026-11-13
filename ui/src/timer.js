@@ -1,17 +1,17 @@
 import { reactive, computed, ref } from 'vue';
 import { state, CT } from './state.js';
+import { meetingsOnDeck, OVERRUN_MS } from './meeting-timers.js';
 
 // The timers on the clock screen, as cards in a row (ClockScreen.vue, TimerDeck.vue). Any number
 // run at once: each preset you tap starts another. Beside them, a card for each meeting going on
-// (counting to its end), one for the next meeting today (counting to its start), and, always,
-// one that starts the last length used again (30 minutes until you've used one).
+// (counting to its end, then on past it while nothing else is counting: see meeting-timers.js),
+// one for the next meeting today (counting to its start), and, always, one that starts the last
+// length used again (30 minutes until you've used one).
 // Each timer keeps its end time on the Mac's clock rather than counting seconds, so it stays right
 // while another screen is up or the backlight is off, and they're kept across page reloads.
 export const PRESETS = [5, 10, 15, 30, 45, 60]; // minutes
 const STORE = 'ct-timers', LAST_STORE = 'ct-timer-last';
 const DEFAULT_MINUTES = 30;
-// A finished timer counts on past its end for ten minutes at most, then puts itself away.
-const OVERRUN_MS = 10 * 60000;
 
 function load(key, fallback) {
   try {
@@ -58,14 +58,15 @@ const keyOf = e => (e.calendarId || '') + '|' + e.start + '|' + (e.title || '');
 /** The card for a meeting going on: its id, for the meeting alert to bring it up. */
 export const meetingCardId = e => 'end|' + keyOf(e);
 const timed = computed(() => (state.calendar.status === 'ok' ? state.calendar.events.filter(e => !e.allDay) : []));
-// Meeting cards you've removed (swiped up, Remove), each until its countdown would have ended:
-// card id → when. Kept across page reloads.
+// Meeting cards you've removed (swiped up, Remove), each until the card would have gone by
+// itself: card id → when. Kept across page reloads.
 const HIDDEN_STORE = 'ct-timer-hidden';
 const hidden = reactive(load(HIDDEN_STORE, {}));
 const shown = (id, until) => !(hidden[id] >= until);
-/** The timed events going on now, the one that ends first first. */
-const currentMeetings = computed(() => timed.value.filter(e => e.start <= state.now && state.now < e.end)
-  .sort((a, b) => a.end - b.end || a.start - b.start));
+/** A timer of yours is counting down. */
+const timerRunning = computed(() => timers.some(t => t.status === 'running'));
+/** The meetings with a card: those going on now, and one just over (see meeting-timers.js). */
+const meetings = computed(() => meetingsOnDeck(timed.value, state.now, timerRunning.value, (e, until) => shown(meetingCardId(e), until)));
 /** The next timed event still to start today, or null. */
 const nextMeeting = computed(() => {
   const today = CT.dayNumber(state.now);
@@ -93,16 +94,21 @@ function timerCard(t) {
  *  fly across a meeting's card to get to its place. */
 export const cards = computed(() => {
   const now = state.now, list = timers.map(timerCard);
-  currentMeetings.value.filter(e => shown(meetingCardId(e), e.end)).forEach(e => list.push({
+  meetings.value.going.forEach(e => list.push({
     id: meetingCardId(e), kind: 'meeting', status: 'running', remaining: e.end - now, total: e.end - e.start,
-    label: e.title || 'Meeting ends in', title: countdownText(e.end - now)
+    until: e.end + OVERRUN_MS, label: e.title || 'Meeting ends in', title: countdownText(e.end - now)
+  }));
+  // Just over, it counts on past its end, 1:23+, as a timer of yours does.
+  meetings.value.over.forEach(e => list.push({
+    id: meetingCardId(e), kind: 'meeting', status: 'done', remaining: 0, total: e.end - e.start,
+    until: e.end + OVERRUN_MS, label: e.title || "Time's up", title: timerText(now - e.end) + '+'
   }));
   const next = nextMeeting.value;
   if (next && shown('start|' + keyOf(next), next.start)) {
     const id = 'start|' + keyOf(next);
     nextSeen[id] = nextSeen[id] || now;
     list.push({
-      id, kind: 'meeting', status: 'running', remaining: next.start - now, total: Math.max(3600000, next.start - nextSeen[id]),
+      id, kind: 'meeting', status: 'running', remaining: next.start - now, total: Math.max(3600000, next.start - nextSeen[id]), until: next.start,
       label: 'Next meeting in', title: countdownText(next.start - now)
     });
   }
@@ -131,7 +137,7 @@ export function askForMeeting(e, on = true) {
  *  countdowns you asked for while their card is up. */
 export function startedCountdowns() {
   const list = timers.filter(t => t.status === 'running').map(t => ({ id: t.id, endsAt: t.endsAt }));
-  cards.value.forEach(c => { if (c.kind === 'meeting' && asked[c.id]) list.push({ id: c.id, endsAt: state.now + c.remaining }); });
+  cards.value.forEach(c => { if (c.kind === 'meeting' && c.status === 'running' && asked[c.id]) list.push({ id: c.id, endsAt: state.now + c.remaining }); });
   return list;
 }
 
@@ -180,10 +186,19 @@ export function removeTimer(id) {
 export function removeCard(card) {
   if (card.kind === 'timer') return removeTimer(card.id);
   if (card.kind !== 'meeting') return;
-  hidden[card.id] = state.now + card.remaining;
+  hidden[card.id] = card.until;
   Object.keys(hidden).forEach(id => { if (hidden[id] < state.now) delete hidden[id]; });
   try { localStorage.setItem(HIDDEN_STORE, JSON.stringify(hidden)); } catch (e) {}
 }
+/** The card was a countdown that has run its course and gone by itself: a meeting that's over
+ *  (counted on past its end, or gave way to another countdown), or a timer of yours that counted
+ *  on past its end as long as it does. Not one you removed. */
+export function cardRanOut(id) {
+  if (expired.has(id)) return true;
+  if (id.indexOf('end|') !== 0 || hidden[id] > state.now) return false;
+  return timed.value.some(e => meetingCardId(e) === id && e.end <= state.now);
+}
+const expired = new Set(); // timers of yours that put themselves away
 /** Puts away every timer that's finished (leaving the timer does this). */
 export function removeDoneTimers() {
   timers.filter(t => t.status === 'done').forEach(t => removeTimer(t.id));
@@ -199,7 +214,7 @@ CT.onSecond(now => {
   let changed = false;
   timers.slice().forEach(t => {
     if (t.status === 'running' && now >= t.endsAt) { t.status = 'done'; t.left = 0; changed = true; }
-    if (t.status === 'done' && now - t.endsAt >= OVERRUN_MS) { removeTimer(t.id); changed = true; }
+    if (t.status === 'done' && now - t.endsAt >= OVERRUN_MS) { expired.add(t.id); removeTimer(t.id); changed = true; }
   });
   if (changed) save();
 });
