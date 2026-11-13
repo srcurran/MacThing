@@ -65,8 +65,11 @@ export const config = {
   macVolumeIndicator: true,
   knobDirection: 1, // 1 = turning right raises the volume (same as Spotify's firmware); -1 flips it
 
-  // How long a button or knob input wakes the screen once the Sleep setting has turned it off.
+  // How long an input wakes the screen once the Sleep setting has turned it off: with Taps while
+  // off set to Peek, any input (a tap too) wakes it for peekMs; with Lock, taps do nothing and a
+  // button or knob input wakes it for screenWakeMs.
   screenWakeMs: 60 * 1000,
+  peekMs: 3 * 60 * 1000,
 
   // Deep sleep, run by the device itself (device/sleepd.sh, installed by `npm run setup-device`).
   // The bridge writes deviceHeartbeat every heartbeatMs with the screen state it wants; when the

@@ -183,19 +183,30 @@ export function initializeRuntime(state) {
   // new one in from that side; Settings, which has no top button, fades.
   var PAGES = ['nowplaying', 'calendar', 'weather', 'clock'];
 
-  /** Shows a screen. `fade` crossfades even between pages, rather than sliding to the side. */
+  /** Shows a screen. `fade` crossfades even between pages, rather than sliding to the side;
+   *  'instant' just puts it up (waking onto it, the switch happens in the dark). */
   CT.show = function (name, fade) {
     var next = CT.screens[name];
-    if (!next || (CT.lockedTo && name !== CT.lockedTo)) return;
+    if (!next) return;
+    if (CT.lockedTo) { // only onto a view the Mac allows while it's locked
+      var allowed = lockedViews(name);
+      if (!allowed.length) return;
+      if (allowed.indexOf(viewOf(next)) < 0 && next.showView) next.showView(allowed[0]);
+    }
     if (name !== CT.current) {
       var prev = CT.screens[CT.current];
       if (name === 'settings') beforeSettings = CT.current;
       if (prev.hide) prev.hide();
       thaw();
-      if (state.leaving) freeze(CT.current);
-      var from = PAGES.indexOf(CT.current), to = PAGES.indexOf(name);
-      state.screenSwitch = fade || from < 0 || to < 0 ? 'fade' : to > from ? 'next' : 'previous';
-      state.leaving = CT.current;
+      if (fade === 'instant') { // no switch to see: straight there
+        state.screenSwitch = '';
+        state.leaving = '';
+      } else {
+        if (state.leaving) freeze(CT.current);
+        var from = PAGES.indexOf(CT.current), to = PAGES.indexOf(name);
+        state.screenSwitch = fade || from < 0 || to < 0 ? 'fade' : to > from ? 'next' : 'previous';
+        state.leaving = CT.current;
+      }
       CT.current = name;
       state.current = name;
       if (next.show) next.show();
@@ -204,12 +215,43 @@ export function initializeRuntime(state) {
   };
   CT.closeSettings = function () { CT.show(beforeSettings); };
 
-  // The While locked setting: with the Mac locked, the bridge can hold the device on one screen.
-  // Nothing moves it off that screen, and the buttons and knob only work the volume and playback.
+  // The When Mac is locked setting: with the Mac locked, the bridge can keep the device to some of
+  // its views (CT.lockedTo, a list of ids, or null). A top button steps through its screen's allowed
+  // views; nothing else moves it, and the knob and back button only work the volume and playback.
+  // The ids are When idle's (and the settings page's): each is [screen, that screen's view].
+  var LOCK_VIEWS = {
+    nowplaying: ['nowplaying', ''], schedule: ['calendar', 'agenda'], month: ['calendar', 'month'],
+    weather: ['weather', 'forecast'], 'weather-today': ['weather', 'today'], 'weather-week': ['weather', 'week'],
+    clock: ['clock', 'clock'], timer: ['clock', 'timer'], claude: ['clock', 'claude'], chatgpt: ['clock', 'chatgpt'],
+  };
+  function viewOf(screen) { return screen && screen.view ? screen.view() : ''; }
+  /** The views of screen `name` allowed while locked (and that it has: a usage it isn't set to show isn't). */
+  function lockedViews(name) {
+    var screen = CT.screens[name], have = screen && screen.views ? screen.views() : [''], out = [];
+    (CT.lockedTo || []).forEach(function (id) {
+      var v = LOCK_VIEWS[id];
+      if (v && v[0] === name && have.indexOf(v[1]) >= 0) out.push(v[1]);
+    });
+    return out;
+  }
+  /** While locked, a screen's top button: onto that screen, or on it, its next allowed view. */
+  function lockedButton(name) {
+    var screen = CT.screens[name];
+    if (name !== CT.current || !screen || !screen.showView) return CT.show(name);
+    var allowed = lockedViews(name);
+    if (allowed.length > 1) screen.showView(allowed[(allowed.indexOf(viewOf(screen)) + 1) % allowed.length]);
+  }
   CT.lockedTo = null;
   CT.on('lock', function (msg) {
-    CT.lockedTo = msg.screen && CT.screens[msg.screen] ? msg.screen : null;
-    if (CT.lockedTo) CT.show(CT.lockedTo, true);
+    CT.lockedTo = msg.views && msg.views.length ? msg.views : null;
+    if (!CT.lockedTo) return;
+    var allowed = lockedViews(CT.current), screen = CT.screens[CT.current];
+    if (allowed.indexOf(viewOf(screen)) >= 0) return;
+    if (allowed.length && screen.showView) return screen.showView(allowed[0]);
+    for (var i = 0; i < CT.lockedTo.length; i++) {
+      var v = LOCK_VIEWS[CT.lockedTo[i]];
+      if (v && lockedViews(v[0]).length) return CT.show(v[0], true);
+    }
   });
 
   // Whenever the Mac connects (the page loading, or the bridge coming back), an empty Now Playing
@@ -296,7 +338,8 @@ export function initializeRuntime(state) {
   // ---- Screen sleep ----------------------------------------------------------------------
   // The Mac turns the backlight off when its display sleeps, and when the sleep button is held.
   // When the Mac stops talking to us altogether the device does it for itself (device/sleepd.sh)
-  // and we go black here to match. While dark, the first button or knob input only wakes us.
+  // and we go black here to match. While dark, the first input only wakes us (a top button onto its
+  // own screen), and a tap only does that unless Taps while off is Lock: then it does nothing at all.
 
   CT.asleep = false;
   function setAsleep(on) {
@@ -311,8 +354,14 @@ export function initializeRuntime(state) {
     CT.send({ type: 'sleep' });
   }
 
-  function wakeInstead() {
+  /** kind: 'touch' for a tap or swipe, else a button or the knob. */
+  function wakeInstead(kind) {
     if (!CT.asleep) return false;
+    // With no Mac, the device's own watchdog lights the backlight on any touch, so let it wake.
+    if (kind === 'touch' && connected && CT.settings.offTaps === 'lock') {
+      debugInput('touch ignored: Taps while off is Lock');
+      return true;
+    }
     CT.send({ type: 'wake' });
     offlineSince = performance.now();
     if (!connected) setAsleep(false); // no Mac to turn the backlight back on for us
@@ -342,7 +391,8 @@ export function initializeRuntime(state) {
 
   function runButton(action) {
     if (!action) return;
-    if (CT.lockedTo && (action.indexOf('screen:') === 0 || action === 'settings')) return;
+    if (CT.lockedTo && action === 'settings') return;
+    if (CT.lockedTo && action.indexOf('screen:') === 0) return lockedButton(action.slice(7));
     if (action.indexOf('screen:') === 0 || action === 'settings') autoScreen = false;
     if (action.indexOf('screen:') === 0) {
       var name = action.slice(7), screen = CT.screens[name];
@@ -437,8 +487,15 @@ export function initializeRuntime(state) {
       clearTimeout(press.timer);
       debugInput('no keyup seen — holds disabled');
     }
-    if (wakeInstead()) {
+    if (wakeInstead('button')) {
       holds[key] = { start: performance.now(), done: true }; // the wake was the whole press
+      // A top button wakes it onto its own screen, as it was left (not its next view), already
+      // there when the backlight comes on rather than sliding in.
+      var action = CT.config.buttons[key] || '';
+      if (action.indexOf('screen:') === 0 && action.slice(7) !== CT.current) {
+        autoScreen = false;
+        CT.show(action.slice(7), 'instant');
+      }
       return;
     }
     // An alert over the screen (the meeting alert) takes the whole press to dismiss it (the back
@@ -471,7 +528,7 @@ export function initializeRuntime(state) {
     var d = e.deltaX || e.deltaY;
     debugInput('wheel dx=' + e.deltaX + ' dy=' + e.deltaY);
     if (d) emit('input', 'wheel');
-    if (!d || wakeInstead()) return;
+    if (!d || wakeInstead('knob')) return;
     var steps = (d > 0 ? 1 : -1) * (CT.config.knobDirection || 1);
     var screen = CT.screens[CT.current];
     if (CT.lockedTo || !screen.turn || screen.turn(steps) === false) onKnobVolume(steps);
@@ -482,7 +539,7 @@ export function initializeRuntime(state) {
   CT.tap = function (action) {
     debugInput('tap → ' + (typeof action === 'function' ? 'handler' : action));
     emit('input', 'tap');
-    if (wakeInstead()) return;
+    if (wakeInstead('touch')) return;
     if (typeof action === 'function') action();
     else CT.command(action);
   };
@@ -530,7 +587,7 @@ export function initializeRuntime(state) {
     if (!screen || !screen.reselect || CT.lockedTo || (CT.modalOpen && CT.modalOpen())) return;
     debugInput('swipe ' + (dy < 0 ? 'up' : 'down'));
     emit('input', 'tap');
-    if (wakeInstead()) return;
+    if (wakeInstead('touch')) return;
     autoScreen = false;
     reselects[CT.current] = (reselects[CT.current] || 0) + steps;
     saveDevScreen();
@@ -584,7 +641,7 @@ export function initializeRuntime(state) {
     if (tap && e.cancelable) e.preventDefault();
     debugInput('touch dx=' + Math.round(dx) + ' dy=' + Math.round(dy) + (tap ? ' (tap)' : start.dragging ? ' (drag)' : ''));
     emit('input', 'touch');
-    if (wakeInstead()) return;
+    if (wakeInstead('touch')) return;
     if (tap) { // alert cards take taps too, so this doesn't wait for touchScreen()
       var target = document.elementFromPoint(t.clientX, t.clientY);
       if (target) target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, clientX: t.clientX, clientY: t.clientY }));
