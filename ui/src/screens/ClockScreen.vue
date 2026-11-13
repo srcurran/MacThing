@@ -10,7 +10,7 @@ import TimerDeck, { firstCardAt, positionAt } from '../components/TimerDeck.vue'
 import ClaudeUsage from '../components/ClaudeUsage.vue';
 import BackActionIcon from '../components/BackActionIcon.vue';
 import { SESSION_MS, WEEK_MS, paceNumber, untilText, usageProviders, usageOf, usageName, usageUpdatedText } from '../usage.js';
-import { cards, timerOnScreen, startTimer, toggleTimer, resetTimer, removeTimer, removeCard, removeDoneTimers } from '../timer.js';
+import { cards, timerOnScreen, startTimer, toggleTimer, resetTimer, removeTimer, removeCard, removeDoneTimers, cardRanOut } from '../timer.js';
 const parts = computed(() => CT.parts(state.now));
 const face = computed(() => state.settings.clockFace);
 const time = computed(() => CT.clockText(parts.value));
@@ -119,17 +119,48 @@ const focused = computed(() => cards.value[focusIndex.value]);
 // Where the deck rests: 0 on the presets, then 1, 2… with that card centred (TimerDeck.vue).
 const restPosition = computed(() => (atPresets.value ? 0 : focusIndex.value + 1));
 const deckPosition = computed(() => (dragPosition.value == null ? restPosition.value : dragPosition.value));
-// A card that's gone (a meeting over, a timer put away) leaves the focus on the one that took its
-// place, and the full-size view goes back to the deck. A meeting's countdown to its start, as the
-// meeting begins, carries on as its countdown to its end, full size if it was.
+// A card that's gone (removed, say) leaves the focus on the one that took its place, and the
+// full-size view goes back to the deck. A meeting's countdown to its start, as the meeting
+// begins, carries on as its countdown to its end, full size if it was. One that's run its course
+// (a meeting over, or a finished countdown that's counted on past its end long enough) goes to
+// another countdown that's going (the next of back-to-back meetings, say), staying full size if
+// it was; with none, and the timer up on screen, the screen goes back to where it was before
+// the timer came up.
 watch(focusIndex, i => { lastFocus = i; });
+const counting = c => c.status === 'running' && (c.kind === 'timer' || (c.kind === 'meeting' && c.id.indexOf('end|') === 0));
 watch(() => focused.value.id, id => {
   if (id === focusId.value) return;
-  const started = focusId.value.indexOf('start|') === 0 && cards.value.find(c => c.id === 'end|' + focusId.value.slice(6));
+  const gone = focusId.value;
+  const started = gone.indexOf('start|') === 0 && cards.value.find(c => c.id === 'end|' + gone.slice(6));
   if (started) { focusId.value = started.id; return; }
+  if (!atPresets.value && cardRanOut(gone)) {
+    // A meeting first (the one ending first), then a timer of yours.
+    const other = cards.value.find(c => c.kind === 'meeting' && counting(c)) || cards.value.find(counting);
+    if (other) { focusId.value = other.id; return; }
+    focusId.value = id;
+    if (timerOnScreen.value) return leaveTimer();
+  }
   focusId.value = id;
   if (timerView.value === 'timer') timerView.value = 'deck';
 });
+// Where the screen was before the timer came up (another screen, or another of the clock's
+// views), to go back to once the countdown on screen has run its course.
+let beforeTimer = null; // { screen, mode }
+watch([() => state.current, mode], ([current, m], [wasCurrent, wasMode]) => {
+  const up = current === 'clock' && m === 'timer', wasUp = wasCurrent === 'clock' && wasMode === 'timer';
+  if (!up || wasUp) return;
+  beforeTimer = { screen: wasCurrent, mode: wasMode };
+});
+function leaveTimer() {
+  const to = beforeTimer && beforeTimer.screen !== 'settings' && !CT.lockedTo ? beforeTimer : { screen: 'clock', mode: 'clock' };
+  beforeTimer = null;
+  if (CT.logEvent) CT.logEvent('[timer] countdown over: back to ' + to.screen + (to.screen === 'clock' ? ' (' + to.mode + ')' : ''));
+  timerView.value = 'deck';
+  atPresets.value = true;
+  // The clock goes back to the view it was on (the face, if that was the timer too).
+  if (to.screen !== 'clock') CT.show(to.screen);
+  mode.value = to.mode && to.mode !== 'timer' && modes.value.includes(to.mode) ? to.mode : 'clock';
+}
 watch(() => state.current === 'clock' && mode.value === 'timer', up => { timerOnScreen.value = up; }, { immediate: true });
 function focusOn(id) {
   focusId.value = id;
@@ -188,7 +219,7 @@ let timerOpened = false;
 function openTimer(id) {
   clearTimeout(settleTimer);
   const left = !id && timerOpened && cards.value.some(c => c.id === focusId.value)
-    && !(focused.value.kind === 'timer' && focused.value.status === 'done');
+    && focused.value.status !== 'done';
   timerOpened = true;
   if (left) {
     if (timerView.value === 'deck') settle();
