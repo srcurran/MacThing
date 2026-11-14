@@ -74,8 +74,25 @@ const largerArt = new Map(); // source + video + artwork identity -> upgraded ar
 // The apps seen playing since the bridge started, for the settings page's Ignored apps list.
 const seenApps = new Map(); // bundle id -> name
 const isIgnored = (bundleId) => settings.get().ignoredApps.some((a) => a.id === bundleId);
-/** The snapshot as the device sees it: an ignored app playing reads as nothing playing. */
-const visible = (snapshot) => (snapshot.active && isIgnored(snapshot.bundleId) ? normalize({}) : snapshot);
+// The last track from an app that isn't ignored, to fall back on while an ignored one plays.
+let lastShown = null;
+/**
+ * The snapshot as the device sees it. While an ignored app is the Mac's Now Playing, the device
+ * keeps the last other track, paused where it was (or nothing playing if there wasn't one).
+ */
+function visible(snapshot) {
+  if (!snapshot.active) return (lastShown = null, snapshot);
+  if (!isIgnored(snapshot.bundleId)) return (lastShown = snapshot, snapshot);
+  if (!lastShown || isIgnored(lastShown.bundleId)) return normalize({});
+  if (lastShown.playing) {
+    const now = Date.now();
+    const elapsed = lastShown.elapsed == null ? null
+      : lastShown.elapsed + ((now - lastShown.elapsedAt) / 1000) * lastShown.rate;
+    const capped = elapsed != null && lastShown.duration ? Math.min(elapsed, lastShown.duration) : elapsed;
+    lastShown = { ...lastShown, playing: false, rate: 0, elapsed: capped, elapsedAt: now };
+  }
+  return lastShown;
+}
 
 async function onNowPlaying(snapshot) {
   const seq = ++resolveSeq;
