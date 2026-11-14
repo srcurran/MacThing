@@ -7,6 +7,7 @@
 #   native/bin/musicctl                          Apple Music favorite/play via Apple Events (Swift)
 #   native/bin/CarThingHelper.app                location + calendar, with its own permissions (Swift)
 #   native/bin/MediaRemoteAdapter.framework      ungive/mediaremote-adapter, loaded by /usr/bin/perl
+#   native/bin/MacThingPlayers.dylib             every app with media, not just the elected one (perl too)
 # No cmake required — the adapter is small enough to build with clang directly.
 set -euo pipefail
 
@@ -107,6 +108,11 @@ ln -s Versions/Current/MediaRemoteAdapter "$FW/MediaRemoteAdapter"
 ln -s Versions/Current/Resources "$FW/Resources"
 codesign --force --deep --sign - "$FW" 2>/dev/null
 cp "$ADAPTER/bin/mediaremote-adapter.pl" "$OUT/"
+
+echo "• MacThingPlayers.dylib"
+clang -dynamiclib -arch arm64 -arch x86_64 -O2 -fobjc-arc -framework Foundation \
+  -o "$OUT/MacThingPlayers.dylib" "$ROOT/native/players.m"
+codesign --force --sign - "$OUT/MacThingPlayers.dylib" 2>/dev/null
 
 echo "• self-test"
 if /usr/bin/perl "$OUT/mediaremote-adapter.pl" "$FW" get --no-artwork >/dev/null; then

@@ -43,13 +43,21 @@ function showArt(art) {
     shownTint.value = art.blurUrl && art.tint || null;
   });
 }
+// The covers the Mac has sent, by key: the shown player's, and with two or more apps with media,
+// the others' too, for paging between them (NowPlayingScreen.vue). The Mac counts on the last
+// ART_KEPT of them being here (ART_SENT_REMEMBERED in bridge/main.js is fewer).
+const ART_KEPT = 12;
+export const arts = reactive({});
+const artOrder = [];
+export const artFor = key => (key && arts[key]) || null;
 watch(() => [state.np.artworkKey, state.artwork], () => {
   clearTimeout(artClear);
+  const art = artFor(state.np.artworkKey);
   if (!state.np.artworkKey) {
     artLoad++;
     artClear = setTimeout(() => { shownArt.value = ''; shownBlur.value = ''; shownTint.value = null; }, shownArt.value ? ART_GRACE_MS : 0);
-  } else if (state.artwork && state.artwork.key === state.np.artworkKey && state.artwork.dataUrl !== shownArt.value) {
-    showArt(state.artwork);
+  } else if (art && art.dataUrl !== shownArt.value) {
+    showArt(art);
   }
 });
 export const artworkUrl = computed(() => state.np.active ? shownArt.value : '');
@@ -108,7 +116,12 @@ CT.on('nowPlaying', msg => {
     state.np.elapsed = showing;
   }
 });
-CT.on('artwork', msg => { state.artwork = msg; });
+CT.on('artwork', msg => {
+  if (!arts[msg.key]) artOrder.push(msg.key);
+  arts[msg.key] = msg;
+  while (artOrder.length > ART_KEPT) delete arts[artOrder.shift()];
+  state.artwork = msg; // what changed, for the watch above
+});
 CT.on('weather', msg => { state.weather = msg.weather; });
 CT.on('calendar', msg => { state.calendar = msg.calendar; });
 CT.on('perpetual', msg => { state.perpetual = msg.perpetual; });

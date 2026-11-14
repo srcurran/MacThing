@@ -17,6 +17,8 @@ import { AppInfo, kindOf } from './nowplaying/apps.js';
 import { ArtworkCache } from './nowplaying/artwork.js';
 import { browserArtKey, largerBrowserArt } from './nowplaying/browser-art.js';
 import { MediaRemoteSource, normalize } from './nowplaying/mediaremote.js';
+import { appCommand, canCommand, PlayerList, PlayerSelection } from './nowplaying/players.js';
+import { browserCommand, canControlBrowser } from './nowplaying/browser-control.js';
 import { MacAppearance } from './mac/appearance.js';
 import { MacHelper } from './mac/helper.js';
 import { MacPower } from './mac/power.js';
@@ -32,7 +34,10 @@ import { Weather } from './widgets/weather.js';
 import { SkipDetector } from './nowplaying/skips.js';
 
 const source = new MediaRemoteSource(paths.bin);
-const skips = new SkipDetector();
+// Every app with media, when there's more than one; `selection` is the one the device shows.
+const players = new PlayerList(paths.bin);
+const selection = new PlayerSelection();
+let skips = new SkipDetector();
 // A press on the device already shows its own flash, so a skip seen this soon after one is that press.
 const OWN_PRESS_MS = 3000;
 let lastDeviceCommand = 0;
@@ -77,6 +82,62 @@ const isIgnored = (bundleId) => settings.get().ignoredApps.some((a) => a.id === 
 /** The snapshot as the device sees it: an ignored app playing reads as nothing playing. */
 const visible = (snapshot) => (snapshot.active && isIgnored(snapshot.bundleId) ? normalize({}) : snapshot);
 
+// The player the device shows: the one selected from the list, read from MediaRemoteSource's
+// stream when it's also the player macOS elected (that stream answers fastest), else from the list.
+// With no list (no library, or nothing in it yet) it's the elected player, as it always was.
+let electedNp = source.snapshot;
+let shownPid = null;
+let shownPlayers = { index: 0, count: 0 };
+let shownList = []; // the players, in the order the device pages through them
+// Each player's card for the device's paging: {pid, np, art, app}, resolved with the shown one.
+let playerCards = [];
+
+function selectPlayer() {
+  const list = players.players.filter((p) => !isIgnored(p.bundleId));
+  const elected = visible(electedNp);
+  const pid = selection.update(list, elected.active ? elected.pid : null);
+  const chosen = list.find((p) => p.pid === pid);
+  const np = !chosen ? elected : elected.active && elected.pid === chosen.pid ? elected : chosen;
+  shownPlayers = list.length > 1 ? selection.position() : { index: 0, count: list.length };
+  shownList = selection.order.map((p) => list.find((x) => x.pid === p)).filter(Boolean);
+  return np;
+}
+
+function showPlayer() {
+  const np = selectPlayer();
+  if (np.pid !== shownPid) {
+    // Another player's track isn't a skip of this one's.
+    if (shownPid != null && np.active) log.info(`[players] showing ${np.bundleId} (${shownPlayers.index + 1} of ${shownPlayers.count})`);
+    shownPid = np.active ? np.pid : null;
+    skips = new SkipDetector();
+  }
+  // Skips made on the Mac show on the device the same way as its own.
+  const skip = skips.observe(np);
+  if (skip && Date.now() - lastDeviceCommand > OWN_PRESS_MS) {
+    log.info(`[now playing] skipped: ${skip}`);
+    link?.send({ type: 'skip', action: skip });
+  }
+  onNowPlaying(np).catch((err) => log.warn('[now playing]', err.message));
+}
+
+/** The device paged to another player: {pid} the one it landed on, or {steps} through them. */
+function pickPlayer(msg) {
+  if (shownPlayers.count < 2) return;
+  if (msg.pid != null) selection.select(Number(msg.pid));
+  else selection.step(Number(msg.steps) > 0 ? 1 : -1);
+  showPlayer();
+}
+
+/** Every player's card, for the device to page between them (only with two or more). */
+async function resolveCards(np, art, app) {
+  if (shownList.length < 2) return [];
+  return Promise.all(shownList.map(async (p) => {
+    if (p.pid === np.pid) return { pid: p.pid, np, art, app };
+    const [a, info] = await Promise.all([p.artwork ? artwork.get(p.artwork).catch(() => null) : null, apps.get(p.bundleId)]);
+    return { pid: p.pid, np: p, art: a, app: info };
+  }));
+}
+
 async function onNowPlaying(snapshot) {
   const seq = ++resolveSeq;
   const [art, app] = await Promise.all([
@@ -86,7 +147,11 @@ async function onNowPlaying(snapshot) {
   if (snapshot.bundleId && app?.name) seenApps.set(snapshot.bundleId, app.name);
   if (seq !== resolveSeq) return; // superseded by a newer update
   const key = browserArtKey(snapshot);
-  current = { np: snapshot, art: (key && largerArt.get(key)) || art, app };
+  const shownArt = (key && largerArt.get(key)) || art;
+  const cards = await resolveCards(snapshot, shownArt, app);
+  if (seq !== resolveSeq) return;
+  current = { np: snapshot, art: shownArt, app };
+  playerCards = cards;
 
   const summary = snapshot.active
     ? `${snapshot.playing ? '▶' : '❚❚'} ${snapshot.artist || '—'} · ${snapshot.title} [${app?.name || snapshot.bundleId}]`
@@ -112,16 +177,41 @@ async function onNowPlaying(snapshot) {
   if (link) pushNowPlaying(link);
 }
 
+/** Where a snapshot's playback has got to now, in seconds (null: unknown). */
+function elapsedNow(np) {
+  if (np.elapsed == null) return null;
+  const at = np.elapsed + ((Date.now() - np.elapsedAt) / 1000) * np.rate;
+  return Math.max(0, np.duration ? Math.min(at, np.duration) : at);
+}
+
+const sourceOf = (np, app) => ({
+  bundleId: np.bundleId,
+  name: app?.name || '',
+  icon: config.unbadgedApps.includes(np.bundleId) ? null : app?.icon || null,
+});
+
+/** {index, count, list}: with two or more players, each one's card, for paging between them. */
+function playersMessage(np) {
+  if (playerCards.length < 2) return { index: 0, count: shownPlayers.count, list: [] };
+  // The shown player's cover is the one on screen (a playing tab's bigger cover can come later).
+  const list = playerCards.map(({ pid, np: p, art, app }) => ({
+    pid,
+    playing: p.playing,
+    title: p.title,
+    artist: p.artist,
+    album: p.album,
+    duration: p.duration,
+    elapsed: elapsedNow(p),
+    kind: kindOf(p.bundleId),
+    source: sourceOf(p, app),
+    artworkKey: (pid === np.pid ? current.art : art)?.key || null,
+  }));
+  return { index: Math.max(0, list.findIndex((c) => c.pid === np.pid)), count: list.length, list };
+}
+
 function nowPlayingMessage() {
   const { np, art, app } = current;
   if (!np.active) return { type: 'nowPlaying', np: { active: false } };
-
-  let elapsed = null;
-  if (np.elapsed != null) {
-    elapsed = np.elapsed + ((Date.now() - np.elapsedAt) / 1000) * np.rate;
-    if (np.duration) elapsed = Math.min(elapsed, np.duration);
-    elapsed = Math.max(0, elapsed);
-  }
   return {
     type: 'nowPlaying',
     np: {
@@ -131,32 +221,41 @@ function nowPlayingMessage() {
       artist: np.artist,
       album: np.album,
       duration: np.duration,
-      elapsed,
+      elapsed: elapsedNow(np),
       rate: np.rate,
       kind: kindOf(np.bundleId),
-      source: {
-        bundleId: np.bundleId,
-        name: app?.name || '',
-        icon: config.unbadgedApps.includes(np.bundleId) ? null : app?.icon || null,
-      },
+      source: sourceOf(np, app),
       artworkKey: art?.key || null,
+      pid: np.pid,
+      players: playersMessage(np), // with two or more apps with media, the device pages between them
     },
   };
 }
 
+// The device keeps the last ART_KEPT_ON_DEVICE covers it was sent (state.js); the bridge counts on
+// fewer than that, so a cover it thinks is there always is.
+const ART_SENT_REMEMBERED = 8;
+function sendArt(target, art) {
+  if (!art) return;
+  const sent = (target.sentArts ||= []);
+  const i = sent.indexOf(art.key);
+  if (i >= 0) return void sent.push(...sent.splice(i, 1)); // most recent last
+  target.send({ type: 'artwork', key: art.key, dataUrl: art.dataUrl, blurUrl: art.blurUrl, tint: art.tint, width: art.width, height: art.height });
+  sent.push(art.key);
+  if (sent.length > ART_SENT_REMEMBERED) sent.shift();
+}
+
 function pushNowPlaying(target) {
-  const { art } = current;
-  if (art && target.sentArtKey !== art.key) {
-    target.send({ type: 'artwork', key: art.key, dataUrl: art.dataUrl, blurUrl: art.blurUrl, tint: art.tint, width: art.width, height: art.height });
-    target.sentArtKey = art.key;
-  }
+  // The other players' covers first, so the shown one's is the most recent.
+  for (const card of playerCards) if (card.pid !== current.np.pid) sendArt(target, card.art);
+  sendArt(target, current.art);
   target.send(nowPlayingMessage());
 }
 
 const tickMessage = () => ({ type: 'tick', now: Date.now(), tzMinutes: -new Date().getTimezoneOffset() });
 
 function pushAll(target) {
-  target.sentArtKey = null; // page (re)loaded: it has no artwork cached
+  target.sentArts = []; // page (re)loaded: it has no artwork cached
   target.send({
     type: 'config',
     config: {
@@ -290,11 +389,48 @@ async function runCommand(action) {
       const r = await musicctl('play'); // nothing playing: start Apple Music
       if (!r.ok) log.warn('[input] starting Music failed:', r.error);
     } else {
-      await source.command(action);
+      await commandShown(action);
     }
   } catch (err) {
     log.warn(`[input] ${action} failed:`, err.message);
   }
+}
+
+/**
+ * A media command for the player on the device. MediaRemote only delivers ours to the player macOS
+ * elected, so another one is reached over AppleScript: Music and Spotify directly, a browser by
+ * playing or pausing the media in its tab (no skips). Anything else, the device says so, rather than
+ * the command landing on the elected player instead.
+ */
+async function commandShown(action) {
+  const { np, app } = current;
+  const elected = visible(electedNp);
+  const route = (how) => log.info(`[input] ${action} → ${np.bundleId} (pid ${np.pid}) by ${how}; macOS follows ${elected.active ? `${elected.bundleId} (pid ${elected.pid})` : 'nothing'}`);
+  if (!np.active || np.pid == null || (elected.active && elected.pid === np.pid)) {
+    route('MediaRemote');
+    return source.command(action);
+  }
+  const name = app?.name || 'this app';
+  if (canCommand(np.bundleId)) {
+    route('AppleScript');
+    const r = await appCommand(np.bundleId, action);
+    if (!r.ok) throw new Error(r.error);
+    return;
+  }
+  if (canControlBrowser(np.bundleId) && ['play', 'pause', 'playpause'].includes(action)) {
+    route('the page');
+    const t0 = Date.now();
+    const r = await browserCommand(np.bundleId, np.title, action);
+    if (r.ok) return void log.info(`[input] the page did ${r.did} (${Date.now() - t0}ms)`);
+    if (r.reason === 'javascriptOff') {
+      log.warn(`[input] ${name} won't run the play/pause script: turn on Allow JavaScript from Apple Events (${r.error})`);
+      return link?.send({ type: 'toast', text: `In ${name}, allow JavaScript from Apple Events` });
+    }
+    log.info(`[input] ${action} in ${name}: ${r.reason || r.error}`);
+  } else {
+    log.info(`[input] ${action}: ${np.bundleId} isn't the player macOS is following, and can't be reached otherwise`);
+  }
+  link?.send({ type: 'toast', text: `Control ${name} on your Mac` });
 }
 
 async function setFavorite(command) {
@@ -529,6 +665,8 @@ function onDeviceMessage(msg) {
       return applyScreen();
     case 'command':
       return runCommand(msg.action);
+    case 'player':
+      return pickPlayer(msg);
     case 'volume':
       return changeVolume(Number(msg.delta));
     case 'setting':
@@ -633,14 +771,12 @@ function debounce(fn, ms) {
 
 log.info('Car Thing bridge starting');
 source.on('change', (s) => {
-  // Skips made on the Mac show on the device the same way as its own.
-  s = visible(s);
-  const skip = skips.observe(s);
-  if (skip && Date.now() - lastDeviceCommand > OWN_PRESS_MS) {
-    log.info(`[now playing] skipped: ${skip}`);
-    link?.send({ type: 'skip', action: skip });
-  }
-  onNowPlaying(s).catch((err) => log.warn('[now playing]', err.message));
+  electedNp = s;
+  showPlayer();
+});
+players.on('change', (list) => {
+  for (const p of list) if (!seenApps.has(p.bundleId)) apps.get(p.bundleId).then((a) => a.name && seenApps.set(p.bundleId, a.name));
+  showPlayer();
 });
 volume.on('change', (v) => {
   pressLanded();
@@ -650,7 +786,7 @@ volume.on('change', (v) => {
 settings.on('change', (values, changed) => {
   link?.send({ type: 'settings', settings: values });
   if (changed.includes('knobVolume')) refreshKnobTarget();
-  if (changed.includes('ignoredApps')) onNowPlaying(visible(source.snapshot)).catch((err) => log.warn('[now playing]', err.message));
+  if (changed.includes('ignoredApps')) showPlayer();
   if (changed.includes('screenSleep') || changed.includes('whenLocked')) refreshIdle();
 });
 settings.on('change', (_, changed) => {
@@ -687,6 +823,7 @@ power.on('didWake', () => {
   setTimeout(refreshDevices, 8000);
 });
 source.start();
+players.start();
 volume.start();
 helper.start();
 weather.start();
@@ -751,6 +888,7 @@ async function shutdown() {
   }
   link?.send({ type: 'bye' });
   source.stop();
+  players.stop();
   volume.stop();
   helper.stop();
   power.stop();
