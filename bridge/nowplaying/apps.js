@@ -39,7 +39,7 @@ export const BROWSERS = {
   'com.operasoftware.OperaGX': 'title',
   'company.thebrowser.Browser': 'title', // Arc
   'com.ardia.browser': 'title', // Ardia
-  'company.thebrowser.dia': null, // Dia
+  'company.thebrowser.dia': 'title', // Dia
   'org.mozilla.firefox': null,
   'app.zen-browser.zen': null,
 };
