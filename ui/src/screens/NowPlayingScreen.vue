@@ -42,25 +42,24 @@ const screen = CT.screen('nowplaying');
 screen.show = () => { updateProgress(); nextTick(fitTitle); };
 
 // ---- Paging between players, as between full-size timers (ClockScreen.vue) ---------------------
-// Two or more apps with media are a stack, top to bottom: a drag up pages to the next one's Now
-// Playing (down, the one before). The one going shrinks to a card (0.8) and slides off as the next
+// Two or more apps with media are a loop: a drag up pages to the next one's Now Playing (down, the
+// one before), and past the last comes the first again. The one going shrinks to a card (0.8) and slides off as the next
 // comes in under it and grows back to full size; let go past halfway, or flicked, it carries on,
-// otherwise it springs back. Past either end
-// there's nothing to page to: it gives a little and springs back. Still copies of each player's
+// otherwise it springs back. Still copies of each player's
 // screen (PlayerPage.vue) do the moving, over the screen; once landed, the Mac is told which player
 // it is, and the copy stays until its Now Playing update has arrived and the art has had time to
 // come in underneath. There's no overview: it always rests on one player, full size.
-// Now Playing's button pressed again pages to the next one too (round to the first after the last).
-const PAGE_MS = 450, GAP = 32, PAGE_SPAN = 480 + GAP, END_GIVE = 0.12, FLICK_PX_MS = 0.3;
+// Now Playing's button pressed again pages to the next one too.
+const PAGE_MS = 450, GAP = 32, PAGE_SPAN = 480 + GAP, FLICK_PX_MS = 0.3;
 const LAND_SETTLE_MS = 400, LAND_GIVE_UP_MS = 2000;
-const page = ref(null); // { from, to, dir, p }: player pids (to null past the end), +1 to the next (finger going up), 0–1
+const page = ref(null); // { from, to, dir, p }: player pids, +1 to the next (finger going up), 0–1
 const landing = ref(null); // the pid paged to, until the Mac's update for it is on screen
 let pageFrame = 0, pageSettling = false, landTimer = 0;
 const cards = computed(() => (players.value ? players.value.list : []));
 const cardOf = pid => cards.value.find(c => c.pid === pid);
 function neighbour(dir) {
-  const c = cards.value[players.value.index + dir];
-  return c ? c.pid : null;
+  const n = cards.value.length;
+  return cards.value[(((players.value.index + dir) % n) + n) % n].pid;
 }
 const easeOut = x => 1 - Math.pow(1 - x, 3);
 const easeInOut = x => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
@@ -122,19 +121,18 @@ const busy = () => pageSettling || landing.value != null;
 screen.drag = (dx, dy, axis) => {
   if (!players.value || axis !== 'y' || busy()) return false;
   const dir = dy < 0 ? 1 : -1, to = neighbour(dir), share = Math.abs(dy) / PAGE_SPAN;
-  page.value = { from: np.value.pid, to, dir, p: to != null ? Math.min(1, share) : END_GIVE * (1 - Math.exp(-share / END_GIVE)) };
+  page.value = { from: np.value.pid, to, dir, p: Math.min(1, share) };
 };
 screen.dragEnd = (dx, vx, axis, dy, vy) => {
   const pg = page.value;
   if (!pg || busy()) return;
-  if (pg.to == null) return settlePage(false);
   const along = -vy * pg.dir; // px/ms the page's way
   settlePage(Math.abs(vy) > FLICK_PX_MS ? along > 0 : pg.p > 0.5);
 };
-// Now Playing's button pressed again: the next player, as a whole page (round to the first).
+// Now Playing's button pressed again: the next player, as a whole page.
 screen.reselect = () => {
   if (!players.value || busy()) return;
-  const to = neighbour(1) != null ? neighbour(1) : cards.value[0].pid;
+  const to = neighbour(1);
   if (to === np.value.pid) return;
   page.value = { from: np.value.pid, to, dir: 1, p: 0 };
   settlePage(true, easeInOut);
