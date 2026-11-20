@@ -1,12 +1,13 @@
 <script setup>
 import { computed, reactive, ref, watch } from 'vue';
 import { state, CT } from '../state.js';
-import { startMeetingTimer } from '../timer.js';
+import { meetingCardId, minutesText, askForMeeting } from '../timer.js';
 // Settings → Meeting alerts: a sheet over the bottom of every screen from a timed event's alert
 // (its own, from the Mac's Calendar, or a fixed few minutes before) until the meeting ends. The
-// back button under the knob works the clock's timer: before the meeting, it queues a timer for
-// it (and, pressed again, cancels that: "Cancel timer", in red), leaving the card up; once it's started, it starts the
-// timer and dismisses the card. Any other press only dismisses it — until the meeting starts, if
+// back button under the knob brings up the meeting's countdown on the clock's timer (every meeting
+// going on has one, beside any timers you've started): before the meeting, it queues that for its
+// start (and, pressed again, cancels it: "Cancel timer", in red), leaving the card up; once it's
+// started, it shows it and dismisses the card. Any other press only dismisses it — until the meeting starts, if
 // it hasn't yet, so every meeting's card is up at its start time. Turning the knob still sets the
 // volume.
 // A zero-length event (a reminder at 6:34) has no end to wait for: its card stays five minutes.
@@ -65,35 +66,48 @@ const event = computed(() => {
   if (started.length) return started.reduce(pick(true));
   return due.value.length ? due.value.reduce(pick(false)) : null;
 });
-// Only once the meeting has started (and a zero-length reminder has nothing to time).
-// The back button's part, bottom right. The timer runs to the meeting's end, so its length is the
-// minutes from the start (queued) or from now (started) to then, rounded up as the timer's own
-// meeting stop shows them; with meetings at once, it says which one it's for. A zero-length
-// reminder has nothing to time.
+// The card shows the meeting up, and the last one while it slides away once it's gone.
+let lastEvent = null;
+const card = computed(() => (lastEvent = event.value || lastEvent));
+// The back button's part, bottom right. Queued, the countdown's length is the meeting's, rounded up
+// to the minute. A zero-length reminder has nothing to time.
 const action = computed(() => {
-  const e = event.value;
+  const e = card.value;
   if (e.end <= e.start) return '';
-  if (e.start > state.now) return queued.value === keyOf(e) ? 'Cancel timer' : 'Queue ' + Math.ceil((e.end - e.start) / 60000) + ' min timer';
-  return 'Start ' + Math.ceil((e.end - state.now) / 60000) + ' min timer';
+  if (e.start > state.now) return queued.value === keyOf(e) ? 'Cancel timer' : 'Queue ' + minutesText(Math.ceil((e.end - e.start) / 60000)) + ' timer';
+  return 'Show timer';
 });
 CT.modalOpen = () => !!event.value;
+// With flags.json's logEvents: when a card covers the screen and how it goes (see core.js).
+const logEvent = text => CT.logEvent && CT.logEvent('[meeting alert] ' + text);
+watch(() => event.value && keyOf(event.value), (key, was) => {
+  if (key) logEvent('up: "' + event.value.title + '" (over ' + state.current + ')');
+  else if (was) logEvent('gone');
+});
 CT.dismissModal = key => {
   if (!event.value) return false;
   const e = event.value;
   if (key === 'Escape' && action.value) {
     if (e.start > state.now) { // queue it, or cancel that; the card stays
-      setQueued(queued.value === keyOf(e) ? '' : keyOf(e));
+      const queue = queued.value !== keyOf(e);
+      setQueued(queue ? keyOf(e) : '');
+      askForMeeting(e, queue);
+      logEvent((queue ? 'queued' : 'cancelled') + ' its timer');
       return true;
     }
-    startMeetingTimer(e);
-    CT.showTimer();
+    askForMeeting(e);
+    CT.showTimer(meetingCardId(e));
+    logEvent('showed its timer');
   }
+  logEvent('dismissed (' + key + ')');
   // A press dismisses only this card. Before the meeting starts, it comes back as it does.
   dismissed[keyOf(e)] = e.start > state.now ? e.start : untilOf(e);
   save();
   return true;
 };
-// A queued timer starts with its meeting, and comes up in place of the meeting's card. Gone from
+// Taps: anywhere dismisses the card, as a press does; its timer link does what the back button does.
+const tap = key => CT.tap(() => CT.dismissModal(key));
+// A queued countdown comes up as its meeting starts, and comes up in place of the meeting's card. Gone from
 // the calendar, or over, the queue empties.
 const queuedEvent = computed(() => (queued.value && state.calendar.status === 'ok'
   ? state.calendar.events.find(e => keyOf(e) === queued.value) || null : undefined));
@@ -102,13 +116,12 @@ watch(() => queuedEvent.value && queuedEvent.value.start <= state.now, due => {
   if (e === null || (e && e.end <= state.now)) return setQueued('');
   if (!due) return;
   setQueued('');
-  startMeetingTimer(e);
-  CT.showTimer();
+  CT.showTimer(meetingCardId(e));
   dismissed[keyOf(e)] = untilOf(e);
   save();
 }, { immediate: true });
 const when = computed(() => {
-  const minutes = Math.round((event.value.start - state.now) / 60000);
+  const minutes = Math.round((card.value.start - state.now) / 60000);
   if (minutes > 0) return 'In ' + minutes + ' min';
   if (minutes < 0) return -minutes + ' min ago';
   return 'Starting now';
@@ -116,8 +129,8 @@ const when = computed(() => {
 // "2:00 – 2:30 PM", keeping both AM/PMs only when the meeting spans noon or midnight; just
 // "2:00 PM" for a zero-length event.
 const range = computed(() => {
-  if (event.value.end <= event.value.start) return CT.timeText(event.value.start);
-  const start = CT.clockText(CT.parts(event.value.start)), end = CT.clockText(CT.parts(event.value.end));
+  if (card.value.end <= card.value.start) return CT.timeText(card.value.start);
+  const start = CT.clockText(CT.parts(card.value.start)), end = CT.clockText(CT.parts(card.value.end));
   return (start.ampm === end.ampm ? start.time : start.time + ' ' + start.ampm) + ' – ' + end.time + (end.ampm ? ' ' + end.ampm : '');
 });
 // A video call's location is its link (with a passcode in it, often): show the service instead.
@@ -131,22 +144,22 @@ function place(location) {
   return service ? service[1] : host;
 }
 // With no location, a call link from the event's URL or notes (the helper finds it) says where.
-const where = computed(() => place(event.value.location) || place(event.value.call));
+const where = computed(() => place(card.value.location) || place(card.value.call));
 </script>
 <template>
-  <div class="meeting-alert fill flex" :class="{ on: !!event }">
-    <div v-if="event" class="m-card flex-col">
+  <div class="meeting-alert fill flex" :class="{ on: !!event }" @click="tap('tap')">
+    <div v-if="card" class="m-card flex-col">
       <div class="flex">
-        <div class="m-bar flex-none" :style="{ background: event.color }" />
+        <div class="m-bar flex-none" :style="{ background: card.color }" />
         <div class="flex-1 flex-col">
-          <div class="m-title clamp-2">{{ event.title || 'Untitled' }}</div>
+          <div class="m-title clamp-2">{{ card.title || 'Untitled' }}</div>
           <div class="m-range m-detail secondary tabular">{{ range }}</div>
           <div v-if="where" class="m-where m-detail muted truncate">{{ where }}</div>
         </div>
       </div>
       <div class="m-foot flex">
         <div class="m-when">{{ when }}</div>
-        <div v-if="action" class="m-start" :class="{ cancel: action === 'Cancel timer' }">{{ action }}</div>
+        <div v-if="action" class="m-start hit-target" :class="{ cancel: action === 'Cancel timer' }" @click.stop="tap('Escape')">{{ action }}</div>
       </div>
     </div>
   </div>

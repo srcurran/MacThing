@@ -1,13 +1,19 @@
+<script>
+let dials = 0;
+</script>
 <script setup>
 import { computed } from "vue";
 // The timer's dial, drawn across the 480×480 stage (Figma 154:4300). A full turn is the timer's
-// length: the white wedge is the time left, clockwise from 12, with a hand on its moving edge,
+// length: the wedge (white, dark in the light theme) is the time left, clockwise from 12, with a hand on its moving edge,
 // and a ring of one dot per minute (per few, past an hour) that go dark as the minutes pass.
 // remaining and total are ms.
 // The hand and hub are always cut out of the wedge, so the background shows through them
-// (Figma 202:1439). Before it starts (idle) that's all there is; once it's running, the drawn
-// hand fades in over its own cut-out and the two move together.
+// (Figma 202:1439). Before it starts (idle) it's a full circle at half strength with only the
+// hub's hole in it; once it's running, it's solid, the hand's cut-out appears and the drawn hand
+// fades in over it, the two moving together.
 const props = defineProps({ remaining: Number, total: Number, idle: Boolean });
+// Several dials can be up at once (the timer cards), so each cuts with its own mask.
+const maskId = 't-hand-cut-' + (++dials);
 function point(r, degrees) {
   const angle = (degrees * Math.PI) / 180;
   return { x: 240 + r * Math.sin(angle), y: 240 - r * Math.cos(angle) };
@@ -44,8 +50,8 @@ const minutes = computed(() => {
 });
 </script>
 <template>
-  <svg class="t-face" viewBox="0 0 480 480" aria-label="Timer">
-    <mask id="t-hand-cut">
+  <svg class="t-face" :class="{ idle }" viewBox="0 0 480 480" aria-label="Timer">
+    <mask :id="maskId">
       <rect width="480" height="480" fill="#fff" />
       <line
         x1="240"
@@ -58,19 +64,23 @@ const minutes = computed(() => {
       />
       <circle cx="240" cy="240" r="17" fill="#000" />
     </mask>
+    <mask :id="maskId + '-hub'">
+      <rect width="480" height="480" fill="#fff" />
+      <circle cx="240" cy="240" r="17" fill="#000" />
+    </mask>
     <circle
       v-if="degrees >= 360"
       class="t-left"
       cx="240"
       cy="240"
       r="145"
-      mask="url(#t-hand-cut)"
+      :mask="'url(#' + maskId + (idle ? '-hub' : '') + ')'"
     />
     <path
       v-else-if="degrees > 0"
       class="t-left"
       :d="wedge"
-      mask="url(#t-hand-cut)"
+      :mask="'url(#' + maskId + (idle ? '-hub' : '') + ')'"
     />
     <circle
       v-for="(m, i) in minutes"

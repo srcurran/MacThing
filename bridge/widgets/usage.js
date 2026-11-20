@@ -61,7 +61,8 @@ export class ClaudeUsage extends EventEmitter {
     this.failures = 0;
     this.retryReason = 'rateLimited';
     this.running = false;
-    // Recent session readings, {at, used, resetsAt}, for the session's burn.
+    // Recent session readings, {at, used, resetsAt}, for the session's burn. They're kept in the
+    // cache file too, so a restart doesn't lose the burn for its first 10 minutes.
     this.readings = [];
   }
 
@@ -170,6 +171,7 @@ export class ClaudeUsage extends EventEmitter {
     const hash = createHash('sha256').update(auth.accessToken).digest('hex');
     if (this.tokenHash && this.tokenHash !== hash) {
       this.snapshot = null;
+      this.readings = [];
       this.retryAt = 0;
       this.failures = 0;
       this.lastTry = 0;
@@ -186,6 +188,7 @@ export class ClaudeUsage extends EventEmitter {
 
   async #authFailure(status) {
     this.snapshot = null;
+    this.readings = [];
     this.retryAt = 0;
     this.failures = 0;
     this.#set({ status });
@@ -204,6 +207,9 @@ export class ClaudeUsage extends EventEmitter {
       this.retryReason = saved.retryReason === 'error' ? 'error' : 'rateLimited';
       this.retryAt = Number.isFinite(saved.retryAt) ? saved.retryAt : 0;
       this.failures = Number.isInteger(saved.failures) ? Math.max(0, Math.min(5, saved.failures)) : 0;
+      // #burn drops any too old for the span, or from another session, on the next reading.
+      this.readings = (Array.isArray(saved.readings) ? saved.readings : []).filter(r =>
+        Number.isFinite(r?.at) && r.at <= this.now() && Number.isFinite(r.used) && Number.isFinite(r.resetsAt));
     } catch { /* Missing or invalid cache: fetch normally. */ }
   }
 
@@ -211,7 +217,8 @@ export class ClaudeUsage extends EventEmitter {
     if (!this.cacheFile || !this.tokenHash) return;
     try {
       const snapshot = this.#usableSnapshot() ? this.snapshot : null;
-      const data = { version: 1, tokenHash: this.tokenHash, snapshot, retryAt: this.retryAt, retryReason: this.retryReason, failures: this.failures, lastTry: this.lastTry };
+      const readings = this.readings.map(({ at, used, resetsAt }) => ({ at, used, resetsAt }));
+      const data = { version: 1, tokenHash: this.tokenHash, snapshot, readings, retryAt: this.retryAt, retryReason: this.retryReason, failures: this.failures, lastTry: this.lastTry };
       await fs.mkdir(path.dirname(this.cacheFile), { recursive: true });
       const temp = `${this.cacheFile}.${process.pid}.tmp`;
       await fs.writeFile(temp, JSON.stringify(data), { mode: 0o600 });

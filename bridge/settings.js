@@ -15,6 +15,9 @@ export const DEFAULTS = {
   clock24h: false,
   clockFace: 'analog', // 'analog' | 'numbers' | 'digital'
   artBackground: false, // blurred album art behind Now Playing and the widgets
+  // Apps Now Playing never shows (a Figma recording, say): [{ id: bundle id, name }]. While one of
+  // them is macOS's Now Playing app the device reads it as nothing playing.
+  ignoredApps: [],
   location: { mode: 'auto' }, // or { mode: 'manual', name, lat, lon }
   calendars: null, // null = every calendar in the Mac's Calendar app; else an array of calendar ids
   calendarDays: 2, // days of events on the Calendar screen: today plus the next (n − 1)
@@ -24,7 +27,9 @@ export const DEFAULTS = {
   // monitor) the playing app's if it's Spotify or Music | 'system' | 'spotify' | 'music'
   knobVolume: 'auto',
   idleMinutes: 0, // once nothing has played this long on Now Playing, show idleScreen (0 = never)
-  idleScreen: 'clock', // 'clock' | 'calendar' | 'weather'
+  // 'clock' (the face) | 'timer' | 'claude' | 'chatgpt' (usage) | 'weather' (the forecast) |
+  // 'weather-today' | 'weather-week' | 'month' (the calendar) | 'schedule' (the agenda)
+  idleScreen: 'clock',
   // Smart switching: the screen moves to Claude or ChatGPT usage when it speeds up or resets, and
   // to the weather before rain or snow, then back to Now Playing if it came from there (ui/src/smart.js)
   smartSwitch: false,
@@ -48,6 +53,10 @@ const VALID = {
   clock24h: (v) => typeof v === 'boolean',
   clockFace: (v) => ['analog', 'numbers', 'digital'].includes(v),
   artBackground: (v) => typeof v === 'boolean',
+  ignoredApps: (v) =>
+    Array.isArray(v) &&
+    v.length <= 50 &&
+    v.every((a) => typeof a?.id === 'string' && a.id.length <= 200 && typeof a.name === 'string' && a.name.length <= 200),
   location: (v) =>
     v?.mode === 'auto' ||
     (v?.mode === 'manual' && typeof v.name === 'string' && Number.isFinite(v.lat) && Number.isFinite(v.lon)),
@@ -57,7 +66,7 @@ const VALID = {
   usageSource: (v) => ['claude', 'chatgpt', 'both', 'none'].includes(v),
   knobVolume: (v) => ['auto', 'system', 'spotify', 'music'].includes(v),
   idleMinutes: (v) => [0, 1, 2, 5, 10].includes(v),
-  idleScreen: (v) => ['clock', 'calendar', 'weather'].includes(v),
+  idleScreen: (v) => ['clock', 'timer', 'claude', 'chatgpt', 'weather', 'weather-today', 'weather-week', 'month', 'schedule'].includes(v),
   smartSwitch: (v) => typeof v === 'boolean',
   screenSleep: (v) => ['mac', 30, 60, 120, 240, 'never'].includes(v),
   whenLocked: (v) => ['unlocked', 'nowplaying', 'weather', 'calendar', 'clock'].includes(v),
@@ -99,6 +108,7 @@ class Settings extends EventEmitter {
     try {
       const raw = JSON.parse(fs.readFileSync(FILE, 'utf8'));
       if (raw.sleepWithMac === false && raw.screenSleep === undefined) raw.screenSleep = 'never'; // the old on/off setting
+      if (raw.idleScreen === 'calendar') raw.idleScreen = 'schedule'; // the calendar screen opens on its agenda
       return Object.fromEntries(Object.entries(raw).filter(([k, v]) => VALID[k]?.(v)));
     } catch {
       return {};

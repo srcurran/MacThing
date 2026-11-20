@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { state, hasArt, idleCover, ambientUrl, ambientPreBlurred, ambientTint } from './state.js';
+import { state, hasArt, calendarCover, ambientUrl, ambientPreBlurred, ambientTint } from './state.js';
 import Artwork from './components/Artwork.vue';
 import IconSymbols from './components/IconSymbols.vue';
 import UiProgress from './components/UiProgress.vue';
@@ -18,7 +18,7 @@ const pausedBadge = computed(() => state.current === 'nowplaying' && state.np.ac
 const flashKey = ref(0);
 watch(() => state.flash.key, key => { if (!pausedBadge.value) flashKey.value = key; });
 watch(pausedBadge, paused => { if (paused) flashKey.value = 0; }); // the badge takes over from a flash under way
-const ambient = computed(() => !!(state.settings.artBackground && (hasArt.value || idleCover.value)));
+const ambient = computed(() => !!(state.settings.artBackground && (hasArt.value || calendarCover.value)));
 const NOTCHED = ['nowplaying', 'calendar', 'weather', 'clock']; // left to right, as the top buttons run
 // Settings has no top button, so the notch stays under the last page's while it fades out.
 const notchAt = ref(Math.max(0, NOTCHED.indexOf(state.current)));
@@ -36,6 +36,7 @@ watch(() => state.current, current => { if (NOTCHED.includes(current)) notchAt.v
       <svg class="vol-icon flex-none"><use :href="state.volumeIcon ? '#i-' + state.volumeIcon : state.volume === 0 ? '#i-muted' : '#i-speaker'" /></svg>
       <UiProgress v-show="!state.volumeUnsupported" :value="state.volume" /><span v-show="state.volumeUnsupported" class="font-small weight-light truncate">{{ state.volumeNote }}</span>
     </div>
+    <div class="note-hud fill flex center" :class="{ on: state.showNote }"><div class="note-pill font-small semibold">{{ state.note }}</div></div>
     <div :key="state.flash.key" class="flash disc flex center" :class="{ on: flashKey > 0 && flashKey === state.flash.key }" :style="{ color: state.flash.color }"><svg><use :href="'#i-' + state.flash.icon" /></svg></div>
     <div class="toast" :class="{ on: !!state.toast }">{{ state.toast }}</div>
     <div class="offline-screen fill flex-col center"><div class="pulse" /><div class="mt-28 font-medium semibold">Waiting for your Mac</div><div class="mt-10 font-small weight-light muted">Connect by USB and start the bridge</div></div>

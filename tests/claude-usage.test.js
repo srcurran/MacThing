@@ -260,6 +260,29 @@ test('the session burn spans the oldest reading 10–20 minutes back in the same
   assert.equal(await read(5, 1), undefined);
 });
 
+test('the session burn survives a restart, but not a long gap or another account', async () => {
+  const folder = await fs.mkdtemp(path.join(os.tmpdir(), 'macthing-usage-cache-'));
+  let now = NOW, used = 20;
+  const resets = NOW + 3 * 3600000;
+  const options = { cacheFile: path.join(folder, 'cache.json'), now: () => now, readCredentials: async () => fresh,
+    fetch: async () => ({ status: 200, ok: true, json: async () => ({
+      five_hour: { utilization: used, resets_at: new Date(resets).toISOString() },
+      seven_day: { utilization: 42, resets_at: '2027-02-01T00:00:00Z' } }) }) };
+  const read = async (usage, minutes, percent) => { now += minutes * 60000; used = percent; await usage.refresh(); return usage.state.session.burn; };
+  try {
+    const first = new ClaudeUsage(options);
+    await read(first, 0, 20);
+    await read(first, 5, 22);
+    // The bridge restarts: the next reading already has 10 minutes of history behind it.
+    assert.deepEqual(await read(new ClaudeUsage(options), 5, 26), { percent: 6, ms: 10 * 60000 });
+    // Down for half an hour: those readings are too old to count.
+    assert.equal(await read(new ClaudeUsage(options), 30, 40), undefined);
+    // Another account's history is never used.
+    const other = new ClaudeUsage({ ...options, readCredentials: async () => ({ ...fresh, accessToken: 'different-account-token' }) });
+    assert.equal(await read(other, 10, 45), undefined);
+  } finally { await fs.rm(folder, { recursive: true, force: true }); }
+});
+
 test('Mac emoji are drawn once, cached, and left out when they cannot be drawn', async () => {
   const { macEmoji } = await import('../bridge/widgets/emoji.js');
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'macthing-emoji-test-'));

@@ -14,20 +14,35 @@ const MUSIC = new Set([
   'com.roon.Roon',
 ]);
 
-const BROWSERS = new Set([
-  'com.apple.Safari',
-  'com.apple.SafariTechnologyPreview',
-  'com.google.Chrome',
-  'com.google.Chrome.canary',
-  'company.thebrowser.Browser', // Arc
-  'company.thebrowser.dia',
-  'org.mozilla.firefox',
-  'com.microsoft.edgemac',
-  'com.brave.Browser',
-  'com.vivaldi.Vivaldi',
-  'com.operasoftware.Opera',
-  'app.zen-browser.zen',
-]);
+/**
+ * Web browsers: bundle id → the AppleScript property that holds a tab's title, for browsers
+ * whose tabs scripts can read (browser-art.js uses it to find the playing tab and load larger
+ * artwork), or null for browsers that don't let scripts see their tabs.
+ */
+export const BROWSERS = {
+  'com.apple.Safari': 'name', // Safari's tabs have no "title"
+  'com.apple.SafariTechnologyPreview': 'name',
+  'com.google.Chrome': 'title',
+  'com.google.Chrome.beta': 'title',
+  'com.google.Chrome.dev': 'title',
+  'com.google.Chrome.canary': 'title',
+  'org.chromium.Chromium': 'title',
+  'com.microsoft.edgemac': 'title',
+  'com.microsoft.edgemac.Beta': 'title',
+  'com.microsoft.edgemac.Dev': 'title',
+  'com.microsoft.edgemac.Canary': 'title',
+  'com.brave.Browser': 'title',
+  'com.brave.Browser.beta': 'title',
+  'com.brave.Browser.nightly': 'title',
+  'com.vivaldi.Vivaldi': 'title',
+  'com.operasoftware.Opera': 'title',
+  'com.operasoftware.OperaGX': 'title',
+  'company.thebrowser.Browser': 'title', // Arc
+  'com.ardia.browser': 'title', // Ardia
+  'company.thebrowser.dia': null, // Dia
+  'org.mozilla.firefox': null,
+  'app.zen-browser.zen': null,
+};
 
 const VIDEO = new Set([
   'com.apple.TV',
@@ -40,7 +55,7 @@ const VIDEO = new Set([
 export function kindOf(bundleId) {
   if (!bundleId) return 'other';
   if (MUSIC.has(bundleId)) return 'music';
-  if (BROWSERS.has(bundleId)) return 'web';
+  if (Object.hasOwn(BROWSERS, bundleId)) return 'web';
   if (VIDEO.has(bundleId)) return 'video';
   return 'other';
 }

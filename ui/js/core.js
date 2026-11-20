@@ -134,8 +134,10 @@ export function initializeRuntime(state) {
   CT.current = 'nowplaying';
   var beforeSettings = 'nowplaying';
 
-  /** Registers a screen. Optional hooks: show(), hide(), turn(steps), press(), and reselect()
-   * for its own button pressed while it's already showing. turn and press can return false to
+  /** Registers a screen. Optional hooks: show(), hide(), turn(steps), press(), showView(view) to
+   * put it on one of its views before it's shown (When idle), and reselect(steps)
+   * for its own button pressed while it's already showing (steps 1), or a swipe up (1) or down (-1)
+   * through its views. turn and press can return false to
    * leave the input to the default (volume, and play/pause/next/previous). */
   CT.screen = function (name) {
     var def = { name: name };
@@ -220,10 +222,9 @@ export function initializeRuntime(state) {
     opening = false;
     // Settings → When idle governs this: Never keeps the (placeholder) Now Playing up; otherwise
     // the page opens on the Idle screen (the Clock by default). Settings arrive before Now Playing.
-    var idleTarget = CT.settings.idleScreen || 'clock';
-    if (first && !msg.np.active && CT.current === 'nowplaying' && CT.settings.idleMinutes && CT.screens[idleTarget]) {
+    if (first && !msg.np.active && CT.current === 'nowplaying' && CT.settings.idleMinutes && CT.showIdleScreen) {
       autoScreen = true;
-      return CT.show(idleTarget, true); // under "Waiting for your Mac" as it fades
+      return CT.showIdleScreen(true); // under "Waiting for your Mac" as it fades
     }
     if (autoScreen && msg.np.active) {
       autoScreen = false;
@@ -248,7 +249,7 @@ export function initializeRuntime(state) {
     autoScreen = opening = false;
     Object.keys(saved.reselects || {}).forEach(function (name) {
       var screen = CT.screens[name];
-      for (var i = 0; screen && screen.reselect && i < saved.reselects[name]; i++) screen.reselect();
+      if (screen && screen.reselect && saved.reselects[name]) screen.reselect(saved.reselects[name]);
       if (screen && screen.reselect) reselects[name] = saved.reselects[name];
     });
     CT.show(saved.name);
@@ -280,6 +281,16 @@ export function initializeRuntime(state) {
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function () { state.toast = ''; }, 1800);
   };
+
+  // A note in the middle of the display, the volume pill's size: why the screen just moved
+  // (Smart switching). The text stays while it fades out.
+  var noteTimer = null;
+  CT.note = function (text, ms) {
+    state.note = text;
+    state.showNote = true;
+    clearTimeout(noteTimer);
+    noteTimer = setTimeout(function () { state.showNote = false; }, ms || 5000);
+  };
   CT.on('toast', function (msg) { CT.toast(msg.text); });
 
   // ---- Screen sleep ----------------------------------------------------------------------
@@ -310,7 +321,8 @@ export function initializeRuntime(state) {
 
   // ---- Hardware input -------------------------------------------------------------------
   // Top buttons 1–4 and the settings button arrive as keys; the knob press is Enter, the back
-  // button under it is Escape, and turning the knob is a horizontal wheel event per click.
+  // button under it is Escape, and turning the knob is a horizontal wheel event per click. The
+  // screen is a touchscreen too: a swipe left or right goes to the screen's swipe(), a tap clicks.
 
   var CODE_ALIASES = { Digit1: '1', Digit2: '2', Digit3: '3', Digit4: '4', NumpadEnter: 'Enter', KeyM: 'm' };
   function keyName(e) {
@@ -322,6 +334,11 @@ export function initializeRuntime(state) {
   function debugInput(text) {
     if (CT.config.debug) CT.send({ type: 'log', message: text });
   }
+  /** A line in the Mac's log about something the page did by itself, with flags.json's logEvents
+   *  (or in a dev run). */
+  CT.logEvent = function (text) {
+    if (CT.config.debug || CT.config.logEvents) CT.send({ type: 'log', message: text });
+  };
 
   function runButton(action) {
     if (!action) return;
@@ -458,6 +475,129 @@ export function initializeRuntime(state) {
     var steps = (d > 0 ? 1 : -1) * (CT.config.knobDirection || 1);
     var screen = CT.screens[CT.current];
     if (CT.lockedTo || !screen.turn || screen.turn(steps) === false) onKnobVolume(steps);
+  }, { passive: false, capture: true });
+
+  /** A tap on the touchscreen: a media command, or a function to run. Like a button, a tap while
+   *  dark only wakes. */
+  CT.tap = function (action) {
+    debugInput('tap → ' + (typeof action === 'function' ? 'handler' : action));
+    emit('input', 'tap');
+    if (wakeInstead()) return;
+    if (typeof action === 'function') action();
+    else CT.command(action);
+  };
+
+  /** Taps and horizontal swipes on an element. on.tap(event) gets a touch that barely moved;
+   *  on.swipe('left' | 'right') one that travelled mostly sideways. Returns a function that
+   *  removes the listeners. Click events don't work for this: one still fires after a swipe. */
+  var TAP_PX = 20, SWIPE_PX = 60;
+  CT.gestures = function (el, on) {
+    var start = null;
+    function down(e) { start = { id: e.pointerId, x: e.clientX, y: e.clientY }; }
+    function up(e) {
+      if (!start || e.pointerId !== start.id) return;
+      var dx = e.clientX - start.x, dy = e.clientY - start.y;
+      start = null;
+      if (on.swipe && Math.abs(dx) >= SWIPE_PX && Math.abs(dx) > Math.abs(dy) * 1.5) on.swipe(dx < 0 ? 'left' : 'right');
+      else if (on.tap && Math.abs(dx) < TAP_PX && Math.abs(dy) < TAP_PX) on.tap(e);
+    }
+    function cancel() { start = null; }
+    el.addEventListener('pointerdown', down);
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', cancel);
+    return function () {
+      el.removeEventListener('pointerdown', down);
+      el.removeEventListener('pointerup', up);
+      el.removeEventListener('pointercancel', cancel);
+    };
+  };
+
+  // Swiping up or down steps through the screen's own views, the way its top button does pressed
+  // again (the clock: clock, timer, usage): up to the next, down back to the previous. Not over an
+  // alert card or while the Mac holds the screen; with the screen dark, a swipe only wakes it.
+  // Not when the screen's drag() took the touch (the timer deck lifts a card that way).
+  var pageSwipe = null, dragHeld = false;
+  window.addEventListener('pointerdown', function (e) {
+    pageSwipe = { id: e.pointerId, x: e.clientX, y: e.clientY };
+  }, true);
+  window.addEventListener('pointerup', function (e) {
+    var start = pageSwipe;
+    pageSwipe = null;
+    if (!start || e.pointerId !== start.id || dragHeld) return; // the screen's drag() has this touch
+    var dx = e.clientX - start.x, dy = e.clientY - start.y;
+    if (Math.abs(dy) < SWIPE_PX || Math.abs(dy) <= Math.abs(dx) * 1.5) return;
+    var screen = CT.screens[CT.current], steps = dy < 0 ? 1 : -1;
+    if (!screen || !screen.reselect || CT.lockedTo || (CT.modalOpen && CT.modalOpen())) return;
+    debugInput('swipe ' + (dy < 0 ? 'up' : 'down'));
+    emit('input', 'tap');
+    if (wakeInstead()) return;
+    autoScreen = false;
+    reselects[CT.current] = (reselects[CT.current] || 0) + steps;
+    saveDevScreen();
+    screen.reselect(steps);
+  }, true);
+  window.addEventListener('pointercancel', function () { pageSwipe = null; }, true);
+
+  // A swipe is one finger moving mostly sideways, far enough. Left (to the next, as a page turns)
+  // is swipe(1), right is swipe(-1). It acts once, as the finger lifts. A screen with drag()
+  // follows the finger instead: once it's moved past a tap, the way it went most (axis 'x'
+  // sideways, 'y' up and down) holds for the rest of the touch, and drag(dx, dy, axis, target) says how
+  // far it's gone as it goes, then dragEnd(dx, vx, axis, dy, vy) as it lifts (vx, vy: px/ms, its
+  // speed at the end). drag() returning false leaves a sideways one to swipe(). An alert over the
+  // screen and a locked screen ignore it.
+  // A touch that hardly moves is a tap: it clicks what's under the finger (so Vue's @click works),
+  // and only that — the browser's own click is held back, so a tap never counts twice.
+  var SWIPE_MIN_PX = 50, TAP_MAX_PX = 12;
+  var touchStart = null; // {x, y, axis, dragging, last: [{dx, dy, t}] for the speed}
+  function touchScreen() {
+    if (CT.asleep || CT.lockedTo || (CT.modalOpen && CT.modalOpen())) return null;
+    return CT.screens[CT.current] || null;
+  }
+  window.addEventListener('touchstart', function (e) {
+    var t = e.touches[0];
+    touchStart = e.touches.length === 1 ? { x: t.clientX, y: t.clientY, target: e.target, axis: '', dragging: false, last: [] } : null;
+    dragHeld = false;
+  }, { passive: true, capture: true });
+  window.addEventListener('touchmove', function (e) {
+    var start = touchStart, t = e.touches[0];
+    if (!start || !t) return;
+    var dx = t.clientX - start.x, dy = t.clientY - start.y;
+    start.last.push({ dx: dx, dy: dy, t: performance.now() });
+    if (start.last.length > 5) start.last.shift();
+    if (!start.axis) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) <= TAP_MAX_PX) return;
+      start.axis = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y';
+      var screen = touchScreen();
+      start.dragging = !!(screen && screen.drag);
+    }
+    if (!start.dragging) return;
+    var s = touchScreen();
+    if (!s || !s.drag || s.drag(dx, dy, start.axis, start.target) === false) start.dragging = false;
+    dragHeld = start.dragging;
+  }, { passive: true, capture: true });
+  window.addEventListener('touchend', function (e) {
+    var start = touchStart, t = e.changedTouches[0];
+    touchStart = null;
+    if (!start || !t) return;
+    var dx = t.clientX - start.x, dy = t.clientY - start.y;
+    var tap = !start.dragging && Math.abs(dx) <= TAP_MAX_PX && Math.abs(dy) <= TAP_MAX_PX;
+    if (tap && e.cancelable) e.preventDefault();
+    debugInput('touch dx=' + Math.round(dx) + ' dy=' + Math.round(dy) + (tap ? ' (tap)' : start.dragging ? ' (drag)' : ''));
+    emit('input', 'touch');
+    if (wakeInstead()) return;
+    if (tap) { // alert cards take taps too, so this doesn't wait for touchScreen()
+      var target = document.elementFromPoint(t.clientX, t.clientY);
+      if (target) target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, clientX: t.clientX, clientY: t.clientY }));
+      return;
+    }
+    var screen = touchScreen();
+    if (!screen) return;
+    if (start.dragging && screen.dragEnd) {
+      var first = start.last[0], now = performance.now(), dt = first ? now - first.t : 0;
+      return screen.dragEnd(dx, dt > 0 ? (dx - first.dx) / dt : 0, start.axis, dy, dt > 0 ? (dy - first.dy) / dt : 0);
+    }
+    if (start.axis === 'y' || Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) < 1.5 * Math.abs(dy)) return;
+    if (screen.swipe) screen.swipe(dx < 0 ? 1 : -1);
   }, { passive: false, capture: true });
 
   document.addEventListener('contextmenu', function (e) { e.preventDefault(); });

@@ -2,18 +2,7 @@
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { log } from '../log.js';
-
-/** bundle id → AppleScript application name, for reading the playing tab. */
-const BROWSER_APPS = {
-  'com.google.Chrome': 'Google Chrome',
-  'com.google.Chrome.canary': 'Google Chrome Canary',
-  'com.brave.Browser': 'Brave Browser',
-  'com.microsoft.edgemac': 'Microsoft Edge',
-  'com.apple.Safari': 'Safari',
-  'com.vivaldi.Vivaldi': 'Vivaldi',
-  'com.operasoftware.Opera': 'Opera',
-  'company.thebrowser.Browser': 'Arc',
-};
+import { BROWSERS } from './apps.js';
 
 const YT_ID = /(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/|music\.youtube\.com\/watch\?(?:.*&)?v=)([\w-]{11})/;
 const warned = new Set();
@@ -22,7 +11,7 @@ const warned = new Set();
 // This is the same image key normalize() computes; it is an app placeholder, not video art.
 const CHROMIUM_PLACEHOLDER_KEY = '8e5b3282f2d4863b';
 export function isBrowserPlaceholder(bundleId, artworkKey) {
-  return Boolean(BROWSER_APPS[bundleId] && artworkKey === CHROMIUM_PLACEHOLDER_KEY);
+  return Boolean(BROWSERS[bundleId] && artworkKey === CHROMIUM_PLACEHOLDER_KEY);
 }
 
 /**
@@ -70,12 +59,15 @@ export function jpegSize(buf) {
 }
 
 async function browserTabs(bundleId) {
-  const app = BROWSER_APPS[bundleId];
-  if (!app) return null;
-  const title = bundleId === 'com.apple.Safari' ? 'name' : 'title'; // Safari's tabs have no "title"
+  const title = BROWSERS[bundleId];
+  if (!title) return null;
+  // Addressed by bundle id, so the table needs no app names. The running check keeps a lookup
+  // from ever launching the browser.
   // Two bulk reads, not one Apple event per tab: Arc takes ~9 s for 181 tabs one at a time,
   // 0.1 s like this.
-  const source = `tell application ${JSON.stringify(app)}
+  const app = `application id ${JSON.stringify(bundleId)}`;
+  const source = `if not (${app} is running) then return ""
+tell ${app}
 set ts to ${title} of every tab of every window
 set us to URL of every tab of every window
 end tell
@@ -94,14 +86,15 @@ return rows as text`;
   } catch (err) {
     if (!warned.has(bundleId)) {
       warned.add(bundleId);
-      log.warn(`[artwork] could not read ${app} tabs (${(err.killed ? 'timed out' : err.message).trim()})`);
+      log.warn(`[artwork] could not read ${bundleId} tabs (${(err.killed ? 'timed out' : err.message).trim()})`);
     }
     return null;
   }
 }
 
 export function matchingUrl(listing, title) {
-  const videoTitle = text => fold(text).replace(/(?: - youtube(?: music)?| \/ x)$/, '');
+  // Tab titles can start with an unread count, e.g. "(2) Video - YouTube".
+  const videoTitle = text => fold(text).replace(/^\(\d+\+?\) /, '').replace(/(?: - youtube(?: music)?| \/ x)$/, '');
   const want = videoTitle(title);
   if (!want || !listing) return null;
   const matches = new Set();

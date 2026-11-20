@@ -1,108 +1,192 @@
-import { reactive, computed, watch } from 'vue';
+import { reactive, computed, ref } from 'vue';
 import { state, CT } from './state.js';
 
-// The Time Timer on the clock screen. It keeps its end time on the Mac's clock rather than
-// counting seconds, so it stays right while another screen is up or the backlight is off.
+// The timers on the clock screen, as cards in a row (ClockScreen.vue, TimerDeck.vue). Any number
+// run at once: each preset you tap starts another. Beside them, a card for each meeting going on
+// (counting to its end), one for the next meeting today (counting to its start), and, always,
+// one that starts the last length used again (30 minutes until you've used one).
+// Each timer keeps its end time on the Mac's clock rather than counting seconds, so it stays right
+// while another screen is up or the backlight is off, and they're kept across page reloads.
 export const PRESETS = [5, 10, 15, 30, 45, 60]; // minutes
-// meeting, when set, is the timer's other length, a knob stop past 60 minutes: until the meeting
-// going on now ends (kind 'end'), or, with none on, until the next one today starts ('start').
-export const timer = reactive({ preset: 2, meeting: null, status: 'set', endsAt: 0, left: 0 }); // status: set | running | paused | done
+const STORE = 'ct-timers', LAST_STORE = 'ct-timer-last';
+const DEFAULT_MINUTES = 30;
+// A finished timer counts on past its end for ten minutes at most, then puts itself away.
+const OVERRUN_MS = 10 * 60000;
 
-const keyOf = e => (e.calendarId || '') + '|' + e.start + '|' + (e.title || '');
-/** The timed event going on now, or null. With a few at once, the one that ends first. */
-export const currentMeeting = computed(() => {
-  if (state.calendar.status !== 'ok') return null;
-  const on = state.calendar.events.filter(e => !e.allDay && e.start <= state.now && state.now < e.end);
-  return on.length ? on.reduce((a, b) => (b.end < a.end ? b : a)) : null;
-});
-/** Which meeting is on, as a key: it changes only when a different one starts (or none is on). */
-export const currentMeetingKey = computed(() => currentMeeting.value ? keyOf(currentMeeting.value) : '');
-const meetingOf = (e, kind) => ({ key: keyOf(e), kind, title: e.title || '', start: e.start, end: e.end, length: 0 });
-/** The next timed event still to start today, or null. */
-const nextMeeting = computed(() => {
-  if (state.calendar.status !== 'ok') return null;
-  const today = CT.dayNumber(state.now);
-  const later = state.calendar.events.filter(e => !e.allDay && e.start > state.now && CT.dayNumber(e.start) === today);
-  return later.length ? later.reduce((a, b) => (b.start < a.start ? b : a)) : null;
-});
-/** The knob's meeting stop: the end of the meeting going on now, else the start of the next. */
-const meetingStop = computed(() => currentMeeting.value ? meetingOf(currentMeeting.value, 'end')
-  : nextMeeting.value ? meetingOf(nextMeeting.value, 'start') : null);
-const stopId = computed(() => meetingStop.value ? [meetingStop.value.kind, meetingStop.value.key, meetingStop.value.end].join('|') : '');
-const targetOf = m => (m.kind === 'start' ? m.start : m.end);
+function load(key, fallback) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key));
+    return value == null ? fallback : value;
+  } catch (e) { return fallback; }
+}
+const validTimer = t => t && typeof t.id === 'string' && t.minutes > 0 && /^(running|paused|done)$/.test(t.status);
+/** Timers you've started, in the order you started them: { id, minutes, status, endsAt, left }.
+ *  status: running | paused | done. left is the time left when it was paused. */
+export const timers = reactive([].concat(load(STORE, [])).filter(validTimer));
+const lastMinutes = ref(PRESETS.includes(load(LAST_STORE, 0)) ? load(LAST_STORE, 0) : DEFAULT_MINUTES);
+function save() {
+  try {
+    localStorage.setItem(STORE, JSON.stringify(timers));
+    localStorage.setItem(LAST_STORE, JSON.stringify(lastMinutes.value));
+  } catch (e) {}
+}
+/** The timer is up on the clock screen (ClockScreen.vue keeps this). */
+export const timerOnScreen = ref(false);
+/** Something on the timer wants watching: a timer running, paused or just finished, or the timer
+ *  up on screen (a meeting's countdown, say), so smart switching and When idle leave it be. */
+export const timerBusy = computed(() => timers.length > 0 || timerOnScreen.value);
 
-const presetMs = () => PRESETS[timer.preset] * 60000;
-// Set to a meeting, it doesn't tick: it shows the minutes left, rounded up, "10 min" for 9:49.
-const wholeMinutes = ms => Math.max(0, Math.ceil(ms / 60000) * 60000);
-/** The timer's full turn: the preset; the whole meeting, counting to its end (so the dial shows
- *  how much is left); or, counting to the next one's start, the time there was when it started. */
-export const total = computed(() => {
-  const m = timer.meeting;
-  if (!m) return presetMs();
-  if (m.kind === 'end') return m.end - m.start;
-  return timer.status === 'set' ? Math.max(60000, wholeMinutes(m.start - state.now)) : m.length;
-});
-export const remaining = computed(() => {
-  if (timer.status === 'set') return timer.meeting ? wholeMinutes(targetOf(timer.meeting) - state.now) : presetMs();
-  if (timer.status === 'running') return Math.max(0, timer.endsAt - state.now);
-  return timer.left;
-});
-export const timerLabel = computed(() => {
-  const minutes = PRESETS[timer.preset];
-  // Counting to a meeting's end, the label is the meeting's name.
-  const name = timer.meeting ? (timer.meeting.kind === 'start' ? 'Next meeting in' : timer.meeting.title || 'Meeting ends in')
-    : minutes === 60 ? '1 hour timer' : minutes + ' minute timer';
-  // Paused goes first, so a long meeting name cut short on the rail doesn't take it with it.
-  return timer.status === 'paused' ? 'Paused · ' + name : timer.status === 'done' ? "Time's up" : name;
-});
-/** 35:23 — whole seconds, rounded down. */
+// From 90 minutes up, a time reads in whole hours, rounded up: 21 hr for 20:37:28. Under that
+// it's minutes and seconds, 89:59.
+const HOURS_FROM_MS = 90 * 60000;
+/** 35:23 — whole seconds, rounded down; from 90 minutes, "21 hr". */
 export function timerText(ms) {
+  if (ms >= HOURS_FROM_MS) return Math.ceil(ms / 3600000) + ' hr';
   const s = Math.floor(Math.max(0, ms) / 1000);
   return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
 }
-// Set to a meeting, the title is the minutes left, with timerUnit after it: 10 min.
-const minutesOnly = computed(() => timer.status === 'set' && !!timer.meeting);
-export const timerUnit = computed(() => (minutesOnly.value ? 'min' : ''));
-/** Set, it shows the full length, 5:00. Started, it drops to 4:59 straight away so you can see
- *  it going, and reads 0:00 through its last second. Once the time is up it counts on past it,
- *  1:23+, until the timer's put away. Set to a meeting, it's the minutes left (timerUnit). */
-export const timerTitle = computed(() =>
-  minutesOnly.value ? String(remaining.value / 60000)
-    : timer.status === 'set' ? timerText(remaining.value)
-    : timer.status === 'done' ? timerText(state.now - timer.endsAt) + '+'
-    : timerText(Math.ceil(remaining.value / 1000) * 1000 - 1000));
+/** A length in whole minutes, as the meeting alert offers it: "30 min", or from 90 minutes "21 hr". */
+export function minutesText(minutes) {
+  return minutes * 60000 >= HOURS_FROM_MS ? Math.ceil(minutes / 60) + ' hr' : minutes + ' min';
+}
+// Counting down, it drops a second straight away (5:00 → 4:59) so you can see it going, and reads
+// 0:00 through its last second.
+const countdownText = ms => timerText(Math.max(0, Math.ceil(ms / 1000) * 1000 - 1000));
+const lengthLabel = minutes => (minutes === 60 ? '1 hour timer' : minutes + ' minute timer');
 
-/** The knob's stops are the presets, then, past 60 minutes, the meeting stop if there is one. */
-export function stepPreset(steps) {
-  const last = meetingStop.value ? PRESETS.length : PRESETS.length - 1;
-  const at = Math.max(0, Math.min(last, (timer.meeting ? PRESETS.length : timer.preset) + steps));
-  if (at === PRESETS.length) timer.meeting = meetingStop.value;
-  else { timer.meeting = null; timer.preset = at; }
-  timer.status = 'set';
+const keyOf = e => (e.calendarId || '') + '|' + e.start + '|' + (e.title || '');
+/** The card for a meeting going on: its id, for the meeting alert to bring it up. */
+export const meetingCardId = e => 'end|' + keyOf(e);
+const timed = computed(() => (state.calendar.status === 'ok' ? state.calendar.events.filter(e => !e.allDay) : []));
+// Meeting cards you've removed (swiped up, Remove), each until its countdown would have ended:
+// card id → when. Kept across page reloads.
+const HIDDEN_STORE = 'ct-timer-hidden';
+const hidden = reactive(load(HIDDEN_STORE, {}));
+const shown = (id, until) => !(hidden[id] >= until);
+/** The timed events going on now, the one that ends first first. */
+const currentMeetings = computed(() => timed.value.filter(e => e.start <= state.now && state.now < e.end)
+  .sort((a, b) => a.end - b.end || a.start - b.start));
+/** The next timed event still to start today, or null. */
+const nextMeeting = computed(() => {
+  const today = CT.dayNumber(state.now);
+  const later = timed.value.filter(e => e.start > state.now && CT.dayNumber(e.start) === today);
+  return later.length ? later.reduce((a, b) => (b.start < a.start ? b : a)) : null;
+});
+// Counting to the next meeting's start, the dial's full turn is the time there was when its card
+// first came up (so it empties as the meeting nears), an hour at least.
+const nextSeen = {};
+
+function timerCard(t) {
+  const now = state.now, total = t.minutes * 60000;
+  const remaining = t.status === 'running' ? Math.max(0, t.endsAt - now) : t.status === 'paused' ? t.left : 0;
+  const name = lengthLabel(t.minutes);
+  return {
+    id: t.id, kind: 'timer', status: t.status, remaining, total,
+    // A paused one says so with the pause badge on its dial, so the label is only its name.
+    label: t.status === 'done' ? "Time's up" : name,
+    // Once the time is up it counts on past it, 1:23+, until it's put away.
+    title: t.status === 'done' ? timerText(now - t.endsAt) + '+' : t.status === 'paused' ? countdownText(t.left) : countdownText(remaining)
+  };
 }
-/** Opening the timer during a meeting sets it to the meeting's end, unless it's already going. */
-export function pickMeeting() {
-  if (timer.status === 'set' && currentMeeting.value) timer.meeting = meetingOf(currentMeeting.value, 'end');
-}
-/** The meeting alert's Start timer, or one queued from it as the meeting starts: starts the timer
- *  to that meeting's end, in place of whatever it was doing. It's the only way a meeting starts one. */
-export function startMeetingTimer(e) {
-  timer.meeting = meetingOf(e, 'end');
-  timer.status = 'set';
-  toggleTimer();
-}
-export function toggleTimer() {
-  state.now = CT.now();
-  if (timer.status === 'running') {
-    timer.left = Math.max(0, timer.endsAt - state.now);
-    timer.status = 'paused';
-  } else if (timer.status === 'done') resetTimer();
-  else {
-    timer.endsAt = endOnHalfSecond(timer.status === 'paused' ? state.now + timer.left
-      : timer.meeting ? targetOf(timer.meeting) : state.now + presetMs());
-    if (timer.status === 'set' && timer.meeting) timer.meeting.length = timer.endsAt - state.now;
-    timer.status = 'running';
+/** Every card, left to right: your timers (newest first), the meetings, then the last length used.
+ *  Timers go first so a new one's card goes in right by the presets it grows out of, and doesn't
+ *  fly across a meeting's card to get to its place. */
+export const cards = computed(() => {
+  const now = state.now, list = timers.map(timerCard);
+  currentMeetings.value.filter(e => shown(meetingCardId(e), e.end)).forEach(e => list.push({
+    id: meetingCardId(e), kind: 'meeting', status: 'running', remaining: e.end - now, total: e.end - e.start,
+    label: e.title || 'Meeting ends in', title: countdownText(e.end - now)
+  }));
+  const next = nextMeeting.value;
+  if (next && shown('start|' + keyOf(next), next.start)) {
+    const id = 'start|' + keyOf(next);
+    nextSeen[id] = nextSeen[id] || now;
+    list.push({
+      id, kind: 'meeting', status: 'running', remaining: next.start - now, total: Math.max(3600000, next.start - nextSeen[id]),
+      label: 'Next meeting in', title: countdownText(next.start - now)
+    });
   }
+  const minutes = lastMinutes.value;
+  list.push({ id: 'last', kind: 'last', status: 'set', remaining: minutes * 60000, total: minutes * 60000,
+    label: lengthLabel(minutes), title: timerText(minutes * 60000) });
+  return list;
+});
+
+// Meeting countdowns you asked for (the meeting alert's Queue timer or Show timer): card id → the
+// meeting's end. Smart switching brings these up before they end, as it does your own timers.
+// Kept across page reloads.
+const ASKED_STORE = 'ct-timer-asked';
+const asked = reactive(load(ASKED_STORE, {}));
+function saveAsked() {
+  Object.keys(asked).forEach(id => { if (asked[id] < state.now) delete asked[id]; });
+  try { localStorage.setItem(ASKED_STORE, JSON.stringify(asked)); } catch (e) {}
+}
+/** A meeting's countdown (to its end) was asked for, or (with on false) no longer is. */
+export function askForMeeting(e, on = true) {
+  if (on) asked[meetingCardId(e)] = e.end;
+  else delete asked[meetingCardId(e)];
+  saveAsked();
+}
+/** The countdowns you started that are running, { id, endsAt }: your timers, and the meeting
+ *  countdowns you asked for while their card is up. */
+export function startedCountdowns() {
+  const list = timers.filter(t => t.status === 'running').map(t => ({ id: t.id, endsAt: t.endsAt }));
+  cards.value.forEach(c => { if (c.kind === 'meeting' && asked[c.id]) list.push({ id: c.id, endsAt: state.now + c.remaining }); });
+  return list;
+}
+
+/** Starts a new timer of that many minutes, ahead of any already going, so its card goes in by
+ *  the presets and the deck only has to move one step to it. Returns its card's id. */
+export function startTimer(minutes) {
+  state.now = CT.now();
+  const id = 't' + state.now.toString(36) + Math.floor(Math.random() * 1e4).toString(36);
+  timers.unshift({ id, minutes, status: 'running', endsAt: endOnHalfSecond(state.now + minutes * 60000), left: 0 });
+  lastMinutes.value = minutes;
+  save();
+  return id;
+}
+/** The knob on a timer: pause it, start it again, or put a finished one away. */
+export function toggleTimer(id) {
+  const t = timers.find(t => t.id === id);
+  if (!t) return;
+  state.now = CT.now();
+  if (t.status === 'running') {
+    t.left = Math.max(0, t.endsAt - state.now);
+    t.status = 'paused';
+  } else if (t.status === 'paused') {
+    t.endsAt = endOnHalfSecond(state.now + t.left);
+    t.status = 'running';
+  } else return removeTimer(id);
+  save();
+}
+/** Reset (the back button, or the corner's "reset"): the same timer back to its whole length,
+ *  counting down again. */
+export function resetTimer(id) {
+  const t = timers.find(t => t.id === id);
+  if (!t) return;
+  state.now = CT.now();
+  t.status = 'running';
+  t.endsAt = endOnHalfSecond(state.now + t.minutes * 60000);
+  t.left = 0;
+  save();
+}
+export function removeTimer(id) {
+  const i = timers.findIndex(t => t.id === id);
+  if (i >= 0) timers.splice(i, 1);
+  save();
+}
+/** Removes a card (swiped up, Remove): a timer is put away, a meeting's countdown hidden until
+ *  it would have ended. The last length used always stays. */
+export function removeCard(card) {
+  if (card.kind === 'timer') return removeTimer(card.id);
+  if (card.kind !== 'meeting') return;
+  hidden[card.id] = state.now + card.remaining;
+  Object.keys(hidden).forEach(id => { if (hidden[id] < state.now) delete hidden[id]; });
+  try { localStorage.setItem(HIDDEN_STORE, JSON.stringify(hidden)); } catch (e) {}
+}
+/** Puts away every timer that's finished (leaving the timer does this). */
+export function removeDoneTimers() {
+  timers.filter(t => t.status === 'done').forEach(t => removeTimer(t.id));
 }
 // The display only redraws on the shared tick, just after each of the Mac's whole seconds. If the
 // timer's own seconds rolled over near that moment, the tick's jitter would decide which side it
@@ -111,36 +195,11 @@ export function toggleTimer() {
 function endOnHalfSecond(ms) {
   return ms - ((ms - 505) % 1000 + 1000) % 1000;
 }
-export function resetTimer() {
-  timer.status = 'set';
-  if (timer.meeting) followMeeting();
-}
-/** Pressed twice: stop the timer and put it back to its preset. Set to a meeting, it's always
- *  counting down to the meeting, so reset leaves the meeting too; the knob's meeting stop (or
- *  opening the timer again during a meeting) brings it back. */
-export function clearTimer() {
-  timer.meeting = null;
-  timer.status = 'set';
-}
-// Set to the meeting stop, the timer keeps up with it: a new time, the next meeting's start
-// becoming that meeting's end as it begins, or, with no meeting left today, back to its preset.
-function followMeeting() {
-  timer.meeting = meetingStop.value;
-}
-watch(stopId, () => { if (timer.meeting && timer.status === 'set') followMeeting(); });
-// Running on a meeting, it follows the meeting's time if that changes — unless it's been paused,
-// when it's the timer's own time from then on.
-watch(() => state.calendar, () => {
-  const m = timer.meeting;
-  if (!m || timer.status !== 'running' || state.calendar.status !== 'ok') return;
-  const e = state.calendar.events.find(e => !e.allDay && keyOf(e) === m.key);
-  if (!e || targetOf(meetingOf(e, m.kind)) === targetOf(m) || targetOf(meetingOf(e, m.kind)) <= state.now) return;
-  timer.meeting = { ...meetingOf(e, m.kind), length: m.length };
-  timer.endsAt = endOnHalfSecond(targetOf(timer.meeting));
+CT.onSecond(now => {
+  let changed = false;
+  timers.slice().forEach(t => {
+    if (t.status === 'running' && now >= t.endsAt) { t.status = 'done'; t.left = 0; changed = true; }
+    if (t.status === 'done' && now - t.endsAt >= OVERRUN_MS) { removeTimer(t.id); changed = true; }
+  });
+  if (changed) save();
 });
-
-function finish() {
-  timer.status = 'done';
-  timer.left = 0;
-}
-CT.onSecond(now => { if (timer.status === 'running' && now >= timer.endsAt) finish(); });

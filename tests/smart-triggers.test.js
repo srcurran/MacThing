@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { usageWatch, weatherWatch, wetSoon, heat } from '../ui/src/smart-triggers.js';
+import { usageWatch, weatherWatch, wetSoon, wetNote, heat, timerWatch } from '../ui/src/smart-triggers.js';
 
 const HOUR = 3600000, MIN = 60000;
 const T0 = Date.UTC(2026, 9, 23, 12);
@@ -55,7 +55,7 @@ test('usage: switches once for each new fire as the pace climbs', () => {
   assert.equal(check(usage(55, resets), T0 + 5 * MIN), 'hot'); // 🔥
   assert.equal(check(usage(70, resets), T0 + 10 * MIN), 'hot'); // 🔥🔥
   assert.equal(check(usage(72, resets), T0 + 15 * MIN), ''); // still 🔥🔥
-  assert.equal(check(usage(100, resets), T0 + 20 * MIN), 'hot'); // the limit
+  assert.equal(check(usage(100, resets), T0 + 20 * MIN), 'limit');
   assert.equal(check(usage(100, resets), T0 + 25 * MIN), '');
 });
 
@@ -90,30 +90,114 @@ test('usage: a new session starts its tiers again', () => {
   assert.equal(check(usage(85, first), T0 + 5 * MIN), 'hot');
   const second = first + 5 * HOUR, start = first + 1;
   assert.equal(check(usage(0, null), start), 'reset'); // it ended at 85%
+  assert.equal(check(usage(0, null), start + HOUR), ''); // calm between sessions
   assert.equal(check(usage(60, second), start + 2.5 * HOUR), 'hot'); // 1.5x: 🔥 again
 });
 
 const hour = (t, code, pop) => ({ t, code, pop, temp: 50, isDay: true });
 const weather = (currentCode, hourly) => ({ status: 'ok', current: { code: currentCode }, hourly });
 
+test('usage: the limit is told once a session, however long it lasts', () => {
+  const check = usageWatch();
+  const resets = T0 + 2.5 * HOUR;
+  check(usage(60, resets), T0);
+  assert.equal(check(usage(100, resets), T0 + 5 * MIN), 'limit');
+  // Locked out: nothing burns, and the reading wobbles between 99% and 100% for an hour.
+  for (let m = 10; m <= 70; m += 5) assert.equal(check(usage(m % 10 ? 99 : 100, resets), T0 + m * MIN), '', m + ' min');
+  const next = resets + 5 * HOUR;
+  assert.equal(check(usage(0, null), resets + MIN), 'reset'); // it ended well used: the allowance is back
+  assert.equal(check(usage(100, next), resets + 2 * HOUR), 'limit'); // a new session can hit it again
+});
+
+test('usage: hitting the limit after its reset is announced does not hide the reset', () => {
+  const check = usageWatch();
+  const resets = T0 + 10 * MIN;
+  check(usage(90, resets), T0);
+  assert.equal(check(usage(100, resets), T0 + 5 * MIN), 'limit');
+  assert.equal(check(usage(100, resets), resets), 'reset');
+});
+
 test('weather: rain due next hour counts, rain already falling does not', () => {
   const now = T0 + 20 * MIN;
   const rainNext = [hour(T0, 2, 10), hour(T0 + HOUR, 61, 70), hour(T0 + 2 * HOUR, 61, 80)];
-  assert.equal(wetSoon(weather(2, rainNext), now), true);
-  assert.equal(wetSoon(weather(63, rainNext), now), false);
-  assert.equal(wetSoon(weather(2, [hour(T0, 2, 10), hour(T0 + HOUR, 61, 30)]), now), false); // unlikely
-  assert.equal(wetSoon(weather(2, [hour(T0, 2, 10), hour(T0 + HOUR, 2, 0), hour(T0 + 2 * HOUR, 73, 90)]), now), false); // too far off
-  assert.equal(wetSoon(weather(1, [hour(T0, 2, 10), hour(T0 + HOUR, 71, 60)]), now), true); // snow
+  assert.equal(!!wetSoon(weather(2, rainNext), now), true);
+  assert.equal(!!wetSoon(weather(63, rainNext), now), false);
+  assert.equal(!!wetSoon(weather(2, [hour(T0, 2, 10), hour(T0 + HOUR, 61, 30)]), now), false); // unlikely
+  assert.equal(!!wetSoon(weather(2, [hour(T0, 2, 10), hour(T0 + HOUR, 2, 0), hour(T0 + 2 * HOUR, 73, 90)]), now), false); // too far off
+  assert.equal(!!wetSoon(weather(1, [hour(T0, 2, 10), hour(T0 + HOUR, 71, 60)]), now), true); // snow
 });
 
 test('weather: fires when rain becomes due, once, and not on the first reading', () => {
   const check = weatherWatch();
   const dry = weather(2, [hour(T0, 2, 10), hour(T0 + HOUR, 2, 10)]);
   const wet = weather(2, [hour(T0, 2, 10), hour(T0 + HOUR, 61, 70)]);
-  assert.equal(weatherWatch()(wet, T0), false); // already due at load
-  assert.equal(check(dry, T0), false);
-  assert.equal(check(wet, T0 + 15 * MIN), true);
-  assert.equal(check(wet, T0 + 30 * MIN), false);
-  assert.equal(check(dry, T0 + 45 * MIN), false);
-  assert.equal(check(wet, T0 + 50 * MIN), true);
+  assert.equal(weatherWatch()(wet, T0), ''); // already due at load
+  assert.equal(check(dry, T0), '');
+  assert.equal(check(wet, T0 + 15 * MIN), 'Rain in next hour');
+  assert.equal(check(wet, T0 + 30 * MIN), '');
+  assert.equal(check(dry, T0 + 45 * MIN), '');
+  assert.equal(check(wet, T0 + 50 * MIN), 'Rain in next hour');
+});
+
+test('weather: the note names what is coming', () => {
+  assert.deepEqual([61, 53, 81, 73, 85, 95].map(wetNote),
+    ['Rain in next hour', 'Rain in next hour', 'Rain in next hour', 'Snow in next hour', 'Snow in next hour', 'Storms in next hour']);
+});
+
+test('usage: staying hot never switches again, even as the reset time wobbles', () => {
+  const check = usageWatch();
+  const half = T0 + 2.5 * HOUR;
+  assert.equal(check(usage(40, half), T0), '');
+  assert.equal(check(usage(56, half), T0 + MIN), 'hot');
+  for (let m = 2; m <= 90; m++) {
+    const wobble = (m % 3 - 1) * 1000; // the API's reset time, off by a second either way
+    assert.equal(check(usage(56 + m / 10, half + wobble), T0 + m * MIN), '', `minute ${m}`);
+  }
+});
+
+test('usage: a session that is still hot when the next one starts does not switch again', () => {
+  const check = usageWatch();
+  const first = T0 + 30 * MIN;
+  check(usage(50, first), T0);
+  assert.equal(check(usage(95, first), T0 + MIN), 'hot');
+  const second = first + 5 * HOUR;
+  assert.equal(check(usage(95, first), first), 'reset');
+  assert.equal(check(usage(10, second), first + 5 * MIN), ''); // 10% in 5 minutes: still hot
+});
+
+test('timer: comes up once, a minute before it ends', () => {
+  const check = timerWatch();
+  const t = { id: 'a', endsAt: T0 + 5 * MIN };
+  assert.equal(check([t], T0), null);
+  assert.equal(check([t], T0 + 3 * MIN), null);
+  assert.equal(check([t], T0 + 4 * MIN), t); // 1:00 left
+  assert.equal(check([t], T0 + 4 * MIN + 1000), null); // only once
+  assert.equal(check([t], T0 + 5 * MIN), null);
+});
+
+test('timer: one first seen in its last minute (a page load) is left be', () => {
+  const check = timerWatch();
+  const t = { id: 'a', endsAt: T0 + 30000 };
+  assert.equal(check([t], T0), null);
+  assert.equal(check([t], T0 + 1000), null);
+});
+
+test('timer: paused and started again, it can come up again', () => {
+  const check = timerWatch();
+  assert.equal(check([{ id: 'a', endsAt: T0 + 2 * MIN }], T0), null);
+  assert.equal(check([{ id: 'a', endsAt: T0 + 2 * MIN }], T0 + MIN).id, 'a');
+  assert.equal(check([], T0 + MIN + 1000), null); // paused at 0:59
+  assert.equal(check([{ id: 'a', endsAt: T0 + 3 * MIN }], T0 + 2 * MIN), null); // resumed with 0:59: too late
+  assert.equal(check([], T0 + 2 * MIN), null);
+  assert.equal(check([{ id: 'a', endsAt: T0 + 5 * MIN }], T0 + 3 * MIN), null); // later, with 2:00
+  assert.equal(check([{ id: 'a', endsAt: T0 + 5 * MIN }], T0 + 4 * MIN).id, 'a');
+});
+
+test('timer: two reaching their last minute together come up in turn, the first to end first', () => {
+  const check = timerWatch();
+  const a = { id: 'a', endsAt: T0 + 5 * MIN + 500 }, b = { id: 'b', endsAt: T0 + 5 * MIN };
+  assert.equal(check([a, b], T0), null);
+  assert.equal(check([a, b], T0 + 4 * MIN + 600), b);
+  assert.equal(check([a, b], T0 + 4 * MIN + 1600), a);
+  assert.equal(check([a, b], T0 + 4 * MIN + 2600), null);
 });
