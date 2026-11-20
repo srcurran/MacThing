@@ -16,7 +16,7 @@ export const DEFAULTS = {
   clockFace: 'analog', // 'analog' | 'numbers' | 'digital'
   artBackground: false, // blurred album art behind Now Playing and the widgets
   // Apps Now Playing never shows (a Figma recording, say): [{ id: bundle id, name }]. While one of
-  // them is macOS's Now Playing app the device reads it as nothing playing.
+  // them is macOS's Now Playing app the device keeps the last other track, paused.
   ignoredApps: [],
   location: { mode: 'auto' }, // or { mode: 'manual', name, lat, lon }
   calendars: null, // null = every calendar in the Mac's Calendar app; else an array of calendar ids
