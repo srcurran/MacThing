@@ -92,9 +92,10 @@ return rows as text`;
   }
 }
 
+/** A tab's title as Now Playing would give it: an unread count ("(2) Video - YouTube") and the site's suffix dropped. */
+export const videoTitle = (text) => fold(text).replace(/^\(\d+\+?\) /, '').replace(/(?: - youtube(?: music)?| \/ x)$/, '');
+
 export function matchingUrl(listing, title) {
-  // Tab titles can start with an unread count, e.g. "(2) Video - YouTube".
-  const videoTitle = text => fold(text).replace(/^\(\d+\+?\) /, '').replace(/(?: - youtube(?: music)?| \/ x)$/, '');
   const want = videoTitle(title);
   if (!want || !listing) return null;
   const matches = new Set();

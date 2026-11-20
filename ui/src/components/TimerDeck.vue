@@ -1,22 +1,23 @@
 <script>
-// Where things sit along the deck's stripe (Figma: time timer → "Swiping"), for a position p: 0
-// is the presets with the first card beside them in the stage's square (at 344), 1 the first card
-// centred (at 80), 2 the second, and so on. In between, everything slides, and the presets' column
-// closes up the space after it as it goes, so by 1 the first card is 24px past the presets' edge.
-// A card is the full-size timer at 0.8, 640 × 384, with 32px between cards.
-export const CARD_W = 640, GAP = 32, STEP = CARD_W + GAP;
-const BESIDE = 344, CENTRED = 80, COLUMN = 256; // the presets' column, closed up: 24 + 208 + 24
-/** The first card's x at position p. */
+// Where things sit down the deck's stack, for a position p: 0 is the presets at the top with the
+// first card under them, 1 the first card in the middle of the screen (where it rests, at the
+// page's 48px inset), 2 the second, and so on; in between, everything slides. A card is the
+// full-size timer at 0.8, 640 × 384, centred side to side, with 32px between cards. The presets
+// ride along above the first card. Ys are from the cards' resting place, 48px down.
+export const CARD_W = 640, CARD_H = 384, GAP = 32, STEP = CARD_H + GAP;
+export const CARD_X = (800 - CARD_W) / 2;
+const UNDER_PRESETS = 244, CENTRED = 0; // the presets' row, then 96px, then the first card
+/** The first card's y at position p. */
 export function firstCardAt(p) {
-  return p <= 1 ? BESIDE - (BESIDE - CENTRED) * p : CENTRED - (p - 1) * STEP;
+  return p <= 1 ? UNDER_PRESETS - (UNDER_PRESETS - CENTRED) * p : CENTRED - (p - 1) * STEP;
 }
-/** The presets' column's x at position p: from 0 to just clear of the first card, centred. */
-function columnAt(p) {
-  return p <= 1 ? -(COLUMN - CENTRED) * p : firstCardAt(p) - COLUMN;
+/** The presets' y at position p: always just above the first card. */
+function presetsAt(p) {
+  return firstCardAt(p) - UNDER_PRESETS;
 }
-/** The position at which the first card is at x (firstCardAt, backwards). */
-export function positionAt(x) {
-  return x >= CENTRED ? (BESIDE - x) / (BESIDE - CENTRED) : 1 + (CENTRED - x) / STEP;
+/** The position at which the first card is at y (firstCardAt, backwards). */
+export function positionAt(y) {
+  return y >= CENTRED ? (UNDER_PRESETS - y) / (UNDER_PRESETS - CENTRED) : 1 + (CENTRED - y) / STEP;
 }
 </script>
 <script setup>
@@ -24,15 +25,15 @@ import { computed, ref, watch } from 'vue';
 import TimeTimer from './TimeTimer.vue';
 import PauseDisc from './PauseDisc.vue';
 import { PRESETS } from '../timer.js';
-// The timer's overview, over the whole clock screen (Figma: time timer → "Timer deck · no timers"
-// and "Swiping"). One stripe that slides as a whole: "Set a timer" and the presets in the rail's
-// column, spread down to the page's bottom inset, then the cards, each the full-size timer itself
-// (its rail and dial) at 0.8. It rests with the presets showing, or with a card centred, its
-// neighbours peeking in either side; while a finger drags it, it follows (dragging: no easing).
-// Tapping a preset starts a timer; tapping a card zooms it up (ClockScreen.vue decides the rest).
-// clock is the time of day and next the next event, as the full-size timer's rail shows. lift is
-// how far the card in focus is lifted (swiped up) off its Remove, which shows as it rises: a red
-// bin and "Remove" in the space it leaves (tap it: remove). lifting: a finger has it (no easing).
+// The timer's overview, over the whole clock screen. One stack, top to bottom, that slides up and
+// down as a whole: "Set a timer" and the presets in a row, then the cards, each the full-size
+// timer itself (its rail and dial) at 0.8. It rests with the presets showing (the first card
+// under them), or with a card in the middle, its neighbours peeking in above and below; while a
+// finger drags it, it follows (dragging: no easing). Tapping a preset starts a timer; tapping a
+// card zooms it up (ClockScreen.vue decides the rest). clock is the time of day and next the next
+// event, as the full-size timer's rail shows. lift is how far the card in focus is slid left
+// (swiped) off its Remove, which shows as it goes: a red bin and "Remove" in the space it leaves
+// (tap it: remove). lifting: a finger has it (no easing).
 const LIFT_PX = 160;
 const props = defineProps({ cards: Array, focus: Number, position: Number, dragging: Boolean, lift: Number, lifting: Boolean, removing: Boolean, on: Boolean, zooming: Boolean, instant: Boolean, page: Object, clock: String, next: Object });
 const emit = defineEmits(['start', 'pick', 'remove']);
@@ -57,19 +58,19 @@ watch(() => props.cards.map(c => c.id), (ids, old) => {
   requestAnimationFrame(() => requestAnimationFrame(() => { born.value = null; }));
 });
 const firstCard = computed(() => firstCardAt(props.position));
-const column = computed(() => columnAt(props.position));
+const presets = computed(() => presetsAt(props.position));
 // Zooming, the card in focus grows from where it sits to the whole screen, where the full-size
 // timer is: to x 0, up its 48px inset, and 1.25 (its 0.8 undone).
 function cardTransform(i) {
   if (props.zooming && i === props.focus) return 'translate(0px, -48px) scale(1.25)';
-  return 'translate(' + (firstCard.value + i * STEP) + 'px, ' + (i === props.focus ? -props.lift : 0) + 'px)';
+  return 'translate(' + (CARD_X - (i === props.focus ? props.lift : 0)) + 'px, ' + (firstCard.value + i * STEP) + 'px)';
 }
-// Lifted, the card fades back a little, and Remove comes up under it.
+// Slid aside, the card fades back a little, and Remove shows beside it.
 const liftShare = computed(() => Math.min(1, props.lift / LIFT_PX));
 const canRemove = computed(() => props.cards[props.focus] && props.cards[props.focus].kind !== 'last');
-// Paging between full-size timers (ClockScreen.vue; Figma 483:3135): two cards side by side,
-// GAP apart, the left one full size at t 0 and the right one at t 1. In between, both shrink to
-// card size (halfway) and grow back, centred top to bottom, as the gap moves across the screen.
+// Paging between full-size timers (ClockScreen.vue): two cards one over the other, GAP apart, the
+// top one full size at t 0 and the bottom one at t 1. In between, both shrink to card size
+// (halfway) and grow back, centred side to side, as the gap moves up the screen.
 // Full size, a card is square-cornered with no fill, like the full-size timer; it rounds and
 // fills in as it shrinks (--fill: the fill's share).
 const FULL = 1.25;
@@ -78,14 +79,15 @@ const paged = computed(() => {
   if (!pg) return null;
   const t = pg.dir > 0 ? pg.p : 1 - pg.p;
   const s = FULL - (FULL - 1) * Math.sin(Math.PI * t);
-  const w = CARD_W * s, ty = (480 - 384 * s) / 2 - 48, gap = 800 + GAP / 2 - t * (800 + GAP);
+  const h = 384 * s, tx = (800 - CARD_W * s) / 2, gap = 480 + GAP / 2 - t * (480 + GAP);
   const share = (FULL - s) / (FULL - 1);
-  const at = x => ({ transform: 'translate(' + x + 'px, ' + ty + 'px) scale(' + s + ')', borderRadius: 24 * share + 'px', '--fill': share });
-  const left = pg.dir > 0 ? pg.from : pg.to, right = pg.dir > 0 ? pg.to : pg.from;
+  // A card sits 48px down the deck (its rail's inset), so its y is taken from there.
+  const at = y => ({ transform: 'translate(' + tx + 'px, ' + (y - 48) + 'px) scale(' + s + ')', borderRadius: 24 * share + 'px', '--fill': share });
+  const top = pg.dir > 0 ? pg.from : pg.to, bottom = pg.dir > 0 ? pg.to : pg.from;
   const out = {};
-  if (left) out[left] = at(gap - GAP / 2 - w);
-  if (right) out[right] = at(gap + GAP / 2);
-  return out; // past the last card, `to` is null: only the one card, giving a little
+  if (top) out[top] = at(gap - GAP / 2 - h);
+  if (bottom) out[bottom] = at(gap + GAP / 2);
+  return out;
 });
 function cardStyle(i) {
   const b = born.value;
@@ -101,11 +103,11 @@ function cardStyle(i) {
 </script>
 <template>
   <div ref="root" class="td fill" :class="{ on, zooming, instant, dragging, lifting, paging: !!page }">
-    <div v-if="canRemove" class="td-remove flex-col items-center" :style="{ transform: 'translateX(' + (firstCard + focus * STEP) + 'px)', opacity: liftShare }" @click="$emit('remove')">
+    <div v-if="canRemove" class="td-remove flex-col items-center" :style="{ transform: 'translate(' + CARD_X + 'px, ' + (firstCard + focus * STEP) + 'px)', opacity: liftShare }" @click="$emit('remove')">
       <svg class="td-bin" aria-hidden="true"><use href="#i-trash" /></svg>
       <span class="font-medium semibold">Remove</span>
     </div>
-    <div class="td-set" :style="{ transform: 'translateX(' + column + 'px)' }">
+    <div class="td-set" :style="{ transform: 'translateY(' + presets + 'px)' }">
       <p class="font-small bold">Set a timer</p>
       <div class="td-presets">
         <div v-for="m in PRESETS" :key="m" class="td-preset" @click="startAt(m, $event)"><span class="td-minutes font-medium semibold tabular">{{ m }}</span><span class="td-unit bold muted">MIN</span></div>

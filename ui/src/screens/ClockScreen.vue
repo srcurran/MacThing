@@ -71,18 +71,18 @@ screen.back = () => {
   giveUpTimer = setTimeout(finishRefresh, REFRESH_GIVE_UP_MS);
 };
 // ---- The timer ----------------------------------------------------------------------------
-// Two views: the deck (TimerDeck.vue: the presets and every timer's card, one stripe) and one card
-// full size (the rail and the dial, like the other views). With no timer of yours going it opens
-// on the deck, resting on the presets; with one, on that timer. The deck's stripe follows a
-// dragging finger and, let go, rests on the presets or with a card centred: the nearest, or, let
-// go moving, the next one that way. A swipe on the full-size timer pages to the next one, full
-// size (see "Paging" below). Resting on a card that's counting for 5 seconds zooms it up to full size. Tapping a
+// Two views: the deck (TimerDeck.vue: the presets and every timer's card, one stack, top to bottom)
+// and one card full size (the rail and the dial, like the other views). With no timer of yours
+// going it opens on the deck, resting on the presets; with one, on that timer. The deck's stack
+// follows a finger dragging up or down and, let go, rests on the presets or with a card in the
+// middle: the nearest, or, let go moving, the next one that way. A swipe up or down on the
+// full-size timer pages to the next or previous one, full size (see "Paging" below). Resting on a card that's counting for 5 seconds zooms it up to full size. Tapping a
 // preset starts another timer and moves to its card; tapping a card zooms it up to full size.
 // Full size, a tap on the dial starts the last length used, and pauses or restarts a timer of
-// yours (as the knob does); a tap anywhere else on the screen goes back to the deck. Swiping a card up lifts it off a Remove (Apple Watch faces' way): let go
-// lifted far enough (or flicked) and it stays up, Remove showing; tap Remove to remove it, or swipe
-// it back down, tap it or press back to keep it. The last length used is always there: it lifts a
-// little and drops back. The knob press starts or pauses the timer you're on (twice:
+// yours (as the knob does); a tap anywhere else on the screen goes back to the deck. Swiping a card
+// left slides it off a Remove: let go far enough (or flicked) and it stays there, Remove showing;
+// tap Remove to remove it, or swipe it back, tap it or press back to keep it. The last length used
+// is always there: it gives a little and slides back. The knob press starts or pauses the timer you're on (twice:
 // puts it away); the back button resets a paused or finished one to its whole length, counting
 // down again, and the corner says so (tap it for the same).
 // Turning the knob sets the volume.
@@ -95,8 +95,8 @@ const atPresets = ref(true); // resting on the presets (the first card beside th
 const dragPosition = ref(null); // the stripe's position while a finger drags it
 let lastFocus = 0, settleTimer = null, zoomTimer = null, dragFrom = 0;
 const FLICK_PX_MS = 0.3;
-// Lifting the card in focus to remove it: how far it rests up (Remove showing), how far up it
-// must be let go to stay there, and how far the last length used gives before dropping back.
+// Sliding the card in focus aside to remove it: how far left it rests (Remove showing), how far
+// it must be let go to stay there, and how far the last length used gives before sliding back.
 const LIFT_PX = 160, LIFT_ARM_PX = 70, LAST_GIVE_PX = 24;
 const lift = ref(0), lifting = ref(false), removing = ref(false);
 let liftFrom = 0;
@@ -303,14 +303,16 @@ watch(() => mode.value === 'timer' && state.current === 'clock', up => {
   removeDoneTimers();
 });
 // ---- Paging between full-size timers (Figma 483:3135) --------------------------------------
-// Swiped sideways, the full-size timer gives way to the next card's, full size too: the two
-// cards' own copies take over (they look the same full size), and as the finger moves, the one
-// going shrinks to card size and slides off while the next comes in beside it and grows back to
-// full size (TimerDeck.vue draws it). Let go past halfway, or flicked, it carries on; otherwise
-// it goes back. At the end, the full-size timer takes over again with no fade. Swiping towards the
-// presets from the first card has nothing to page to: it goes back to the deck, on the presets.
-const PAGE_MS = 450, PAGE_SPAN = 800 + 32; // a whole page: the screen and the gap between cards
-const page = ref(null); // { from, to, dir, p }: card ids, +1 to the next (finger going left), 0–1
+// Swiped up, the full-size timer gives way to the next card's, full size too (down: the one
+// before): the full-size timers are a stack, top to bottom. The two cards' own copies take over
+// (they look the same full size), and as the finger moves, the one going shrinks to card size and
+// slides off while the next comes in under it and grows back to full size (TimerDeck.vue draws
+// it). Let go past halfway, or flicked, it carries on; otherwise it goes back. At the end, the
+// full-size timer takes over again with no fade. Above the first timer is "Set a timer": pulled
+// down far enough (or flicked), it goes back to the deck, on the presets. Past the last timer
+// there's nothing to page to: it gives a little and springs back.
+const PAGE_MS = 450, PAGE_SPAN = 480 + 32; // a whole page: the screen's height and the gap between cards
+const page = ref(null); // { from, to, dir, p }: card ids, +1 to the next (finger going up), 0–1
 let pageFrame = 0, pageDrag = false, pageSettling = false;
 function pageNeighbour(dir) {
   const j = focusIndex.value + dir;
@@ -338,7 +340,6 @@ function finishPage(done) {
   zoomTimer = setTimeout(endInstant, FRAME_MS);
 }
 const easeOut = x => 1 - Math.pow(1 - x, 3);
-const easeInOut = x => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
 // Carries the page on to the end (done) or back to the start, from wherever the finger left it.
 function settlePage(done, ease) {
   const pg = page.value;
@@ -354,73 +355,55 @@ function settlePage(done, ease) {
   };
   pageFrame = requestAnimationFrame(step);
 }
-/** One whole page on, as a swipe without a drag does (or nothing that way: back to the deck). */
-function pageBy(dir) {
-  const to = pageNeighbour(dir);
-  if (!to) return void unzoom(() => restOn(restPosition.value + dir));
-  startPage();
-  page.value = { from: focused.value.id, to, dir, p: 0 };
-  settlePage(true, easeInOut);
-}
-screen.swipe = direction => {
-  if (mode.value !== 'timer' || pageSettling) return false;
-  keepCard();
-  if (timerView.value === 'timer') return void pageBy(direction);
-  restOn(restPosition.value + direction);
-};
-// Full size, a sideways drag pages; the page follows the finger, either way.
-// Past the last card there's nothing to page to: the page starts to go, slower and slower, and
-// stops short (at most END_GIVE of a page), then springs back when let go.
+// Full size, an up or down drag pages; the page follows the finger, either way. Past either end
+// there's nothing to page to: the page starts to go, slower and slower, and stops short (at most
+// END_GIVE of a page), then springs back when let go.
 const END_GIVE = 0.12;
-function dragPage(dx) {
-  const dir = dx < 0 ? 1 : -1, to = pageNeighbour(dir);
-  if (!to && dir < 0) { // the presets' way, which dragPageEnd handles: no page (a rubber band started the other way goes)
-    if (page.value && !page.value.to) finishPage(false);
-    else if (page.value) page.value = { ...page.value, p: 0 };
-    return;
-  }
+function dragPage(dy) {
+  const dir = dy < 0 ? 1 : -1, to = pageNeighbour(dir), share = Math.abs(dy) / PAGE_SPAN;
   if (!page.value) startPage();
-  const share = Math.abs(dx) / PAGE_SPAN;
   page.value = { from: focused.value.id, to, dir, p: to ? Math.min(1, share) : END_GIVE * (1 - Math.exp(-share / END_GIVE)) };
 }
-function dragPageEnd(dx, vx) {
+const TO_PRESETS_PX = 50;
+function dragPageEnd(dy, vy) {
   pageDrag = false;
   const pg = page.value;
-  if (!pg) {
-    if (dx > 50 && !pageNeighbour(-1)) unzoom(() => restOn(0));
-    return;
+  if (!pg) return;
+  if (!pg.to && pg.dir < 0 && (vy > FLICK_PX_MS || dy > TO_PRESETS_PX)) {
+    cancelAnimationFrame(pageFrame);
+    page.value = null;
+    return void unzoom(() => restOn(0)); // the card shrinks back into the deck as it slides down
   }
   if (!pg.to) return settlePage(false);
-  const along = -vx * pg.dir; // px/ms the page's way
-  settlePage(Math.abs(vx) > FLICK_PX_MS ? along > 0 : pg.p > 0.5);
+  const along = -vy * pg.dir; // px/ms the page's way
+  settlePage(Math.abs(vy) > FLICK_PX_MS ? along > 0 : pg.p > 0.5);
 }
-// Dragging the deck: sideways, the stripe moves with the finger (a little past either end at
-// most); up and down, the card in focus lifts with it.
-// Up and down lifts a card only when the finger started on one (or on the bin under it); anywhere
-// else, it's left to core.js, which steps through the clock's views as on the other screens.
+// Dragging the deck: up and down, the stack moves with the finger (a little past either end at
+// most); sideways, the card in focus slides with it, only when the finger started on one (or on
+// the bin under it).
 screen.drag = (dx, dy, axis, target) => {
   if (mode.value !== 'timer' || pageSettling) return false;
   if (pageDrag || timerView.value === 'timer') {
-    if (axis !== 'x') return false;
+    if (axis !== 'y') return false;
     pageDrag = true;
-    return void dragPage(dx);
+    return void dragPage(dy);
   }
   if (timerView.value !== 'deck') return false;
-  if (axis === 'y') {
+  if (axis === 'x') {
     if (!lifting.value && !(target && target.closest && target.closest('.td-card, .td-remove'))) return false;
     if (!lifting.value) { lifting.value = true; liftFrom = lift.value; clearTimeout(settleTimer); }
-    const up = liftFrom - dy;
-    lift.value = focused.value.kind === 'last' ? Math.max(0, Math.min(LAST_GIVE_PX, up / 4)) : Math.max(0, Math.min(LIFT_PX + 24, up));
+    const aside = liftFrom - dx;
+    lift.value = focused.value.kind === 'last' ? Math.max(0, Math.min(LAST_GIVE_PX, aside / 4)) : Math.max(0, Math.min(LIFT_PX + 24, aside));
     return;
   }
   if (lift.value) keepCard();
   if (dragPosition.value == null) { dragFrom = restPosition.value; clearTimeout(settleTimer); }
-  dragPosition.value = Math.max(-0.2, Math.min(cards.value.length + 0.2, positionAt(firstCardAt(dragFrom) + dx)));
+  dragPosition.value = Math.max(-0.2, Math.min(cards.value.length + 0.2, positionAt(firstCardAt(dragFrom) + dy)));
 };
 screen.dragEnd = (dx, vx, axis, dy, vy) => {
-  if (pageDrag) return dragPageEnd(dx, vx);
-  if (axis === 'y') {
-    const arm = focused.value.kind !== 'last' && (Math.abs(vy) > FLICK_PX_MS ? vy < 0 : lift.value > LIFT_ARM_PX);
+  if (pageDrag) return dragPageEnd(dy, vy);
+  if (axis === 'x') {
+    const arm = focused.value.kind !== 'last' && (Math.abs(vx) > FLICK_PX_MS ? vx < 0 : lift.value > LIFT_ARM_PX);
     lifting.value = false;
     removing.value = arm;
     lift.value = arm ? LIFT_PX : 0;
@@ -429,7 +412,7 @@ screen.dragEnd = (dx, vx, axis, dy, vy) => {
   }
   const position = dragPosition.value == null ? restPosition.value : dragPosition.value;
   dragPosition.value = null;
-  restOn(Math.abs(vx) > FLICK_PX_MS ? (vx < 0 ? Math.ceil(position) : Math.floor(position)) : Math.round(position));
+  restOn(Math.abs(vy) > FLICK_PX_MS ? (vy < 0 ? Math.ceil(position) : Math.floor(position)) : Math.round(position));
 };
 let lastPress = 0;
 screen.press = () => {
