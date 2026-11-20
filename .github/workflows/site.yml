@@ -10,6 +10,7 @@ name: Redeploy site
 on:
   release:
     types: [published, edited, deleted]
+  workflow_dispatch:
 
 permissions: {}
 
