@@ -289,6 +289,8 @@ CT.showUsage = provider => {
 };
 // When idle: one of the clock's views — the face, the timer, or a usage (the face when Settings →
 // Usage doesn't show that one).
+screen.views = () => modes.value;
+screen.view = () => mode.value;
 screen.showView = view => {
   if (isUsage(view) && !providers.value.includes(view)) view = 'clock';
   mode.value = view;

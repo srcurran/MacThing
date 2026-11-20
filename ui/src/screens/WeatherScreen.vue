@@ -71,6 +71,8 @@ CT.showForecast = () => {
   view.value = "forecast";
   CT.show("weather");
 };
+screen.views = () => VIEWS;
+screen.view = () => view.value;
 // When idle: the forecast, today's hours or the week.
 screen.showView = (v) => {
   if (VIEWS.includes(v)) view.value = v;

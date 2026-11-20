@@ -21,7 +21,7 @@ import { MacAppearance } from './mac/appearance.js';
 import { MacHelper } from './mac/helper.js';
 import { MacPower } from './mac/power.js';
 import { Reminders, AWAY_MS } from './widgets/reminders.js';
-import { settings } from './settings.js';
+import { ALL_VIEWS, settings } from './settings.js';
 import { startSettingsPage } from './settings-page/server.js';
 import { Calendar } from './widgets/calendar.js';
 import { PerpetualCover } from './widgets/perpetual.js';
@@ -192,38 +192,50 @@ function pushAll(target) {
 // ---- Screen sleep ---------------------------------------------------------
 
 let systemAsleep = false;
-let lastDeviceInput = 0;
+let wakeUntil = 0; // a wake from the device (a Peek) keeps the screen on until then
 let manualSleep = false; // held down the sleep button; any input clears it
 let screenOn = null; // unknown until applied to the current device link
 
 let macIdleMs = 0; // kept up to date while the Sleep setting is a number of minutes
 
-// The Sleep setting. With Mac: the screen follows the Mac's display, and while the Mac is locked it
-// stays off for good (what's on it is the locked-away Mac's business). A number of minutes: off
-// once the Mac has gone that long without input, like a screen saver, or while it sleeps. Either
-// way a button/knob press wakes it for a while. Never: always on, unless the sleep button is held.
+// Sleep, Taps while off and When Mac is locked: three settings.
+// - Sleep: when the screen turns off. With Mac: while the Mac's display sleeps or it's locked. A number of
+//   minutes: once the Mac has gone that long without input, like a screen saver, or while it
+//   sleeps. Never: always on, unless the sleep button is held.
+// - Taps while off: Peek wakes it for config.peekMs on any input; Lock ignores taps (the device
+//   doesn't send them) and a button or knob wakes it for config.screenWakeMs.
+// - When Mac is locked: with no screens checked the screen stays off and nothing wakes it (what's
+//   on it is the locked-away Mac's business); otherwise it's left to Sleep (see lockedViews()).
 function screenShouldBeOn() {
   if (manualSleep) return false;
-  const mode = settings.get().screenSleep;
-  if (mode === 'never') return true;
-  if (mode === 'mac' && power.locked) return false;
+  const s = settings.get();
+  if (power.locked && !s.whenLocked.length) return false;
+  if (s.screenSleep === 'never') return true;
   if (systemAsleep) return false;
-  const idle = mode === 'mac' ? power.displayAsleep : macIdleMs >= mode * 60 * 1000;
-  return !idle || Date.now() - lastDeviceInput < config.screenWakeMs;
+  const idle = s.screenSleep === 'mac' ? power.displayAsleep || power.locked : macIdleMs >= s.screenSleep * 60 * 1000;
+  return !idle || Date.now() < wakeUntil;
 }
 
-// While Locked: the screen the device is held on while the Mac is locked, or null.
-function lockedScreen() {
-  const s = settings.get();
-  return power.locked && s.screenSleep !== 'mac' && s.whenLocked !== 'unlocked' ? s.whenLocked : null;
+// Input on the device: with the screen off, it starts a wake (a Peek), and while one is going,
+// keeps it going. Input with the screen on otherwise starts nothing: a Peek only begins once the
+// screen has gone off.
+function deviceInput() {
+  if (screenOn !== false && Date.now() >= wakeUntil) return;
+  wakeUntil = Date.now() + (settings.get().offTaps === 'peek' ? config.peekMs : config.screenWakeMs);
+}
+
+// When Mac is locked: the views the device is kept to while the Mac is locked, or null for all of them.
+function lockedViews() {
+  const { whenLocked } = settings.get();
+  return power.locked && whenLocked.length && whenLocked.length < ALL_VIEWS.length ? whenLocked : null;
 }
 let sentLock;
-/** Tells the device which screen it's held on; only on a change unless `target` is a fresh page. */
+/** Tells the device which views it's kept to; only on a change unless `target` is a fresh page. */
 function pushLock(target) {
-  const screen = lockedScreen();
-  if (!target && screen === sentLock) return;
-  sentLock = screen;
-  (target || link)?.send({ type: 'lock', screen });
+  const views = lockedViews();
+  if (!target && JSON.stringify(views) === sentLock) return;
+  sentLock = JSON.stringify(views);
+  (target || link)?.send({ type: 'lock', views });
 }
 
 async function applyScreen() {
@@ -518,7 +530,7 @@ function askForKeyAccess() {
 
 function onDeviceMessage(msg) {
   if (msg.type === 'command' || msg.type === 'volume' || msg.type === 'wake') {
-    lastDeviceInput = Date.now();
+    deviceInput();
     manualSleep = false;
     applyScreen();
   }
@@ -651,7 +663,7 @@ settings.on('change', (values, changed) => {
   link?.send({ type: 'settings', settings: values });
   if (changed.includes('knobVolume')) refreshKnobTarget();
   if (changed.includes('ignoredApps')) onNowPlaying(visible(source.snapshot)).catch((err) => log.warn('[now playing]', err.message));
-  if (changed.includes('screenSleep') || changed.includes('whenLocked')) refreshIdle();
+  if (['screenSleep', 'offTaps', 'whenLocked'].some((k) => changed.includes(k))) refreshIdle();
 });
 settings.on('change', (_, changed) => {
   if (!changed.includes('usageSource')) return;
@@ -668,9 +680,15 @@ reminders.on('due', (reminder) => {
   log.info(`[reminders] ${reminder.text}`);
   link?.send({ type: 'reminder', reminder });
 });
-power.on('display', () => applyScreen());
+// Locking the Mac, or its display going to sleep, ends a wake from the device (a Peek): the screen
+// goes off with the Mac even if it was tapped a moment ago.
+power.on('display', (asleep) => {
+  if (asleep) wakeUntil = 0;
+  applyScreen();
+});
 power.on('lock', (locked) => {
   log.info(`[screen] Mac ${locked ? 'locked' : 'unlocked'}`);
+  if (locked) wakeUntil = 0;
   applyScreen();
 });
 power.on('willSleep', async () => {

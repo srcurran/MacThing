@@ -115,10 +115,13 @@
   .row.off { opacity: .45; }
   @media (max-width: 520px) { .row { flex-wrap: wrap; } }
   #appList { margin-top: 4px; }
+  #lockList { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); column-gap: 24px; margin-top: 12px; }
+  #lockList .group-title { color: var(--muted); padding: 10px 0 2px; }
   #calList { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); column-gap: 24px; margin-top: 12px; }
   .cal { display: grid; grid-template-columns: 16px 10px minmax(0, 1fr); gap: 10px; align-items: start; min-width: 0; padding: 10px 0; }
   .cal > div { min-width: 0; overflow-wrap: anywhere; }
   .cal .dot { margin: 6px 0 0; }
+  #lockList .cal { grid-template-columns: 16px minmax(0, 1fr); }
   .cal + .cal { border-top: 0; }
   .cal input { margin: 4px 0 0; }
   .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; margin-left: -4px; }
@@ -172,10 +175,11 @@
       </section>
       <section>
         <h3 class="subhead">Sleep and lock</h3>
-        <div class="row"><div><label class="label" for="screenSleep">Sleep</label><div class="note">With Mac: when the Mac’s display sleeps or the Mac locks. Idle: no keyboard or mouse on the Mac</div></div>
+        <div class="row"><div><label class="label" for="screenSleep">Sleep</label><div class="note">When the screen turns off. With Mac: when the Mac’s display sleeps or the Mac locks. Idle: no keyboard or mouse on the Mac</div></div>
           <select id="screenSleep" data-key="screenSleep" data-type="number"><option value="mac">With Mac</option><option value="30">Mac idle 30 min</option><option value="60">Mac idle 1 hr</option><option value="120">Mac idle 2 hr</option><option value="240">Mac idle 4 hr</option><option value="never">Never</option></select></div>
-        <div class="row" id="whenLockedRow"><div><label class="label" for="whenLocked">When Mac is locked</label><div class="note" id="whenLockedNote"></div></div>
-          <select id="whenLocked" data-key="whenLocked"><option value="unlocked">Everything works</option><option value="nowplaying">Now Playing only</option><option value="weather">Weather only</option><option value="calendar">Calendar only</option><option value="clock">Clock only</option></select></div>
+        <div class="row" id="offTapsRow"><div><label class="label" for="offTaps">Taps while off</label><div class="note" id="offTapsNote"></div></div>
+          <select id="offTaps" data-key="offTaps"><option value="peek">Peek</option><option value="lock">Lock</option></select></div>
+        <div class="row stack"><div><span class="label">When Mac is locked</span><div class="note" id="whenLockedNote"></div></div><div id="lockList"></div></div>
       </section>
       <section>
         <h3 class="subhead">When nothing is playing</h3>
@@ -279,6 +283,13 @@
 <script>
   const $ = (s) => document.querySelector(s);
   let state = null;
+  // When Mac is locked: every view of the device's screens, in top-button order (LOCK_VIEWS in settings.js).
+  const LOCK_VIEWS = [
+    ['nowplaying', 'Track', 'Now Playing'],
+    ['schedule', 'Schedule', 'Calendar'], ['month', 'Month', 'Calendar'],
+    ['weather', 'Overview', 'Weather'], ['weather-today', 'Day', 'Weather'], ['weather-week', 'Week', 'Weather'],
+    ['clock', 'Clock face', 'Clock'], ['timer', 'Timers', 'Clock'], ['claude', 'Claude usage', 'Clock'], ['chatgpt', 'ChatGPT usage', 'Clock'],
+  ];
 
   async function load() {
     state = await (await fetch('/api/state')).json();
@@ -325,12 +336,41 @@
     if (idleOff) $('#idleScreen').value = 'none';
     $('#idleMinutes').disabled = idleOff;
     $('#idleAfterRow').classList.toggle('off', idleOff);
-    const sleepsWhenLocked = s.screenSleep === 'mac';
-    $('#whenLocked').disabled = sleepsWhenLocked;
-    $('#whenLockedRow').classList.toggle('off', sleepsWhenLocked);
-    $('#whenLockedNote').textContent = sleepsWhenLocked
-      ? 'Asleep: Sleep is set to With Mac'
-      : 'Only: that screen, plus volume and playback';
+    const neverOff = s.screenSleep === 'never';
+    $('#offTaps').disabled = neverOff;
+    $('#offTapsRow').classList.toggle('off', neverOff);
+    $('#offTapsNote').textContent = neverOff
+      ? 'Sleep is set to Never'
+      : s.offTaps === 'lock'
+        ? 'Lock: taps do nothing while it’s off. A button or the knob still wakes it'
+        : 'Peek: a tap (or a button) shows the screen for 3 minutes';
+    const checked = s.whenLocked.length;
+    $('#whenLockedNote').textContent =
+      !checked ? 'None checked: the screen stays off until you unlock, and nothing wakes it'
+      : checked === LOCK_VIEWS.length ? 'All checked: everything works, and the screen sleeps as set above'
+      : 'Only the checked views. A screen’s top button steps through them; the knob does volume and playback';
+    // A usage the clock doesn't show (Show usage) isn't offered, unless it's already checked.
+    const offered = LOCK_VIEWS.filter(([key]) => !(key === 'claude' || key === 'chatgpt') || usages.includes(key) || s.whenLocked.includes(key));
+    const groups = [...new Set(offered.map(([, , screen]) => screen))];
+    $('#lockList').replaceChildren(...groups.map((screen) => {
+      const group = document.createElement('div');
+      group.append(Object.assign(document.createElement('div'), { className: 'note group-title', textContent: screen }));
+      group.append(...offered.filter((v) => v[2] === screen).map(lockBox));
+      return group;
+    }));
+    function lockBox([key, title]) {
+      const box = Object.assign(document.createElement('input'), { type: 'checkbox', checked: s.whenLocked.includes(key) });
+      box.addEventListener('change', () => {
+        const on = offered.map(([k]) => k).filter((k) => (k === key ? box.checked : s.whenLocked.includes(k)));
+        // Everything offered checked is everything, a usage Show usage leaves out too.
+        const all = LOCK_VIEWS.map(([k]) => k);
+        save({ whenLocked: on.length === offered.length ? all : all.filter((k) => on.includes(k)) });
+      });
+      const label = document.createElement('label');
+      label.className = 'choice cal';
+      label.append(box, Object.assign(document.createElement('div'), { className: 'label', textContent: title }));
+      return label;
+    }
     const manual = s.location.mode === 'manual';
     document.querySelector(`input[name=loc][value=${manual ? 'manual' : 'auto'}]`).checked = true;
     $('#manualNote').textContent = manual ? `Using ${s.location.name}` : 'Search for a city';

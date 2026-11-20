@@ -115,6 +115,8 @@ screen.show = () => {
   nextTick(fitClock);
   fitEvents();
 };
+screen.views = () => ["agenda", "month"];
+screen.view = () => view.value;
 // When idle: the agenda or the month.
 screen.showView = (v) => {
   if (v === "agenda" || v === "month") view.value = v;

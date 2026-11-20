@@ -9,6 +9,15 @@ import { DAY_MINUTES, EVERY_MINUTES, MAX_REMINDERS, MAX_TEXT, MAX_TIMES } from '
 // persisted outside the repo. Developer-level options live in config.js instead.
 const FILE = path.join(os.homedir(), 'Library', 'Application Support', 'carthing-now-playing', 'settings.json');
 
+// The views When Mac is locked can allow, by screen in top-button order (the ids When idle uses).
+export const LOCK_VIEWS = {
+  nowplaying: ['nowplaying'],
+  calendar: ['schedule', 'month'],
+  weather: ['weather', 'weather-today', 'weather-week'],
+  clock: ['clock', 'timer', 'claude', 'chatgpt'],
+};
+export const ALL_VIEWS = Object.values(LOCK_VIEWS).flat();
+
 export const DEFAULTS = {
   theme: 'dark', // 'dark' | 'light' | 'auto' (follow the Mac's appearance)
   units: 'F', // weather temperature: 'F' | 'C'
@@ -33,13 +42,17 @@ export const DEFAULTS = {
   // Smart switching: the screen moves to Claude or ChatGPT usage when it speeds up or resets, and
   // to the weather before rain or snow, then back to Now Playing if it came from there (ui/src/smart.js)
   smartSwitch: false,
-  // When the screen turns off: 'mac' = while the Mac's display sleeps or the Mac is locked |
-  // minutes the Mac has been idle (no keyboard or mouse, like a screen saver) | 'never'
+  // When the screen turns off: 'mac' = while the Mac's display sleeps or it's locked | minutes the Mac has been
+  // idle (no keyboard or mouse, like a screen saver) | 'never'
   screenSleep: 'mac',
-  // While the Mac is locked (and screenSleep isn't 'mac', which turns the screen off):
-  // 'unlocked' = everything works | 'nowplaying' | 'weather' | 'calendar' | 'clock' = held on that
-  // screen, with only the knob's volume and media controls
-  whenLocked: 'unlocked',
+  // What a tap does while the screen is off: 'peek' = shows it for a few minutes (config.peekMs) |
+  // 'lock' = nothing (the buttons and knob still wake it, for config.screenWakeMs)
+  offTaps: 'peek',
+  // The views the device shows while the Mac is locked (LOCK_VIEWS' ids, in that order): none =
+  // the screen stays off and nothing wakes it | all = everything works | some = only those, which
+  // the top buttons step through, with only the knob's volume and media controls
+  whenLocked: [],
+  lockVersion: 2, // see migrate(): bumped when whenLocked became a list
   // Task reminders: [{ id, text, on, repeat: 'every' | 'times', every (minutes at the Mac),
   // times (minutes since midnight) }]. See widgets/reminders.js.
   reminders: [],
@@ -47,7 +60,7 @@ export const DEFAULTS = {
   activeHours: { days: [1, 2, 3, 4, 5], from: 9 * 60, to: 18 * 60 },
 };
 
-const VALID = {
+export const VALID = {
   theme: (v) => ['dark', 'light', 'auto'].includes(v),
   units: (v) => v === 'F' || v === 'C',
   clock24h: (v) => typeof v === 'boolean',
@@ -69,7 +82,9 @@ const VALID = {
   idleScreen: (v) => ['clock', 'timer', 'claude', 'chatgpt', 'weather', 'weather-today', 'weather-week', 'month', 'schedule'].includes(v),
   smartSwitch: (v) => typeof v === 'boolean',
   screenSleep: (v) => ['mac', 30, 60, 120, 240, 'never'].includes(v),
-  whenLocked: (v) => ['unlocked', 'nowplaying', 'weather', 'calendar', 'clock'].includes(v),
+  offTaps: (v) => v === 'peek' || v === 'lock',
+  whenLocked: (v) => Array.isArray(v) && ALL_VIEWS.filter((k) => v.includes(k)).join() === v.join(),
+  lockVersion: (v) => v === 2,
   reminders: (v) =>
     Array.isArray(v) &&
     v.length <= MAX_REMINDERS &&
@@ -98,6 +113,23 @@ const VALID = {
       v.to <= DAY_MINUTES),
 };
 
+/** Brings a settings file written by an older version up to date (in place). */
+export function migrate(raw) {
+  if (raw.sleepWithMac === false && raw.screenSleep === undefined) raw.screenSleep = 'never'; // the old on/off setting
+  if (raw.idleScreen === 'calendar') raw.idleScreen = 'schedule'; // the calendar screen opens on its agenda
+  // When Mac is locked was one choice: 'unlocked' (everything), or one screen (in whatever view it
+  // was on: every view of it now). And Sleep set to With Mac turned the screen off while the Mac
+  // was locked whatever it said: that's no views now.
+  if (raw.lockVersion !== 2) {
+    raw.whenLocked = (raw.screenSleep ?? 'mac') === 'mac' ? [] : (raw.whenLocked ?? 'unlocked');
+    raw.lockVersion = 2;
+  }
+  if (typeof raw.whenLocked === 'string') {
+    raw.whenLocked = raw.whenLocked === 'unlocked' ? ALL_VIEWS : (LOCK_VIEWS[raw.whenLocked] ?? []);
+  }
+  return raw;
+}
+
 class Settings extends EventEmitter {
   constructor() {
     super();
@@ -106,9 +138,7 @@ class Settings extends EventEmitter {
 
   #load() {
     try {
-      const raw = JSON.parse(fs.readFileSync(FILE, 'utf8'));
-      if (raw.sleepWithMac === false && raw.screenSleep === undefined) raw.screenSleep = 'never'; // the old on/off setting
-      if (raw.idleScreen === 'calendar') raw.idleScreen = 'schedule'; // the calendar screen opens on its agenda
+      const raw = migrate(JSON.parse(fs.readFileSync(FILE, 'utf8')));
       return Object.fromEntries(Object.entries(raw).filter(([k, v]) => VALID[k]?.(v)));
     } catch {
       return {};
