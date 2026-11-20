@@ -1042,6 +1042,28 @@ h3 {
   filter: drop-shadow(0 2px 6px var(--shadow));
 }
 
+/* The playing Music track is a favorite: a see-through white heart on a darker see-through
+   square, the badge's size and place. */
+.fav-badge {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  width: 48px;
+  height: 48px;
+  border-radius: 11px;
+  background: var(--black-a70);
+  color: var(--white-a70);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.fav-badge svg {
+  width: 26px;
+  height: 26px;
+}
+.fav-badge.on {
+  opacity: 1;
+}
+
 /* No cover: a note where the art goes (the stage's own shade keeps the square). Nothing playing:
    the perpetual calendar, after pketh's perpetual-calendar: the month, date and day on the rail,
    the time at its foot, and today's cover (drawn on the Mac) in the art's place, once it's here. */
