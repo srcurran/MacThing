@@ -1,0 +1,33 @@
+# Redeploys the marketing site (srcurran.com/macthing, github.com/srcurran/macthing-site) when a release
+# is published, edited or deleted, since the site reads its release notes from these releases when it
+# builds. Releases the Release workflow creates don't trigger this (GitHub doesn't start workflows from
+# GITHUB_TOKEN events), but writing their notes on GitHub afterwards does, and that's when they appear.
+#
+# Needs the repo secret SITE_DEPLOY_HOOK: the deploy hook URL from the macthing-site Vercel project
+# (Settings → Git → Deploy Hooks). Without it, this does nothing.
+name: Redeploy site
+
+on:
+  release:
+    types: [published, edited, deleted]
+
+permissions: {}
+
+concurrency:
+  group: redeploy-site
+  cancel-in-progress: true
+
+jobs:
+  redeploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call the site's deploy hook
+        env:
+          HOOK: ${{ secrets.SITE_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "SITE_DEPLOY_HOOK isn't set, so the site isn't redeployed."
+            exit 0
+          fi
+          curl -fsS -X POST "$HOOK" > /dev/null
+          echo "Asked Vercel to redeploy the site."
