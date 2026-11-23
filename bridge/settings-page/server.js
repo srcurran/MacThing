@@ -36,9 +36,14 @@ export function startSettingsPage({ port, settings, status, reminders, updater, 
         const q = (url.searchParams.get('q') || '').trim();
         return json(200, { places: q.length < 2 ? [] : await searchPlaces(q) });
       }
-      const isPost = req.method === 'POST' && ['/api/settings', '/api/reminders/test', '/api/update'].includes(url.pathname);
+      const isPost = req.method === 'POST' && ['/api/settings', '/api/reminders/test', '/api/update', '/api/update/check'].includes(url.pathname);
       if (isPost && (!origins.includes(req.headers.origin) || !req.headers['content-type']?.startsWith('application/json'))) {
         return json(403, { error: 'forbidden' });
+      }
+      if (isPost && url.pathname === '/api/update/check') {
+        if (!updater) return json(404, { error: 'not found' });
+        await updater.check();
+        return json(200, { update: updater.state });
       }
       if (isPost && url.pathname === '/api/update') {
         if (!updater) return json(404, { error: 'not found' });

@@ -117,7 +117,7 @@ CT.on('perpetual', msg => { state.perpetual = msg.perpetual; });
 CT.on('emoji', msg => { state.emoji = msg.emoji || {}; });
 CT.on('usage', msg => { state.usage = msg.usage; });
 CT.on('chatgptUsage', msg => { state.chatgptUsage = msg.usage; });
-CT.on('update', msg => { state.update = msg.update; });
+CT.on('update', msg => { state.update = msg.update; }); // shown by UpdateBadge.vue
 
 export function elapsed() {
   const np = state.np;

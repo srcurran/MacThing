@@ -376,13 +376,24 @@ try {
   await pause(100);
   assert.equal(await evaluate('window.fixtureSent.some(m => m.type === "setting" && m.key === "screenSleep" && m.value === 30)'), true, 'Settings → Sleep steps With Mac to Mac idle 30 min');
   await capture('settings');
-  // A newer release puts "Update available" at the top; pressing it opens the Mac page.
+  // A newer release puts "Update available" at the top; pressing it opens the Mac page. Opening
+  // Settings dismisses the "Upgrade available" chip; your own dismissal is put back afterwards.
+  const dismissed = await evaluate('localStorage.getItem("ct-update-dismissed")');
   await message({ type: 'update', update: { available: true, latest: '9.9.9' } });
   await evaluate("CT.screens.settings.turn(-10); CT.screens.settings.press()");
   assert.match(await evaluate('document.querySelector("#screen-settings .s-row").textContent'), /Update available\s*9\.9\.9/);
-  assert.equal(await evaluate('window.fixtureSent.some(m => m.type === "openSettingsPage")'), true, 'Update available opens the Mac page');
+  assert.equal(await evaluate('window.fixtureSent.some(m => m.type === "openSettingsPage" && m.section === "updates")'), true, 'Update available opens the Mac page at Updates');
   await capture('settings-update');
+  // Elsewhere it's the "Upgrade available" chip in the corner; a tap on it opens Settings.
+  await evaluate("CT.show('clock')");
+  await message({ type: 'update', update: { available: true, latest: '9.9.8' } });
+  assert.equal(await evaluate('document.querySelector(".update-badge").classList.contains("on")'), true, 'Upgrade available chip shows');
+  await capture('update-chip');
+  await evaluate('document.querySelector(".update-badge").dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true }))');
+  await pause(100);
+  assert.equal(await evaluate('CT.current'), 'settings', 'A tap on the chip opens Settings');
   await message({ type: 'update', update: { available: false, latest: null } });
+  await evaluate(dismissed === null ? 'localStorage.removeItem("ct-update-dismissed")' : `localStorage.setItem("ct-update-dismissed", ${JSON.stringify(dismissed)})`);
   await message({ type: 'settings', settings: { ...settings, theme: 'light' } });
   await evaluate("CT.show('clock')");
   await capture('clock-light');

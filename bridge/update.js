@@ -35,8 +35,9 @@ const git = (...args) => new Promise((resolve) => {
  * only when the bridge runs as the login agent: the bridge exits when the update is done, and
  * launchd starts the new version.
  *
- * state: { current, latest, available, url, canUpdate, reason, status, step, error }
+ * state: { current, latest, available, url, canUpdate, reason, status, step, error, checking, checkedAt, checkError }
  *   status: 'idle' | 'updating' | 'failed'
+ *   checkedAt: when GitHub last answered (ms); checkError: why the last check didn't get an answer
  *   reason: why canUpdate is false, in words for the settings page
  */
 export class Updater extends EventEmitter {
@@ -44,7 +45,7 @@ export class Updater extends EventEmitter {
     super();
     this.dev = dev;
     this.onUpdated = onUpdated;
-    this.state = { current: pkg.version, latest: null, available: false, url: null, canUpdate: false, reason: '', status: 'idle', step: '', error: '' };
+    this.state = { current: pkg.version, latest: null, available: false, url: null, canUpdate: false, reason: '', status: 'idle', step: '', error: '', checking: false, checkedAt: null, checkError: '' };
   }
 
   start() {
@@ -58,8 +59,10 @@ export class Updater extends EventEmitter {
     this.emit('change', this.state);
   }
 
+  /** Asks GitHub for the latest release. Also run by the settings page's Check for Updates. */
   async check() {
-    if (this.state.status === 'updating') return;
+    if (this.state.status === 'updating' || this.state.checking) return;
+    this.set({ checking: true });
     try {
       const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
         headers: { accept: 'application/vnd.github+json', 'user-agent': `MacThing/${pkg.version}` },
@@ -70,9 +73,11 @@ export class Updater extends EventEmitter {
       const latest = String(release.tag_name || '').replace(/^v/, '');
       const available = isNewer(latest, pkg.version);
       if (available && !this.state.available) log.info(`[update] MacThing ${latest} is available (this is ${pkg.version})`);
-      this.set({ latest, available, url: release.html_url || null, ...(available ? await this.installable() : { canUpdate: false, reason: '' }) });
+      this.set({ latest, available, url: release.html_url || null, checking: false, checkedAt: Date.now(), checkError: '',
+        ...(available ? await this.installable() : { canUpdate: false, reason: '' }) });
     } catch (err) {
       log.debug('[update] check failed:', err.message);
+      this.set({ checking: false, checkError: 'Couldn’t reach GitHub. Check your internet connection.' });
     }
   }
 

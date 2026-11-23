@@ -9,27 +9,27 @@ const baseRows = [
   { key: 'artBackground', label: 'Album art background', options: [[false, 'Off'], [true, 'On']] },
   { key: 'meetingAlert', label: 'Meeting alerts', options: [[0, 'Off'], ['event', 'Event’s alert'], [1, '1 min before'], [5, '5 min before'], [10, '10 min before']] },
   { key: 'screenSleep', label: 'Sleep', options: [['mac', 'With Mac'], [30, 'Mac idle 30 min'], [60, 'Mac idle 1 hr'], [120, 'Mac idle 2 hr'], [240, 'Mac idle 4 hr'], ['never', 'Never']] },
-  { spacer: true }, // an empty slot that sets "More settings on Mac" apart; the knob skips it
-  { label: 'More settings on Mac', page: '', value: () => '' }
+  // Pinned to the bottom: the space left over above it sets it apart (none once the list is full).
+  { label: 'More settings on Mac', page: '', value: () => '', bottom: true }
 ];
-// A newer release goes at the top, where it's seen first; pressing it opens the Mac page, which has
-// the Update now button.
+// A newer release goes at the top, where it's seen first; pressing it opens the Mac page's Updates
+// section, which has the Update now button. Its dot sits left of the row, outside its highlight, so
+// the label still lines up with the rest.
 const rows = computed(() => state.update.available
-  ? [{ label: 'Update available', page: '', value: () => state.update.latest }, ...baseRows]
+  ? [{ label: 'Update available', page: 'updates', value: () => state.update.latest, dot: true }, ...baseRows]
   : baseRows);
 const selected = ref(0);
 // Six rows fit the stage; past that the list scrolls to keep the selection in view.
 const VISIBLE = 6;
 const scrolled = computed(() => Math.max(0, selected.value - (VISIBLE - 1)));
+// With room to spare, the bottom row stands apart under a gap rather than a divider.
+const apart = computed(() => rows.value.length < VISIBLE);
 const index = row => Math.max(0, row.options.findIndex(option => option[0] === state.settings[row.key]));
 const value = row => row.value ? row.value(state.settings) : row.options[index(row)][1];
 const screen = CT.screen('settings');
 screen.show = () => { selected.value = 0; };
 screen.turn = steps => {
-  const list = rows.value;
-  let next = Math.max(0, Math.min(list.length - 1, selected.value + steps));
-  if (list[next].spacer) next = Math.max(0, Math.min(list.length - 1, next + Math.sign(steps)));
-  selected.value = next;
+  selected.value = Math.max(0, Math.min(rows.value.length - 1, selected.value + steps));
 };
 function openOnMac(section) {
   CT.send({ type: 'openSettingsPage', section });
@@ -52,7 +52,7 @@ screen.press = () => {
       <template #subtitle>Turn the knob to choose.<br />Press it to change.</template>
     </LeftRail>
     <ScreenStage class="bg-panel"><div class="s-list"><div class="s-rows" :style="{ transform: 'translateY(' + -scrolled * 64 + 'px)' }">
-      <template v-for="(row, i) in rows" :key="i"><div v-if="row.spacer" class="s-row s-spacer" /><SettingsRow v-else :label="row.label" :value="value(row)" :selected="selected === i" :link="row.page != null" /></template>
+      <SettingsRow v-for="(row, i) in rows" :key="row.label" :class="{ 's-bottom': row.bottom, 's-apart': row.bottom && apart, 's-dot': row.dot }" :label="row.label" :value="value(row)" :selected="selected === i" :link="row.page != null" />
     </div></div></ScreenStage>
   </section>
 </template>
