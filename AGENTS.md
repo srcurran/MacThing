@@ -32,9 +32,6 @@ While working on anything that touches `ui/`:
 
 - After each meaningful edit, call `ohsee_run` (about 25 s for all 11 screens). Fix every change
   the task didn't ask for, and look at suspicious ones with `ohsee_get_screenshot` (side `diff`).
-- **Also call `ohsee_get_report` and check `changePercentage` on every screen.** ohsee 0.1.10
-  sometimes sees pixels change without recording a matching DOM change, and `ohsee_run` then
-  reports the screen as unchanged. Any screen above 0% has changed: look at its diff image.
 - Record changes the task asked for with `ohsee_accept_changes`, with a reason a reviewer can
   check against the task. Never accept a change just to make a run come out clean.
 - A new screen or state that `ohsee/screens.js` doesn't reach isn't checked. Add it there (the
@@ -52,3 +49,9 @@ Before opening or updating a PR that changes how the UI looks:
 4. Then the device test above, once, with permission.
 
 A PR that changes nothing visible should come out `clean`; its evidence is a picture of each screen.
+
+CI runs the same check on every PR that touches the UI (`.github/workflows/visual.yml`): it fails
+on any change not in `ohsee.accepted.json`, and comments the summary on the PR, with intended
+changes marked as awaiting approval. So a PR whose visual changes were all accepted passes, and
+merging it is how the owner approves them. To reproduce a CI failure locally, run
+`npm run ohsee:serve` and then `npm run ohsee -- --fail-on-changes`.

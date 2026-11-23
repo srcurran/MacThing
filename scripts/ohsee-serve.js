@@ -18,6 +18,8 @@ import path from 'node:path';
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const args = process.argv.slice(2);
 const base = args.includes('--base') ? args[args.indexOf('--base') + 1] : 'origin/main';
+// CI builds once and serves; locally, dev rebuilds on every save.
+const watchDev = !args.includes('--no-watch');
 const PROD_PORT = 4861;
 const DEV_PORT = 4862;
 const baselineDir = path.join(root, '.ohsee', 'baseline');
@@ -71,10 +73,11 @@ function serve(dir, port, label) {
 buildBaseline();
 serve(baselineUi, PROD_PORT, 'prod');
 
-// The first dev build has to land before ohsee can load it; after that, watch keeps it current.
+// The first dev build has to land before ohsee can load it; after that, watch keeps it current
+// (npm run ohsee:serve -- --no-watch skips that, for CI).
 console.log('dev: building this checkout…');
 execFileSync(vite, ['build', '--logLevel', 'warn'], { cwd: root, stdio: 'inherit' });
 serve(devUi, DEV_PORT, 'dev');
-const watch = spawn(vite, ['build', '--watch', '--logLevel', 'warn'], { cwd: root, stdio: 'inherit' });
-process.on('SIGINT', () => { watch.kill(); process.exit(0); });
-process.on('SIGTERM', () => { watch.kill(); process.exit(0); });
+const watch = watchDev ? spawn(vite, ['build', '--watch', '--logLevel', 'warn'], { cwd: root, stdio: 'inherit' }) : null;
+process.on('SIGINT', () => { watch?.kill(); process.exit(0); });
+process.on('SIGTERM', () => { watch?.kill(); process.exit(0); });
