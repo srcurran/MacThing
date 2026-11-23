@@ -340,6 +340,8 @@ export function initializeRuntime(state) {
     if (CT.config.debug || CT.config.logEvents) CT.send({ type: 'log', message: text });
   };
 
+  // Also CT.runButton: a tap that should act as a button does (the update chip opens Settings).
+  CT.runButton = runButton;
   function runButton(action) {
     if (!action) return;
     if (CT.lockedTo && (action.indexOf('screen:') === 0 || action === 'settings')) return;
