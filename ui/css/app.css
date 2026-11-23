@@ -1748,6 +1748,10 @@ h3 {
      so the update row's dot can sit just left of the list. */
   clip-path: inset(0 0 0 -24px);
 }
+/* …and its stage lets it out on that side: the list clips itself top and bottom. */
+#screen-settings .screen-stage {
+  overflow: visible;
+}
 .s-rows {
   display: flex;
   flex-direction: column;

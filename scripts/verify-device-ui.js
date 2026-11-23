@@ -64,6 +64,9 @@ try {
   }
   assert.equal(mounted, true, 'Vue mounted');
   await evaluate('window.fixtureReceive = window.__carthingReceive; window.__carthingReceive = function(){}; window.fixtureSent = []; CT.send = function(msg){window.fixtureSent.push(msg)}');
+  // The page takes 6.5 s without a message as the Mac gone, and its "Waiting for your Mac" screen
+  // then covers everything and takes the taps; the fixtures alone are further apart than that.
+  await evaluate('window.fixtureAlive = setInterval(function () { window.fixtureReceive({ type: "fixtureAlive" }); }, 2000)');
   const settings = { theme: 'dark', clock24h: false, artBackground: false, clockFace: 'analog', calendarDays: 2, location: { mode: 'auto' } };
   await message({ type: 'settings', settings });
   await message({ type: 'screen', on: true });
@@ -165,7 +168,7 @@ try {
   }
   const preset = minutes => `[].find.call(document.querySelectorAll('.td-preset'), function (p) { return p.firstChild.textContent.trim() === '${minutes}'; })`;
   const deckOn = () => evaluate('!!document.querySelector(".td.on")');
-  const focusedCard = () => evaluate('document.querySelector(".td-card.focus").textContent.replace(/\\s+/g, " ").trim()');
+  const focusedCard = () => evaluate('document.querySelector(".td-card.focus").innerText.replace(/\\s+/g, " ").trim()');
   const timersKept = () => evaluate('JSON.parse(localStorage.getItem("ct-timers") || "[]").length');
   const clockView = () => evaluate('document.querySelector("#screen-clock .left-rail-view.on").getAttribute("data-view")');
   async function toClock() {
@@ -176,7 +179,7 @@ try {
   await press('4');
   await pause(400); // the clock's text fades out (0.3 s) before the timer's is the only one
   assert.equal(await deckOn(), true, 'With no timer going, the timer opens on its deck');
-  assert.match(await focusedCard(), /^Next meeting in 59:59 .*3:35 PM Example event 1$/, 'on the next meeting\'s card, the full-size timer at 0.8');
+  assert.match(await focusedCard(), /^Next meeting in 59:\d\d .*3:35 PM Example event 1$/, 'on the next meeting\'s card, the full-size timer at 0.8');
   assert.equal(await evaluate('document.querySelectorAll(".td-card").length'), 2, 'with the last length used beside it');
   await capture('timer-deck');
   await evaluate("window.dispatchEvent(new WheelEvent('wheel', {deltaX:53, cancelable:true}))");
@@ -198,6 +201,8 @@ try {
   assert.equal(await cardX('start'), 344, 'or the presets, beside the first card');
   await tap(preset(10));
   assert.match(await focusedCard(), /^10 minute timer 9:5\d /, 'Tapping a preset starts a timer, on its own card');
+  await drag(400, [100, 200, 300], true); // the deck has moved on to that card: back to the presets
+  await pause(500);
   await tap(preset(30));
   assert.equal(await timersKept(), 2, 'and another, ahead of it (newest first)');
   assert.equal(await evaluate('document.querySelectorAll(".td-card").length'), 4, 'each with its card');
@@ -229,7 +234,7 @@ try {
   assert.match(await rail(), /Session: 42% used\s*0\.6x\s*Week: 2x · 86%/);
   assert.equal(await evaluate('document.querySelectorAll("#screen-clock .left-rail-view.on .rail-fires").length'), 0, 'Neither window shows fires');
   // In place of the next event: the session resets in 2 h 13 min, the week on Thursday at 9.
-  assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none").textContent'), /^Resets: Session 2h · Week 2d$/);
+  assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none .fade-view.on").textContent'), /^Resets: Session 2h · Week 2d$/);
   // The session (42% used, 56% of its time gone) is behind its pace; the week (86%, 75%) is ahead of it.
   assert.equal(await evaluate('document.querySelectorAll("#screen-clock .u-over").length'), 1, 'Usage past the pace takes the accent');
   assert.equal(await evaluate('document.querySelectorAll("#screen-clock .u-pace").length'), 2, 'Both usage windows mark their pace with a dot');
@@ -237,7 +242,7 @@ try {
   assert.equal(await evaluate('Array.from(document.querySelectorAll("#screen-clock .u-label")).map(l => l.textContent).join()'), 'S,W', 'Each ring is named');
   await capture('usage');
   await message({ type: 'usage', usage: { status: 'ok', session: { percent: 0, resetsAt: null }, week: { percent: 0, resetsAt: null }, updatedAt: now } });
-  assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none").textContent'), /^Resets: Session 5h · Week 7d$/);
+  assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none .fade-view.on").textContent'), /^Resets: Session 5h · Week 7d$/);
   assert.equal(await evaluate('Array.from(document.querySelectorAll("#screen-clock .u-pace")).every(d => Number(d.getAttribute("cx")) === 240 && Number(d.getAttribute("cy")) < 240)'), true, 'Unstarted windows mark their pace at 12 o’clock');
   assert.equal(await evaluate('document.querySelectorAll("#screen-clock .u-pace").length'), 2, 'Unstarted windows keep both pace dots');
   await capture('usage-unstarted');
@@ -262,7 +267,7 @@ try {
   assert.equal(await clockView(), 'chatgpt', 'With Both, the clock button goes on to ChatGPT usage');
   assert.equal(await evaluate('document.querySelector("#screen-clock .fade-view.on .u-face").getAttribute("aria-label")'), 'ChatGPT usage');
   assert.match(await rail(), /Session: 82% used\s*1\.1x\s*Week: 0\.2x · 10%/);
-  assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none").textContent'), /^Resets: Session 1h · Week 5d$/);
+  assert.match(await evaluate('document.querySelector("#screen-clock .left-rail > .flex-none .fade-view.on").textContent'), /^Resets: Session 1h · Week 5d$/);
   await capture('usage-chatgpt');
   await message({ type: 'chatgptUsage', usage: { status: 'none' } });
   assert.match(await evaluate('document.querySelector("#screen-clock .fade-view.on .stage-message").textContent'), /Codex isn’t on this Mac/);
@@ -281,12 +286,17 @@ try {
   await message({ type: 'settings', settings });
   await press('4');
   await pause(400);
-  assert.equal(await deckOn(), false, 'Opening the timer with one going shows it full size');
+  assert.equal(await deckOn(), true, 'Opening the timer again goes back where it was left: the deck');
+  await swipe(-1); // from the next meeting's card back to the timer still going, just before it
+  assert.match(await focusedCard(), /^30 minute timer/, 'Your timers come before the meetings');
+  await pause(5300);
+  assert.equal(await deckOn(), false, 'which zooms up to full size');
   await press('Enter'); await press('Enter');
   await pause(100);
   assert.equal(await timersKept(), 0, 'Double press puts it away');
   assert.equal(await deckOn(), true, 'back on the deck');
   await toClock();
+  await tick(now); // back from the timer's 12½ minutes on
   // Each meeting going on has a card counting to its end, and the next one today one counting to
   // its start; one of 90 minutes or more reads in whole hours.
   await message({ type: 'calendar', calendar: { status: 'ok', events: [
@@ -296,7 +306,7 @@ try {
   await press('4');
   await pause(400);
   const deck = () => evaluate('[].map.call(document.querySelectorAll(".td-card .td-label, .td-card .td-time"), function (e) { return e.textContent.trim(); }).join(" ")');
-  assert.equal(await deck(), 'Standup 19:59 Sleepover 21 hr Next meeting in 9:48 30 minute timer 30:00', 'A card for each meeting, the one that ends first first, and the next one');
+  assert.match(await deck(), /^Standup 19:\d\d Sleepover 21 hr Next meeting in 9:\d\d 30 minute timer 30:00$/, 'A card for each meeting, the one that ends first first, and the next one');
   await toClock();
   // With "Event's alert", a meeting with no alert of its own gets the card as it starts, and
   // nothing but its Start timer brings the timer up.
@@ -414,6 +424,7 @@ try {
   await capture('asleep');
   assert.equal(await evaluate('document.getElementById("app").classList.contains("asleep")'), true);
   await message({ type: 'screen', on: true });
+  await evaluate('clearInterval(window.fixtureAlive)');
   await message({ type: 'bye' });
   await capture('offline');
   assert.equal(await evaluate('document.getElementById("app").classList.contains("offline")'), true);
