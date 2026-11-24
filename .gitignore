@@ -10,3 +10,8 @@ vendor/
 .idea/
 
 .visual-qa/
+
+# ohsee: the prod baseline build; evidence images are committed for PRs
+.ohsee/baseline/
+!.ohsee/evidence/*.png
+.ohsee/data/
