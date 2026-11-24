@@ -1,0 +1,104 @@
+# Compares every screen of the UI on a PR against the branch it merges into, with ohsee
+# (ohsee/screens.js, in headless Chromium with fixture data; no device involved).
+#
+# - Fails when something changed that isn't listed in ohsee.accepted.json. Changes an agent
+#   accepted as intended pass, and show up in the PR comment as "awaiting approval": merging the
+#   PR is how you approve them; removing an entry from ohsee.accepted.json rejects one.
+# - Posts the summary as a PR comment (updated in place on each push) and in the job summary.
+# - Uploads the full report (screenshots and diffs) as an artifact; open it locally with
+#   `npx ohsee-qa open --data-dir <unzipped folder>`.
+name: Visual check
+
+on:
+  pull_request:
+    paths:
+      - ui/**
+      - ohsee/**
+      - ohsee.config.json
+      - ohsee.accepted.json
+      - vite.config.js
+      - package.json
+      - package-lock.json
+      - scripts/ohsee-serve.js
+      - .github/workflows/visual.yml
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: visual-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  ohsee:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      OHSEE: ohsee-qa@^0.1.11
+      OHSEE_DATA_DIR: ${{ github.workspace }}/.ohsee/data
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the base branch's UI is built from git
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # ohsee pins Playwright 1.61.1; install that Chromium with the system libraries it needs.
+      - name: Install Chromium
+        run: npx -y playwright@1.61.1 install --with-deps chromium
+
+      - name: Serve the base branch's UI and this PR's
+        run: |
+          node scripts/ohsee-serve.js --base "origin/${{ github.base_ref }}" --no-watch > serve.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:4861/ > /dev/null && curl -sf http://127.0.0.1:4862/ > /dev/null; then exit 0; fi
+            sleep 2
+          done
+          cat serve.log
+          exit 1
+
+      - name: Compare screens
+        id: ohsee
+        run: npx -y "$OHSEE" run --fail-on-changes --no-open --data-dir "$OHSEE_DATA_DIR" --summary ohsee-summary.md
+
+      - name: Job summary
+        if: always()
+        run: |
+          if [ -f ohsee-summary.md ]; then cat ohsee-summary.md >> "$GITHUB_STEP_SUMMARY"; fi
+
+      - name: Comment on the PR
+        if: always() && hashFiles('ohsee-summary.md') != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          marker='<!-- ohsee-visual-check -->'
+          {
+            echo "$marker"
+            cat ohsee-summary.md
+            echo
+            echo "<sub>Screenshots and diffs: the \`ohsee-report\` artifact on [this run]($RUN_URL).</sub>"
+          } > comment.md
+          id=$(gh api "repos/${{ github.repository }}/issues/$PR/comments" --paginate \
+            --jq "[.[] | select(.body | startswith(\"$marker\"))][0].id // empty")
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/${{ github.repository }}/issues/comments/$id" -F body=@comment.md > /dev/null
+          else
+            gh api -X POST "repos/${{ github.repository }}/issues/$PR/comments" -F body=@comment.md > /dev/null
+          fi
+
+      - name: Upload the report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ohsee-report
+          path: .ohsee/data
+          retention-days: 14
+          if-no-files-found: ignore

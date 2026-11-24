@@ -1,0 +1,12 @@
+{
+  "$schema": "https://unpkg.com/ohsee-qa/schema/ohsee.config.schema.json",
+  "name": "macthing",
+  "prodUrl": "http://127.0.0.1:4861",
+  "devUrl": "http://127.0.0.1:4862",
+  "breakpoints": [800],
+  "tests": {
+    "screens": {
+      "scriptFile": "./ohsee/screens.js"
+    }
+  }
+}
