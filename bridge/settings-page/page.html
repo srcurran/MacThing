@@ -450,7 +450,7 @@
     const shown = (state.apps || []).filter((a) => !isIgnored(a)).sort(byName);
     const hidden = [...ignored].sort(byName);
     $('#appNote').textContent = shown.length || hidden.length
-      ? 'While an ignored app is the Mac’s Now Playing, the device shows nothing playing'
+      ? 'While an ignored app is the Mac’s Now Playing, the device keeps showing the last other track, paused'
       : 'Apps show up here once they’ve played something';
     const chip = (a, off) => {
       const b = Object.assign(document.createElement('button'), {
