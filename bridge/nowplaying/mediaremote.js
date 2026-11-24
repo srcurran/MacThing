@@ -136,7 +136,7 @@ export class MediaRemoteSource extends EventEmitter {
  * @returns {{
  *   active: boolean, playing: boolean, title: string, artist: string, album: string,
  *   duration: number|null, elapsed: number|null, elapsedAt: number, rate: number,
- *   bundleId: string|null, contentId: string|null, artwork: {key: string, mime: string, base64: string}|null
+ *   bundleId: string|null, pid: number|null, contentId: string|null, artwork: {key: string, mime: string, base64: string}|null
  * }} `elapsed` (seconds) was sampled at `elapsedAt` (epoch ms) and advances at `rate`.
  */
 export function normalize(raw) {
@@ -157,6 +157,7 @@ export function normalize(raw) {
     rate: playing ? (raw.playbackRate > 0 ? raw.playbackRate : 1) : 0,
     // Browsers report a helper process; the parent is the app the user recognizes.
     bundleId,
+    pid: typeof raw.processIdentifier === 'number' ? raw.processIdentifier : null,
     contentId: raw.contentItemIdentifier || raw.uniqueIdentifier || null,
     artwork: raw.artworkData && !isBrowserPlaceholder(bundleId, artworkKey)
       ? {

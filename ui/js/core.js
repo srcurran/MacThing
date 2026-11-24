@@ -135,9 +135,8 @@ export function initializeRuntime(state) {
   var beforeSettings = 'nowplaying';
 
   /** Registers a screen. Optional hooks: show(), hide(), turn(steps), press(), showView(view) to
-   * put it on one of its views before it's shown (When idle), and reselect(steps)
-   * for its own button pressed while it's already showing (steps 1), or a swipe up (1) or down (-1)
-   * through its views. turn and press can return false to
+   * put it on one of its views before it's shown (When idle), and reselect() for its own button
+   * pressed while it's already showing (the next of its views). turn and press can return false to
    * leave the input to the default (volume, and play/pause/next/previous). */
   CT.screen = function (name) {
     var def = { name: name };
@@ -249,7 +248,7 @@ export function initializeRuntime(state) {
     autoScreen = opening = false;
     Object.keys(saved.reselects || {}).forEach(function (name) {
       var screen = CT.screens[name];
-      if (screen && screen.reselect && saved.reselects[name]) screen.reselect(saved.reselects[name]);
+      if (screen && screen.reselect && !screen.liveViews && saved.reselects[name]) screen.reselect(saved.reselects[name]);
       if (screen && screen.reselect) reselects[name] = saved.reselects[name];
     });
     CT.show(saved.name);
@@ -514,32 +513,6 @@ export function initializeRuntime(state) {
     };
   };
 
-  // Swiping up or down steps through the screen's own views, the way its top button does pressed
-  // again (the clock: clock, timer, usage): up to the next, down back to the previous. Not over an
-  // alert card or while the Mac holds the screen; with the screen dark, a swipe only wakes it.
-  // Not when the screen's drag() took the touch (the timer deck lifts a card that way).
-  var pageSwipe = null, dragHeld = false;
-  window.addEventListener('pointerdown', function (e) {
-    pageSwipe = { id: e.pointerId, x: e.clientX, y: e.clientY };
-  }, true);
-  window.addEventListener('pointerup', function (e) {
-    var start = pageSwipe;
-    pageSwipe = null;
-    if (!start || e.pointerId !== start.id || dragHeld) return; // the screen's drag() has this touch
-    var dx = e.clientX - start.x, dy = e.clientY - start.y;
-    if (Math.abs(dy) < SWIPE_PX || Math.abs(dy) <= Math.abs(dx) * 1.5) return;
-    var screen = CT.screens[CT.current], steps = dy < 0 ? 1 : -1;
-    if (!screen || !screen.reselect || CT.lockedTo || (CT.modalOpen && CT.modalOpen())) return;
-    debugInput('swipe ' + (dy < 0 ? 'up' : 'down'));
-    emit('input', 'tap');
-    if (wakeInstead()) return;
-    autoScreen = false;
-    reselects[CT.current] = (reselects[CT.current] || 0) + steps;
-    saveDevScreen();
-    screen.reselect(steps);
-  }, true);
-  window.addEventListener('pointercancel', function () { pageSwipe = null; }, true);
-
   // A swipe is one finger moving mostly sideways, far enough. Left (to the next, as a page turns)
   // is swipe(1), right is swipe(-1). It acts once, as the finger lifts. A screen with drag()
   // follows the finger instead: once it's moved past a tap, the way it went most (axis 'x'
@@ -558,7 +531,6 @@ export function initializeRuntime(state) {
   window.addEventListener('touchstart', function (e) {
     var t = e.touches[0];
     touchStart = e.touches.length === 1 ? { x: t.clientX, y: t.clientY, target: e.target, axis: '', dragging: false, last: [] } : null;
-    dragHeld = false;
   }, { passive: true, capture: true });
   window.addEventListener('touchmove', function (e) {
     var start = touchStart, t = e.touches[0];
@@ -575,7 +547,6 @@ export function initializeRuntime(state) {
     if (!start.dragging) return;
     var s = touchScreen();
     if (!s || !s.drag || s.drag(dx, dy, start.axis, start.target) === false) start.dragging = false;
-    dragHeld = start.dragging;
   }, { passive: true, capture: true });
   window.addEventListener('touchend', function (e) {
     var start = touchStart, t = e.changedTouches[0];

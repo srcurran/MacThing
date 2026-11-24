@@ -1076,6 +1076,40 @@ h3 {
   filter: drop-shadow(0 2px 6px var(--shadow));
 }
 
+/* Paging between players (NowPlayingScreen.vue): still copies of each player's screen move over
+   it, which steps aside meanwhile. Around the shrunken pages, the panel (or the album art
+   background). The copies keep still (no transitions): the frames are drawn by hand. */
+#screen-nowplaying.paging > .left-rail,
+#screen-nowplaying.paging > .screen-stage {
+  visibility: hidden;
+}
+.np-pages {
+  z-index: 3;
+  overflow: hidden;
+  background: var(--panel);
+}
+.ambient-on .np-pages {
+  background: transparent;
+}
+.np-page {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 800px;
+  height: 480px;
+  overflow: hidden;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+.np-page-screen {
+  width: 800px;
+  height: 480px;
+}
+.np-page,
+.np-page * {
+  transition: none !important;
+}
+
 /* No cover: a note where the art goes (the stage's own shade keeps the square). Nothing playing:
    the perpetual calendar, after pketh's perpetual-calendar: the month, date and day on the rail,
    the time at its foot, and today's cover (drawn on the Mac) in the art's place, once it's here. */
@@ -1334,11 +1368,10 @@ h3 {
   fill: var(--timer-hand);
 }
 
-/* The timers' overview (TimerDeck.vue; Figma: time timer → "Timer deck · no timers" and
-   "Swiping"), over the whole clock screen on the screen's own background, laid out on the page's
-   own grid: one stripe of the presets' column (the rail's 320px, 48/24 insets) and the cards, each
-   the full-size timer itself at 0.8 (640 × 384) at the 48px inset. TimerDeck.vue places them along
-   it; they ease to where they rest, and follow a dragging finger exactly. Sitting on a card zooms
+/* The timers' overview (TimerDeck.vue), over the whole clock screen on the screen's own
+   background: one stack, top to bottom, of the presets' row and the cards, each the full-size
+   timer itself at 0.8 (640 × 384), centred side to side, resting at the 48px inset. TimerDeck.vue
+   places them down it; they ease to where they rest, and follow a dragging finger exactly. Sitting on a card zooms
    it into the timer (ClockScreen.vue): it grows to full size, where the full-size timer is, as the
    deck fades. */
 .td {
@@ -1369,23 +1402,18 @@ h3 {
 }
 .td-set {
   position: absolute;
-  left: var(--panel-inset-x);
+  left: 80px; /* the cards' left edge */
   top: var(--panel-inset-y);
-  bottom: var(--panel-inset-y);
-  width: 208px;
+  width: 640px;
   display: flex;
   flex-direction: column;
   will-change: transform;
   transition: transform 0.35s ease-out, opacity 0.3s ease-out;
 }
 .td-presets {
-  flex: 1;
   margin-top: 24px;
-  display: grid;
-  grid-template-columns: 96px 96px;
-  grid-template-rows: 96px 96px 96px;
-  grid-column-gap: 16px;
-  align-content: space-between;
+  display: flex;
+  justify-content: space-between;
 }
 .td-preset {
   width: 96px;
@@ -1426,17 +1454,17 @@ h3 {
 .td.lifting .td-card.focus {
   transition: none;
 }
-/* Under the card in focus, its Remove (Apple Watch faces' way): swiped up, the card lifts off it,
-   and a red bin and "Remove" show in the space it leaves (TimerDeck.vue sets how far). */
+/* Under the card in focus, its Remove: swiped left, the card slides off it, and a red bin and
+   "Remove" show in the space it leaves on the right (TimerDeck.vue sets how far, 160px). */
 .td-remove {
   position: absolute;
   left: 0;
   top: var(--panel-inset-y);
   width: 640px;
   height: 384px;
-  padding-bottom: 28px;
+  padding-left: 480px; /* the right 160px, which the card slides off */
   box-sizing: border-box;
-  justify-content: flex-end;
+  justify-content: center;
   will-change: transform, opacity;
   transition: transform 0.35s ease-out, opacity 0.35s ease-out;
 }

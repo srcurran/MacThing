@@ -45,13 +45,28 @@ function showArt(art) {
     shownTint.value = art.blurUrl && art.tint || null;
   });
 }
+// The covers the Mac has sent, by key: the shown player's, and with two or more apps with media,
+// the others' too, for paging between them (NowPlayingScreen.vue). The Mac counts on the last
+// ART_KEPT of them being here (ART_SENT_REMEMBERED in bridge/main.js is fewer). Both drop the
+// least recently used cover: the Mac counts a cover it names again as used without resending it,
+// so a cover named in a Now Playing update counts as used here too. Dropping by arrival instead
+// lost a long-playing album's cover to other players' covers, and the screen kept the last one.
+const ART_KEPT = 12;
+export const arts = reactive({});
+const artOrder = [];
+export const artFor = key => (key && arts[key]) || null;
+function touchArt(key) {
+  const i = key ? artOrder.indexOf(key) : -1;
+  if (i >= 0) artOrder.push(...artOrder.splice(i, 1));
+}
 watch(() => [state.np.artworkKey, state.artwork], () => {
   clearTimeout(artClear);
+  const art = artFor(state.np.artworkKey);
   if (!state.np.artworkKey) {
     artLoad++;
     artClear = setTimeout(() => { shownArt.value = ''; shownBlur.value = ''; shownTint.value = null; }, shownArt.value ? ART_GRACE_MS : 0);
-  } else if (state.artwork && state.artwork.key === state.np.artworkKey && state.artwork.dataUrl !== shownArt.value) {
-    showArt(state.artwork);
+  } else if (art && art.dataUrl !== shownArt.value) {
+    showArt(art);
   }
 });
 export const artworkUrl = computed(() => state.np.active ? shownArt.value : '');
@@ -102,6 +117,10 @@ const trackOf = np => np.active ? np.title + '\n' + np.artist + '\n' + np.album 
 // seek or a new song, and the Mac is right.
 const DRIFT_S = 1.5;
 CT.on('nowPlaying', msg => {
+  // In the order the Mac marks them used (pushNowPlaying): the other players', then the shown one's.
+  const list = (msg.np.players && msg.np.players.list) || [];
+  list.forEach(c => { if (c.pid !== msg.np.pid) touchArt(c.artworkKey); });
+  touchArt(msg.np.artworkKey);
   const before = state.np, showing = elapsed();
   state.np = msg.np;
   state.npAt = performance.now();
@@ -110,7 +129,13 @@ CT.on('nowPlaying', msg => {
     state.np.elapsed = showing;
   }
 });
-CT.on('artwork', msg => { state.artwork = msg; });
+CT.on('artwork', msg => {
+  if (arts[msg.key]) touchArt(msg.key);
+  else artOrder.push(msg.key);
+  arts[msg.key] = msg;
+  while (artOrder.length > ART_KEPT) delete arts[artOrder.shift()];
+  state.artwork = msg; // what changed, for the watch above
+});
 CT.on('weather', msg => { state.weather = msg.weather; });
 CT.on('calendar', msg => { state.calendar = msg.calendar; });
 CT.on('perpetual', msg => { state.perpetual = msg.perpetual; });
