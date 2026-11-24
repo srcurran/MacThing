@@ -22,6 +22,8 @@
     "dev": "DEBUG=1 node bridge/main.js --watch",
     "screenshot": "node scripts/screenshot.js",
     "mock-screens": "node scripts/mock-screens.js",
+    "ohsee:serve": "node scripts/ohsee-serve.js",
+    "ohsee": "npx -y ohsee-qa@^0.1.11 run --no-open",
     "setup-device": "./scripts/setup-device.sh",
     "restore-device": "./scripts/restore-device.sh",
     "preinstall-agent": "npm run build:ui",
