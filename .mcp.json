@@ -1,0 +1,5 @@
+{
+  "mcpServers": {
+    "ohsee": { "command": "npx", "args": ["-y", "ohsee-qa@^0.1.11", "mcp"] }
+  }
+}

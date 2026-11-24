@@ -713,6 +713,40 @@ h3 {
   }
 }
 
+/* A newer release: a chip in the top-right corner until a tap clears it (UpdateBadge.vue). */
+/* A square tab flush in the top-right corner, above the weather's hours and the calendar's
+   "Today", taking as little of the screen as it can. */
+.update-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 6px 14px;
+  background: var(--hud-bg); /* solid, like the volume pill: it sits over art and text */
+  color: var(--text);
+  font-size: 17px;
+  line-height: 22px;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+.update-badge.on {
+  opacity: 1;
+  pointer-events: auto; /* a tap on it opens Settings (UpdateBadge.vue) */
+}
+/* Its tap target: the chip is only 34px tall and pressed against the bezel, and on the device a
+   finger aimed at it lands as much as ~80px lower, so the zone reaches 100px down and past its
+   left end. While the chip shows, a tap there opens Settings rather than reaching the screen. */
+.update-badge::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: -66px;
+  left: -32px;
+}
+
 .toast {
   position: absolute;
   left: 560px;
@@ -1710,14 +1744,24 @@ h3 {
   right: 0;
   top: var(--panel-inset-y);
   bottom: var(--panel-inset-y);
-  overflow: hidden; /* SettingsScreen.vue scrolls .s-rows when there are more than six */
+  /* SettingsScreen.vue scrolls .s-rows when there are more than six. A clip, not overflow: hidden,
+     so the update row's dot can sit just left of the list. */
+  clip-path: inset(0 0 0 -24px);
+}
+/* …and its stage lets it out on that side: the list clips itself top and bottom. */
+#screen-settings .screen-stage {
+  overflow: visible;
 }
 .s-rows {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%; /* so the bottom row can sit at the bottom */
   transition: transform 0.2s ease;
 }
 .s-row {
   /* Square insets shared with Weather and Calendar: 24 left, 64 right (clear of the dial). */
   position: relative;
+  flex: none;
   height: 64px;
   padding: 0 var(--stage-safe-right) 0 var(--panel-inset-x); /* 6 rows × 64 fit the 48px insets */
   transition: background 0.15s ease;
@@ -1738,9 +1782,22 @@ h3 {
 .s-row.sel::before {
   display: none;
 }
-.s-spacer::before,
-.s-spacer + .s-row::before {
-  display: none; /* the empty slot reads as a gap, not a blank row */
+.s-bottom {
+  margin-top: auto; /* "More settings on Mac": whatever room is left goes above it */
+}
+.s-apart::before {
+  display: none; /* under a gap, a divider would float */
+}
+.s-dot::after {
+  content: "";
+  position: absolute;
+  left: -14px; /* just left of the row, outside its highlight */
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: var(--orange);
 }
 .s-row.sel .s-value {
   color: var(--text);

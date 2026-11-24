@@ -130,6 +130,18 @@
     padding: 8px 10px; border-radius: 8px; cursor: pointer; }
   li button:hover, li button:focus-visible { background: var(--seg); outline: none; }
   li .sub { color: var(--muted); }
+  /* The update banner above other sections: a quiet strip, like a row on a tinted ground. */
+  .update { display: flex; align-items: center; gap: 16px; margin: 0 0 28px; padding: 12px 16px;
+    border-radius: 10px; background: var(--seg); }
+  .update[hidden] { display: none; }
+  .update > div { flex: 1; min-width: 0; }
+  .update a, #updates a { color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .note.warn { color: var(--warn); }
+  .version { margin-top: 24px; color: var(--muted); font-size: 12px; }
+  .nav-dot { display: inline-block; width: 7px; height: 7px; margin-left: 8px; border-radius: 50%; background: var(--accent); vertical-align: 2px; }
+  .nav-dot[hidden] { display: none; }
+  @media (max-width: 520px) { .update, #updates .row { flex-wrap: wrap; } }
   .saved { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg);
     padding: 8px 14px; border-radius: 99px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; }
   .saved.on { opacity: 1; }
@@ -157,11 +169,17 @@
       <a href="#clock">Clock</a>
       <a href="#usage">AI usage</a>
       <a href="#reminders">Reminders</a>
+      <a href="#updates">Updates<span class="nav-dot" id="updatesDot" hidden></span></a>
     </nav>
+    <div class="version" id="version"></div>
   </aside>
   <div class="settings-content">
+    <div class="update" id="update" hidden role="status">
+      <div><div class="label" id="updateTitle"></div><div class="note" id="updateNote"></div></div>
+      <button type="button" class="btn primary" id="updateNow">Update Now</button>
+    </div>
     <h2 id="category-title">Appearance</h2>
-    <p class="lede">Changes apply to the device right away.</p>
+    <p class="lede" id="lede">Changes apply to the device right away.</p>
     <div class="settings-panel" id="appearance" role="region" aria-labelledby="category-title">
       <section>
         <h3 class="subhead">Display</h3>
@@ -252,6 +270,13 @@
       </section>
     </div>
 
+    <div class="settings-panel" id="updates" hidden role="region" aria-labelledby="category-title">
+      <section>
+        <div class="row"><div><div class="label" id="uTitle"></div><div class="note" id="uNote"></div></div>
+          <button type="button" class="btn" id="uButton"></button></div>
+      </section>
+    </div>
+
     <div class="settings-panel" id="reminders" hidden role="region" aria-labelledby="category-title">
       <section>
         <h3 class="subhead">Active hours</h3>
@@ -310,7 +335,74 @@
     document.documentElement.dataset.theme = theme === 'auto' ? (darkQuery.matches ? 'dark' : 'light') : theme;
   }
 
+  // Updates: one description of where things stand, shown as the Updates section's row and, when
+  // there's something to act on, as a banner above the other sections. The bridge restarts at the end
+  // of an update, so the version it was updating to is remembered here to say "Updated" once the new
+  // one answers.
+  const esc = (text) => String(text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  function describeUpdate(u) {
+    let target = null;
+    try { target = sessionStorage.getItem('ct-updating-to'); } catch (e) {}
+    const link = u.url ? ` · <a href="${esc(u.url)}" target="_blank" rel="noopener">What’s new</a>` : '';
+    const check = { text: u.checking ? 'Checking…' : 'Check for Updates', action: 'check', disabled: u.checking };
+    const install = (text) => ({ text, action: 'install', primary: true });
+    if (u.status === 'updating') {
+      return { act: true, title: `Updating to ${u.latest}…`, note: `${esc(u.step || 'Starting')}. MacThing restarts when it’s done.`,
+        button: { text: 'Updating…', primary: true, disabled: true } };
+    }
+    if (u.status === 'failed') {
+      return { act: true, title: 'The update didn’t finish', warn: true, note: `Still on ${esc(u.current)}. ${esc(u.error)}`,
+        button: u.canUpdate ? install('Try Again') : null };
+    }
+    if (target && u.current === target) return { act: true, title: `Updated to ${u.current}`, note: 'You’re on the latest version' + link, button: check };
+    if (u.available) {
+      return { act: true, title: `MacThing ${u.latest} is available`,
+        note: `You have ${esc(u.current)}${link}` + (u.canUpdate ? '' : `<br>${esc(u.reason)}`),
+        button: u.canUpdate ? install('Update Now') : check };
+    }
+    if (u.checkError) return { title: `MacThing ${u.current}`, warn: true, note: esc(u.checkError), button: check };
+    const when = u.checkedAt ? new Date(u.checkedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : null;
+    return { title: `MacThing ${u.current}`, button: check,
+      note: u.checking ? 'Checking for updates…' : when ? `Up to date · Checked at ${when}` : 'Checks for updates every 12 hours' };
+  }
+  function showButton(el, b) {
+    el.hidden = !b;
+    if (!b) return;
+    el.textContent = b.text;
+    el.disabled = !!b.disabled;
+    el.classList.toggle('primary', !!b.primary);
+    el.dataset.action = b.action || '';
+  }
+  function renderUpdate() {
+    const u = state.update;
+    $('#version').textContent = u ? `Version ${u.current}` : '';
+    $('#updatesDot').hidden = !(u && u.available);
+    const d = u ? describeUpdate(u) : { title: 'MacThing', note: 'Update checks aren’t available here.', button: null };
+    $('#uTitle').textContent = d.title;
+    $('#uNote').innerHTML = d.note;
+    $('#uNote').classList.toggle('warn', !!d.warn);
+    showButton($('#uButton'), d.button);
+    // The banner: on every other section while there's something to do.
+    const box = $('#update');
+    box.hidden = !d.act || !$('#updates').hidden;
+    if (box.hidden) return;
+    $('#updateTitle').textContent = d.title;
+    $('#updateNote').innerHTML = d.note;
+    $('#updateNote').classList.toggle('warn', !!d.warn);
+    showButton($('#updateNow'), d.button);
+  }
+  async function updateAction(action) {
+    if (action === 'install') { try { sessionStorage.setItem('ct-updating-to', state.update.latest); } catch (e) {} }
+    if (action === 'check') { state.update = { ...state.update, checking: true }; renderUpdate(); }
+    const res = await fetch(action === 'check' ? '/api/update/check' : '/api/update', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
+    state.update = (await res.json()).update;
+    renderUpdate();
+  }
+  $('#updateNow').addEventListener('click', (e) => updateAction(e.currentTarget.dataset.action));
+  $('#uButton').addEventListener('click', (e) => updateAction(e.currentTarget.dataset.action));
+
   function render() {
+    renderUpdate();
     const s = state.settings;
     applyTheme(s.theme);
     document.querySelectorAll('.seg').forEach((seg) => {
@@ -702,6 +794,8 @@
     const requested = MOVED[asked] || asked;
     const category = panels.some((panel) => panel.id === requested) ? requested : 'appearance';
     panels.forEach((panel) => { panel.hidden = panel.id !== category; });
+    $('#lede').textContent = category === 'updates' ? 'New versions come from MacThing’s GitHub releases.' : 'Changes apply to the device right away.';
+    if (state) renderUpdate();
     document.querySelectorAll('.settings-nav a').forEach((link) => {
       const selected = link.hash === '#' + category;
       if (selected) { link.setAttribute('aria-current', 'page'); $('#category-title').textContent = link.textContent; }
